@@ -1,0 +1,33 @@
+[submodule "boot/ghc-prim"]
+	path = boot/ghc-prim
+	url = https://github.com/ghc/packages-ghc-prim.git
+[submodule "boot/base"]
+	path = boot/base
+	url = https://github.com/ghc/packages-base.git
+[submodule "boot/integer-gmp"]
+	path = boot/integer-gmp
+	url = https://github.com/ghc/packages-integer-gmp.git
+[submodule "boot/array"]
+	path = boot/array
+	url = https://github.com/ghc/packages-array.git
+[submodule "boot/template-haskell"]
+	path = boot/template-haskell
+	url = https://github.com/ghc/packages-template-haskell.git
+[submodule "boot/deepseq"]
+	path = boot/deepseq
+	url = https://github.com/ghc/packages-deepseq.git
+[submodule "boot/pretty"]
+	path = boot/pretty
+	url = https://github.com/ghc/packages-pretty.git
+[submodule "boot/containers"]
+	path = boot/containers
+	url = https://github.com/ghc/packages-containers.git
+[submodule "ghcjs/ghcjs-prim"]
+	path = ghcjs/ghcjs-prim
+	url = https://github.com/ghcjs/ghcjs-prim.git
+[submodule "ghcjs/ghcjs-base"]
+	path = ghcjs/ghcjs-base
+	url = https://github.com/ghcjs/ghcjs-base.git
+[submodule "extra/cabal"]
+	path = extra/cabal
+	url = https://github.com/ghcjs/cabal.git
