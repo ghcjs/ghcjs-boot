@@ -1,3 +1,19 @@
+diff --git a/GHC/Integer/GMP/Internals.hs b/GHC/Integer/GMP/Internals.hs
+index 4ad1f62..1d44692 100644
+--- a/GHC/Integer/GMP/Internals.hs
++++ b/GHC/Integer/GMP/Internals.hs
+@@ -1,6 +1,10 @@
+-{-# LANGUAGE NoImplicitPrelude #-}
++{-# LANGUAGE NoImplicitPrelude, CPP #-}
+ 
++#ifdef __GHCJS__
++module GHC.Integer.GMP.Internals (Integer, gcdInt, gcdInteger, lcmInteger)
++#else
+ module GHC.Integer.GMP.Internals (Integer(..), gcdInt, gcdInteger, lcmInteger)
++#endif
+     where
+ 
+ import GHC.Integer.Type
 diff --git a/GHC/Integer/GMP/Prim.hs b/GHC/Integer/GMP/Prim.hs
 index 45d1348..7e86589 100644
 --- a/GHC/Integer/GMP/Prim.hs
@@ -87,7 +103,7 @@ index bf76aea..f32a8a4 100644
  
  
 diff --git a/integer-gmp.cabal b/integer-gmp.cabal
-index 2a76ef6..6b0bd24 100644
+index be9ce7e..cd06730 100644
 --- a/integer-gmp.cabal
 +++ b/integer-gmp.cabal
 @@ -15,6 +15,7 @@ extra-source-files:
