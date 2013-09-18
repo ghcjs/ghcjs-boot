@@ -7,7 +7,7 @@ index 4ad1f62..1d44692 100644
 +{-# LANGUAGE NoImplicitPrelude, CPP #-}
  
 +#ifdef __GHCJS__
-+module GHC.Integer.GMP.Internals (Integer, S#, gcdInt, gcdInteger, lcmInteger)
++module GHC.Integer.GMP.Internals (Integer(S#), gcdInt, gcdInteger, lcmInteger)
 +#else
  module GHC.Integer.GMP.Internals (Integer(..), gcdInt, gcdInteger, lcmInteger)
 +#endif
