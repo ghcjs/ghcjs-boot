@@ -1,0 +1,22 @@
+diff --git a/Data/Hashable/Class.hs b/Data/Hashable/Class.hs
+index 871a1c9..7648a97 100644
+--- a/Data/Hashable/Class.hs
++++ b/Data/Hashable/Class.hs
+@@ -83,7 +83,7 @@ import Foreign.C.Types (CInt)
+ import qualified Data.ByteString.Lazy.Internal as BL  -- foldlChunks
+ #endif
+ 
+-#ifdef VERSION_integer_gmp
++#ifdef VERSION_integer_gmp && !defined(__GHCJS__)
+ import GHC.Exts (Int(..))
+ import GHC.Integer.GMP.Internals (Integer(..))
+ #endif
+@@ -234,7 +234,7 @@ instance Hashable Char where
+     hashWithSalt = defaultHashWithSalt
+ 
+ instance Hashable Integer where
+-#if defined(VERSION_integer_gmp)
++#if defined(VERSION_integer_gmp) && !defined(__GHCJS__)
+     hash (S# int) = I# int
+     hash n@(J# size# byteArray)
+         | n >= minInt && n <= maxInt = fromInteger n :: Int

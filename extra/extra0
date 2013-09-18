@@ -1,0 +1,2 @@
+# these packages are installed before the fake Cabal package is removed
+# add patched dependencies of Cabal here

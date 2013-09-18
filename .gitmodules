@@ -31,3 +31,9 @@
 [submodule "extra/cabal"]
 	path = extra/cabal
 	url = https://github.com/ghcjs/cabal.git
+[submodule "extra/hashable"]
+	path = extra/hashable
+	url = https://github.com/tibbe/hashable.git
+[submodule "extra/text"]
+	path = extra/text
+	url = https://github.com/bos/text.git
