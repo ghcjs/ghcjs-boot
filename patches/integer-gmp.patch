@@ -1,5 +1,5 @@
 diff --git a/GHC/Integer/GMP/Internals.hs b/GHC/Integer/GMP/Internals.hs
-index 4ad1f62..1d44692 100644
+index b80840b..aeb94f3 100644
 --- a/GHC/Integer/GMP/Internals.hs
 +++ b/GHC/Integer/GMP/Internals.hs
 @@ -1,6 +1,10 @@
@@ -7,18 +7,18 @@ index 4ad1f62..1d44692 100644
 +{-# LANGUAGE NoImplicitPrelude, CPP #-}
  
 +#ifdef __GHCJS__
-+module GHC.Integer.GMP.Internals (Integer(S#), gcdInt, gcdInteger, lcmInteger)
++module GHC.Integer.GMP.Internals (Integer(S#), gcdInt, gcdInteger, gcdExtInteger, lcmInteger, powInteger, powModInteger, recipModInteger)
 +#else
- module GHC.Integer.GMP.Internals (Integer(..), gcdInt, gcdInteger, lcmInteger)
+ module GHC.Integer.GMP.Internals (Integer(..), gcdInt, gcdInteger, gcdExtInteger, lcmInteger, powInteger, powModInteger, recipModInteger)
 +#endif
      where
  
  import GHC.Integer.Type
 diff --git a/GHC/Integer/GMP/Prim.hs b/GHC/Integer/GMP/Prim.hs
-index 45d1348..7e86589 100644
+index de9477f..cbe2072 100644
 --- a/GHC/Integer/GMP/Prim.hs
 +++ b/GHC/Integer/GMP/Prim.hs
-@@ -197,6 +197,10 @@ foreign import ccall unsafe "hs_integerToWord64"
+@@ -222,6 +222,10 @@ foreign import ccall unsafe "hs_integerToWord64"
  #endif
  
  -- used to be primops:
@@ -27,10 +27,10 @@ index 45d1348..7e86589 100644
 +  :: Int# -> ByteArray# -> Int#
 +#else
  integer2Int# :: Int# -> ByteArray# -> Int#
- integer2Int# s d = if s ==# 0#
+ integer2Int# s d = if isTrue# (s ==# 0#)
                         then 0#
-@@ -204,6 +208,7 @@ integer2Int# s d = if s ==# 0#
-                             if s <# 0#
+@@ -229,6 +233,7 @@ integer2Int# s d = if isTrue# (s ==# 0#)
+                             if isTrue# (s <# 0#)
                                 then negateInt# v
                                 else v
 +#endif
@@ -38,7 +38,7 @@ index 45d1348..7e86589 100644
  integer2Word# :: Int# -> ByteArray# -> Word#
  integer2Word# s d = int2Word# (integer2Int# s d)
 diff --git a/GHC/Integer/Logarithms/Internals.hs b/GHC/Integer/Logarithms/Internals.hs
-index daa4ac9..b580915 100644
+index 59c800a..518fdba 100644
 --- a/GHC/Integer/Logarithms/Internals.hs
 +++ b/GHC/Integer/Logarithms/Internals.hs
 @@ -23,7 +23,7 @@ import GHC.Integer.Type
@@ -51,43 +51,45 @@ index daa4ac9..b580915 100644
  -- Less than ideal implementations for strange word sizes
  
 diff --git a/GHC/Integer/Type.lhs b/GHC/Integer/Type.lhs
-index bf76aea..f32a8a4 100644
+index 3d4994a..a9660f9 100644
 --- a/GHC/Integer/Type.lhs
 +++ b/GHC/Integer/Type.lhs
-@@ -267,9 +267,15 @@ gcdInteger a@(S# INT_MINBOUND) b = gcdInteger (toBig a) b
- gcdInteger a b@(S# INT_MINBOUND) = gcdInteger a (toBig b)
+@@ -264,10 +264,18 @@ gcdInteger a b@(S# INT_MINBOUND) = gcdInteger a (toBig b)
  gcdInteger (S# a) (S# b) = S# (gcdInt a b)
  gcdInteger ia@(S# a)  ib@(J# sb b)
-- =      if a  ==# 0# then absInteger ib
--   else if sb ==# 0# then absInteger ia
--   else                   S# (gcdIntegerInt# absSb b absA)
-+ = if a ==# 0#
-+   then absInteger ib
+  =      if isTrue# (a  ==# 0#) then absInteger ib
+-   else if isTrue# (sb ==# 0#) then absInteger ia
+-   else                             S# (gcdIntegerInt# absSb b absA)
 +#ifdef __GHCJS__
-+   else if cmpIntegerInt# sb b 0# ==# 0#
++   else if isTrue# (cmpIntegerInt# sb b 0# ==# 0#)
++          then absInteger ia
++          else S# (gcdIntegerInt# sb b a) -- foreign code deals with negative numbers
 +#else
-+   else if sb ==# 0#
-+#endif
++   else if isTrue# (sb ==# 0#)
 +          then absInteger ia
 +          else S# (gcdIntegerInt# absSb b absA)
-        where !absA  = if a  <# 0# then negateInt# a  else a
-              !absSb = if sb <# 0# then negateInt# sb else sb
+        where !absA  = if isTrue# (a  <# 0#) then negateInt# a  else a
+              !absSb = if isTrue# (sb <# 0#) then negateInt# sb else sb
++#endif
++
  gcdInteger ia@(J# _ _) ib@(S# _) = gcdInteger ib ia
-@@ -419,7 +425,13 @@ instance Ord Integer where
+ gcdInteger (J# sa a) (J# sb b)
+   = case gcdInteger# sa a sb b of (# sg, g #) -> J# sg g
+@@ -426,7 +434,13 @@ instance Ord Integer where
  absInteger :: Integer -> Integer
  absInteger (S# INT_MINBOUND) = NEG_INT_MINBOUND
- absInteger n@(S# i) = if i >=# 0# then n else S# (negateInt# i)
+ absInteger n@(S# i)   = if isTrue# (i >=# 0#) then n else S# (negateInt# i)
 +#ifdef __GHCJS__
-+absInteger n@(J# s d) = if cmpIntegerInt# s d 0# <# 0#
++absInteger n@(J# s d) = if isTrue# (cmpIntegerInt# s d 0# <# 0#)
 +                          then negateInteger n
 +                          else n
 +#else
- absInteger n@(J# s d) = if (s >=# 0#) then n else J# (negateInt# s) d
+ absInteger n@(J# s d) = if isTrue# (s >=# 0#) then n else J# (negateInt# s) d
 +#endif
  
  {-# NOINLINE signumInteger #-}
  signumInteger :: Integer -> Integer
-@@ -472,7 +484,14 @@ timesInteger (J# s1 d1) (J# s2 d2) = case timesInteger# s1 d1 s2 d2 of
+@@ -479,7 +493,14 @@ timesInteger (J# s1 d1) (J# s2 d2) = case timesInteger# s1 d1 s2 d2 of
  negateInteger :: Integer -> Integer
  negateInteger (S# INT_MINBOUND) = NEG_INT_MINBOUND
  negateInteger (S# i)            = S# (negateInt# i)
