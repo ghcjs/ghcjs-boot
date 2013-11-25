@@ -1,10 +1,10 @@
 diff --git a/GHC/Integer/GMP/Internals.hs b/GHC/Integer/GMP/Internals.hs
-index b80840b..aeb94f3 100644
+index b80840b..03d9d58 100644
 --- a/GHC/Integer/GMP/Internals.hs
 +++ b/GHC/Integer/GMP/Internals.hs
 @@ -1,6 +1,10 @@
 -{-# LANGUAGE NoImplicitPrelude #-}
-+{-# LANGUAGE NoImplicitPrelude, CPP #-}
++{-# LANGUAGE NoImplicitPrelude, CPP, MagicHash #-}
  
 +#ifdef __GHCJS__
 +module GHC.Integer.GMP.Internals (Integer(S#), gcdInt, gcdInteger, gcdExtInteger, lcmInteger, powInteger, powModInteger, recipModInteger)
@@ -15,10 +15,10 @@ index b80840b..aeb94f3 100644
  
  import GHC.Integer.Type
 diff --git a/GHC/Integer/GMP/Prim.hs b/GHC/Integer/GMP/Prim.hs
-index de9477f..cbe2072 100644
+index 401855b..9acfddf 100644
 --- a/GHC/Integer/GMP/Prim.hs
 +++ b/GHC/Integer/GMP/Prim.hs
-@@ -222,6 +222,10 @@ foreign import ccall unsafe "hs_integerToWord64"
+@@ -221,6 +221,10 @@ foreign import ccall unsafe "hs_integerToWord64"
  #endif
  
  -- used to be primops:
@@ -29,7 +29,7 @@ index de9477f..cbe2072 100644
  integer2Int# :: Int# -> ByteArray# -> Int#
  integer2Int# s d = if isTrue# (s ==# 0#)
                         then 0#
-@@ -229,6 +233,7 @@ integer2Int# s d = if isTrue# (s ==# 0#)
+@@ -228,6 +232,7 @@ integer2Int# s d = if isTrue# (s ==# 0#)
                              if isTrue# (s <# 0#)
                                 then negateInt# v
                                 else v
@@ -51,7 +51,7 @@ index 59c800a..518fdba 100644
  -- Less than ideal implementations for strange word sizes
  
 diff --git a/GHC/Integer/Type.lhs b/GHC/Integer/Type.lhs
-index 3d4994a..a9660f9 100644
+index 6e13eb5..bbc4564 100644
 --- a/GHC/Integer/Type.lhs
 +++ b/GHC/Integer/Type.lhs
 @@ -264,10 +264,18 @@ gcdInteger a b@(S# INT_MINBOUND) = gcdInteger a (toBig b)
@@ -104,23 +104,3 @@ index 3d4994a..a9660f9 100644
  \end{code}
  
  
-diff --git a/integer-gmp.cabal b/integer-gmp.cabal
-index be9ce7e..cd06730 100644
---- a/integer-gmp.cabal
-+++ b/integer-gmp.cabal
-@@ -15,6 +15,7 @@ extra-source-files:
-   cbits/float.c
-   cbits/alloc.c
-   cbits/longlong.c
-+  cbits/gmp-wrappers.cmm
- 
- source-repository head
-     type:     git
-@@ -31,6 +32,7 @@ Library {
-     extensions: CPP, MagicHash, UnboxedTuples, NoImplicitPrelude,
-                 ForeignFunctionInterface, UnliftedFFITypes
-     c-sources: cbits/cbits.c
-+               cbits/gmp-wrappers.cmm
-     -- We need to set the package name to integer-gmp
-     -- (without a version number) as it's magic.
-     ghc-options: -package-name integer-gmp
