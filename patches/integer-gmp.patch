@@ -1,10 +1,10 @@
 diff --git a/GHC/Integer/GMP/Internals.hs b/GHC/Integer/GMP/Internals.hs
-index b80840b..aeb94f3 100644
+index b80840b..b617cdc 100644
 --- a/GHC/Integer/GMP/Internals.hs
 +++ b/GHC/Integer/GMP/Internals.hs
 @@ -1,6 +1,10 @@
 -{-# LANGUAGE NoImplicitPrelude #-}
-+{-# LANGUAGE NoImplicitPrelude, CPP #-}
++{-# LANGUAGE NoImplicitPrelude, MagicHash, CPP #-}
  
 +#ifdef __GHCJS__
 +module GHC.Integer.GMP.Internals (Integer(S#), gcdInt, gcdInteger, gcdExtInteger, lcmInteger, powInteger, powModInteger, recipModInteger)
@@ -103,16 +103,4 @@ index 6e13eb5..bbc4564 100644
 +#endif
  \end{code}
  
- 
-diff --git a/integer-gmp.cabal b/integer-gmp.cabal
-index 9de49ab..cba5845 100644
---- a/integer-gmp.cabal
-+++ b/integer-gmp.cabal
-@@ -63,6 +63,7 @@ Library
-         GHC.Integer.Type
- 
-     c-sources: cbits/cbits.c
-+               cbits/gmp-wrappers.cmm
- 
-     build-depends: ghc-prim >= 0.3.1 && < 0.4
  
