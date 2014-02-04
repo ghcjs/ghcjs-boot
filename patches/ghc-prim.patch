@@ -1,8 +1,14 @@
 diff --git a/Setup.hs b/Setup.hs
-index 5e736ab..7f05437 100644
+index 5e736ab..c5bb333 100644
 --- a/Setup.hs
 +++ b/Setup.hs
-@@ -11,6 +11,9 @@ import Distribution.Simple
+@@ -6,11 +6,15 @@ module Main (main) where
+ import Control.Monad
+ import Data.List
+ import Data.Maybe
++import Distribution.ModuleName (components)
+ import Distribution.PackageDescription
+ import Distribution.Simple
  import Distribution.Simple.LocalBuildInfo
  import Distribution.Simple.Program
  import Distribution.Simple.Utils
@@ -12,13 +18,11 @@ index 5e736ab..7f05437 100644
  import Distribution.Text
  import System.Cmd
  import System.FilePath
-@@ -21,10 +24,13 @@ main :: IO ()
+@@ -21,10 +25,11 @@ main :: IO ()
  main = do let hooks = simpleUserHooks {
                    regHook = addPrimModule
                            $ regHook simpleUserHooks,
-+                  instHook = myInstHook, 
-+                  copyHook = addPrimModule
-+                           $ copyHook simpleUserHooks,
++                  instHook = myInstHook,
                    buildHook = build_primitive_sources
                              $ buildHook simpleUserHooks,
 -                  makefileHook = build_primitive_sources
@@ -28,7 +32,7 @@ index 5e736ab..7f05437 100644
                    haddockHook = addPrimModuleForHaddock
                                $ build_primitive_sources
                                $ haddockHook simpleUserHooks }
-@@ -60,21 +66,25 @@ addPrimModuleToPD pd =
+@@ -60,21 +65,25 @@ addPrimModuleToPD pd =
  
  build_primitive_sources :: Hook a -> Hook a
  build_primitive_sources f pd lbi uhs x
@@ -63,7 +67,7 @@ index 5e736ab..7f05437 100644
        f pd lbi uhs x
  
  -- Replace a file only if the new version is different from the old.
-@@ -88,3 +98,22 @@ maybeUpdateFile source target = do
+@@ -88,3 +97,22 @@ maybeUpdateFile source target = do
                          when exists $ removeFile target
                          renameFile source target
  
