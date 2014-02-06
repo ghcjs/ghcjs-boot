@@ -37,3 +37,6 @@
 [submodule "extra/text"]
 	path = extra/text
 	url = https://github.com/bos/text.git
+[submodule "boot/directory"]
+	path = boot/directory
+	url = http://git.haskell.org/packages/directory.git/
