@@ -104,3 +104,15 @@ index 6e13eb5..bbc4564 100644
  \end{code}
  
  
+diff --git a/integer-gmp.cabal b/integer-gmp.cabal
+index 9de49ab..cba5845 100644
+--- a/integer-gmp.cabal
++++ b/integer-gmp.cabal
+@@ -63,6 +63,7 @@ Library
+         GHC.Integer.Type
+ 
+     c-sources: cbits/cbits.c
++               cbits/gmp-wrappers.cmm
+ 
+     build-depends: ghc-prim >= 0.3.1 && < 0.4
+ 
