@@ -7,7 +7,7 @@ index 871a1c9..7648a97 100644
  #endif
  
 -#ifdef VERSION_integer_gmp
-+#ifdef VERSION_integer_gmp && !defined(__GHCJS__)
++#if defined(VERSION_integer_gmp) && !defined(__GHCJS__)
  import GHC.Exts (Int(..))
  import GHC.Integer.GMP.Internals (Integer(..))
  #endif
