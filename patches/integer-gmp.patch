@@ -6,7 +6,7 @@ index b80840b..b617cdc 100644
 -{-# LANGUAGE NoImplicitPrelude #-}
 +{-# LANGUAGE NoImplicitPrelude, MagicHash, CPP #-}
  
-+#ifdef __GHCJS__
++#ifdef ghcjs_HOST_OS 
 +module GHC.Integer.GMP.Internals (Integer(S#), gcdInt, gcdInteger, gcdExtInteger, lcmInteger, powInteger, powModInteger, recipModInteger)
 +#else
  module GHC.Integer.GMP.Internals (Integer(..), gcdInt, gcdInteger, gcdExtInteger, lcmInteger, powInteger, powModInteger, recipModInteger)
@@ -22,7 +22,7 @@ index 401855b..9acfddf 100644
  #endif
  
  -- used to be primops:
-+#ifdef __GHCJS__
++#ifdef ghcjs_HOST_OS 
 +foreign import prim "integer_cmm_integer2Intzh" integer2Int#
 +  :: Int# -> ByteArray# -> Int#
 +#else
@@ -46,7 +46,7 @@ index 59c800a..518fdba 100644
  -- When larger word sizes become common, add support for those,
  -- it is not hard, just tedious.
 -#if (WORD_SIZE_IN_BITS != 32) && (WORD_SIZE_IN_BITS != 64)
-+#if ((WORD_SIZE_IN_BITS != 32) && (WORD_SIZE_IN_BITS != 64)) || __GHCJS__
++#if ((WORD_SIZE_IN_BITS != 32) && (WORD_SIZE_IN_BITS != 64)) || ghcjs_HOST_OS 
  
  -- Less than ideal implementations for strange word sizes
  
@@ -60,7 +60,7 @@ index 6e13eb5..bbc4564 100644
   =      if isTrue# (a  ==# 0#) then absInteger ib
 -   else if isTrue# (sb ==# 0#) then absInteger ia
 -   else                             S# (gcdIntegerInt# absSb b absA)
-+#ifdef __GHCJS__
++#ifdef ghcjs_HOST_OS 
 +   else if isTrue# (cmpIntegerInt# sb b 0# ==# 0#)
 +          then absInteger ia
 +          else S# (gcdIntegerInt# sb b a) -- foreign code deals with negative numbers
@@ -79,7 +79,7 @@ index 6e13eb5..bbc4564 100644
  absInteger :: Integer -> Integer
  absInteger (S# INT_MINBOUND) = NEG_INT_MINBOUND
  absInteger n@(S# i)   = if isTrue# (i >=# 0#) then n else S# (negateInt# i)
-+#ifdef __GHCJS__
++#ifdef ghcjs_HOST_OS 
 +absInteger n@(J# s d) = if isTrue# (cmpIntegerInt# s d 0# <# 0#)
 +                          then negateInteger n
 +                          else n
@@ -93,7 +93,7 @@ index 6e13eb5..bbc4564 100644
  negateInteger :: Integer -> Integer
  negateInteger (S# INT_MINBOUND) = NEG_INT_MINBOUND
  negateInteger (S# i)            = S# (negateInt# i)
-+#ifdef __GHCJS__
++#ifdef ghcjs_HOST_OS 
 +negateInteger (J# s d)          = case int2Integer# 0# of
 +                                    (# zs, zd #) ->
 +                                      case minusInteger# zs zd s d of

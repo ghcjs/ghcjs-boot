@@ -44,7 +44,7 @@ index 5e736ab..c5bb333 100644
 -              primops = joinPath ["..", "..", "compiler", "prelude",
 -                                  "primops.txt"]
 +              runGenprimopcode options tmp out = do
-+                writeFile tmp "{-# LANGUAGE CPP #-}\n#ifdef __GHCJS__\n"
++                writeFile tmp "{-# LANGUAGE CPP #-}\n#ifdef ghcjs_HOST_OS\n"
 +                maybeExit $ system (genprimopcode ++ options ++ " < " ++ primops ++ " >> " ++ tmp)
 +                appendFile tmp "\n#else\n"
 +                maybeExit $ system (genprimopcode ++ options ++ " < " ++ primops_native ++ " >> " ++ tmp)
