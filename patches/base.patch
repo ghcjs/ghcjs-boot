@@ -1,0 +1,381 @@
+diff --git a/GHC/Conc.lhs b/GHC/Conc.lhs
+index 1ba17f2..2160b31 100644
+--- a/GHC/Conc.lhs
++++ b/GHC/Conc.lhs
+@@ -88,7 +88,7 @@ module GHC.Conc
+         , asyncWriteBA
+ #endif
+ 
+-#ifndef mingw32_HOST_OS
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+         , Signal, HandlerFun, setHandler, runHandlers
+ #endif
+ 
+@@ -109,7 +109,7 @@ module GHC.Conc
+ import GHC.Conc.IO
+ import GHC.Conc.Sync
+ 
+-#ifndef mingw32_HOST_OS
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+ import GHC.Conc.Signal
+ #endif
+ 
+diff --git a/GHC/Conc/IO.hs b/GHC/Conc/IO.hs
+index 3a57c93..994921f 100644
+--- a/GHC/Conc/IO.hs
++++ b/GHC/Conc/IO.hs
+@@ -59,24 +59,26 @@ import GHC.Conc.Sync as Sync
+ import GHC.Real ( fromIntegral )
+ import System.Posix.Types
+ 
+-#ifdef mingw32_HOST_OS
++#if defined(mingw32_HOST_OS)
+ import qualified GHC.Conc.Windows as Windows
+ import GHC.Conc.Windows (asyncRead, asyncWrite, asyncDoProc, asyncReadBA,
+                          asyncWriteBA, ConsoleEvent(..), win32ConsoleHandler,
+                          toWin32ConsoleEvent)
+-#else
++#elif !defined(ghcjs_HOST_OS)
+ import qualified GHC.Event.Thread as Event
+ #endif
+ 
+ ensureIOManagerIsRunning :: IO ()
+-#ifndef mingw32_HOST_OS
+-ensureIOManagerIsRunning = Event.ensureIOManagerIsRunning
+-#else
++#if defined(mingw32_HOST_OS)
+ ensureIOManagerIsRunning = Windows.ensureIOManagerIsRunning
++#elif defined(ghcjs_HOST_OS)
++ensureIOManagerIsRunning = return ()
++#else
++ensureIOManagerIsRunning = Event.ensureIOManagerIsRunning
+ #endif
+ 
+ ioManagerCapabilitiesChanged :: IO ()
+-#ifndef mingw32_HOST_OS
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+ ioManagerCapabilitiesChanged = Event.ioManagerCapabilitiesChanged
+ #else
+ ioManagerCapabilitiesChanged = return ()
+@@ -90,7 +92,7 @@ ioManagerCapabilitiesChanged = return ()
+ -- that has been used with 'threadWaitRead', use 'closeFdWith'.
+ threadWaitRead :: Fd -> IO ()
+ threadWaitRead fd
+-#ifndef mingw32_HOST_OS
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+   | threaded  = Event.threadWaitRead fd
+ #endif
+   | otherwise = IO $ \s ->
+@@ -106,7 +108,7 @@ threadWaitRead fd
+ -- that has been used with 'threadWaitWrite', use 'closeFdWith'.
+ threadWaitWrite :: Fd -> IO ()
+ threadWaitWrite fd
+-#ifndef mingw32_HOST_OS
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+   | threaded  = Event.threadWaitWrite fd
+ #endif
+   | otherwise = IO $ \s ->
+@@ -120,7 +122,7 @@ threadWaitWrite fd
+ -- in the file descriptor.
+ threadWaitReadSTM :: Fd -> IO (Sync.STM (), IO ())
+ threadWaitReadSTM fd 
+-#ifndef mingw32_HOST_OS
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+   | threaded  = Event.threadWaitReadSTM fd
+ #endif
+   | otherwise = do
+@@ -139,7 +141,7 @@ threadWaitReadSTM fd
+ -- in the file descriptor.
+ threadWaitWriteSTM :: Fd -> IO (Sync.STM (), IO ())
+ threadWaitWriteSTM fd 
+-#ifndef mingw32_HOST_OS
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+   | threaded  = Event.threadWaitWriteSTM fd
+ #endif
+   | otherwise = do
+@@ -164,7 +166,7 @@ closeFdWith :: (Fd -> IO ()) -- ^ Low-level action that performs the real close.
+             -> Fd            -- ^ File descriptor to close.
+             -> IO ()
+ closeFdWith close fd
+-#ifndef mingw32_HOST_OS
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+   | threaded  = Event.closeFdWith close fd
+ #endif
+   | otherwise = close fd
+@@ -178,9 +180,9 @@ closeFdWith close fd
+ --
+ threadDelay :: Int -> IO ()
+ threadDelay time
+-#ifdef mingw32_HOST_OS
++#if defined(mingw32_HOST_OS)
+   | threaded  = Windows.threadDelay time
+-#else
++#elif !defined(ghcjs_HOST_OS)
+   | threaded  = Event.threadDelay time
+ #endif
+   | otherwise = IO $ \s ->
+@@ -193,9 +195,9 @@ threadDelay time
+ --
+ registerDelay :: Int -> IO (TVar Bool)
+ registerDelay usecs
+-#ifdef mingw32_HOST_OS
++#if defined(mingw32_HOST_OS)
+   | threaded = Windows.registerDelay usecs
+-#else
++#elif !defined(ghcjs_HOST_OS)
+   | threaded = Event.registerDelay usecs
+ #endif
+   | otherwise = error "registerDelay: requires -threaded"
+diff --git a/GHC/Conc/Windows.hs b/GHC/Conc/Windows.hs
+index ad60a07..ab5ca57 100644
+--- a/GHC/Conc/Windows.hs
++++ b/GHC/Conc/Windows.hs
+@@ -19,6 +19,9 @@
+ 
+ -- #not-home
+ module GHC.Conc.Windows
++#ifdef ghcjs_HOST_OS
++       () where
++#else
+        ( ensureIOManagerIsRunning
+ 
+        -- * Waiting
+@@ -338,3 +341,4 @@ foreign import ccall unsafe "sendIOManagerEvent" -- in the RTS (ThrIOManager.c)
+ foreign import WINDOWS_CCONV "WaitForSingleObject"
+    c_WaitForSingleObject :: HANDLE -> DWORD -> IO DWORD
+ 
++#endif
+diff --git a/GHC/Event.hs b/GHC/Event.hs
+index b49645e..1ac7d78 100644
+--- a/GHC/Event.hs
++++ b/GHC/Event.hs
+@@ -1,4 +1,4 @@
+-{-# LANGUAGE Trustworthy #-}
++{-# LANGUAGE CPP, Trustworthy #-}
+ 
+ -- ----------------------------------------------------------------------------
+ -- | This module provides scalable event notification for file
+@@ -9,6 +9,9 @@
+ -- ----------------------------------------------------------------------------
+ 
+ module GHC.Event
++#ifdef ghcjs_HOST_OS
++    ( ) where
++#else
+     ( -- * Types
+       EventManager
+ 
+@@ -42,3 +45,4 @@ import GHC.Event.TimerManager (TimeoutCallback, TimeoutKey, registerTimeout,
+                                updateTimeout, unregisterTimeout)
+ import GHC.Event.Thread (getSystemEventManager, getSystemTimerManager)
+ 
++#endif
+diff --git a/GHC/Event/Manager.hs b/GHC/Event/Manager.hs
+index 14f7098..3233be9 100644
+--- a/GHC/Event/Manager.hs
++++ b/GHC/Event/Manager.hs
+@@ -8,6 +8,9 @@
+            , FlexibleInstances
+   #-}
+ module GHC.Event.Manager
++#ifdef ghcjs_HOST_OS
++    () where
++#else
+     ( -- * Types
+       EventManager
+ 
+@@ -479,3 +482,5 @@ onFdEvent mgr fd evs =
+ nullToNothing :: [a] -> Maybe [a]
+ nullToNothing []       = Nothing
+ nullToNothing xs@(_:_) = Just xs
++
++#endif
+\ No newline at end of file
+diff --git a/GHC/Event/Thread.hs b/GHC/Event/Thread.hs
+index c599047..3b17648 100644
+--- a/GHC/Event/Thread.hs
++++ b/GHC/Event/Thread.hs
+@@ -1,6 +1,9 @@
+ {-# LANGUAGE Trustworthy #-}
+-{-# LANGUAGE BangPatterns, NoImplicitPrelude #-}
++{-# LANGUAGE CPP, BangPatterns, NoImplicitPrelude #-}
+ module GHC.Event.Thread
++#ifdef ghcjs_HOST_OS
++    ( ) where
++#else
+     ( getSystemEventManager
+     , getSystemTimerManager
+     , ensureIOManagerIsRunning
+@@ -344,3 +347,5 @@ ioManagerCapabilitiesChanged = do
+               Just (_,mgr) <- readIOArray eventManagerArray i
+               tid <- restartPollLoop mgr i
+               writeIOArray eventManagerArray i (Just (tid,mgr))
++
++#endif
+diff --git a/GHC/Event/TimerManager.hs b/GHC/Event/TimerManager.hs
+index e52f1a0..09ceed5 100644
+--- a/GHC/Event/TimerManager.hs
++++ b/GHC/Event/TimerManager.hs
+@@ -8,6 +8,9 @@
+   #-}
+ 
+ module GHC.Event.TimerManager
++#ifdef ghcjs_HOST_OS
++    () where
++#else
+     ( -- * Types
+       TimerManager
+ 
+@@ -268,3 +271,4 @@ updateTimeout mgr (TK key) us = do
+ editTimeouts :: TimerManager -> TimeoutEdit -> IO ()
+ editTimeouts mgr g = atomicModifyIORef' (emTimeouts mgr) $ \tq -> (g tq, ())
+ 
++#endif
+diff --git a/GHC/IO/Encoding/CodePage/API.hs b/GHC/IO/Encoding/CodePage/API.hs
+index 570ea80..4a9b702 100644
+--- a/GHC/IO/Encoding/CodePage/API.hs
++++ b/GHC/IO/Encoding/CodePage/API.hs
+@@ -27,6 +27,7 @@ import GHC.ForeignPtr (castForeignPtr)
+ 
+ import System.Posix.Internals
+ 
++#ifndef ghcjs_HOST_OS
+ 
+ c_DEBUG_DUMP :: Bool
+ c_DEBUG_DUMP = False
+@@ -424,3 +425,8 @@ cpRecode try' is_valid_prefix max_i_size min_o_size iscale oscale = go
+             -- Must have interpreted all given bytes successfully
+             -- We need to iterate until we have consumed the complete contents of the buffer
+             Right wrote_elts -> go (bufferRemove n ibuf) (obuf { bufR = bufR obuf + wrote_elts })
++
++#else
++mkCodePageEncoding :: String
++mkCodePageEncoding = ""
++#endif
+diff --git a/GHC/TopHandler.lhs b/GHC/TopHandler.lhs
+index ee8e792..56dbe71 100644
+--- a/GHC/TopHandler.lhs
++++ b/GHC/TopHandler.lhs
+@@ -71,7 +71,9 @@ runMainIO main =
+       topHandler
+ 
+ install_interrupt_handler :: IO () -> IO ()
+-#ifdef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++install_interrupt_handler _ = return ()
++#elif defined(mingw32_HOST_OS)
+ install_interrupt_handler handler = do
+   _ <- GHC.ConsoleHandler.installHandler $
+      Catch $ \event -> 
+@@ -185,7 +187,7 @@ unreachable :: IO a
+ unreachable = fail "If you can read this, shutdownHaskellAndExit did not exit."
+ 
+ exitHelper :: CInt -> Int -> IO a
+-#ifdef mingw32_HOST_OS
++#if defined(mingw32_HOST_OS) || defined(ghcjs_HOST_OS)
+ exitHelper exitKind r =
+   shutdownHaskellAndExit (fromIntegral r) exitKind >> unreachable
+ #else
+@@ -206,8 +208,8 @@ foreign import ccall "shutdownHaskellAndSignal"
+ #endif
+ 
+ exitInterrupted :: IO a
+-exitInterrupted = 
+-#ifdef mingw32_HOST_OS
++exitInterrupted =
++#if defined(mingw32_HOST_OS) || defined(ghcjs_HOST_OS)
+   safeExit 252
+ #else
+   -- we must exit via the default action for SIGINT, so that the
+diff --git a/GHC/Windows.hs b/GHC/Windows.hs
+index 940ba58..b531a72 100644
+--- a/GHC/Windows.hs
++++ b/GHC/Windows.hs
+@@ -20,6 +20,10 @@
+ -----------------------------------------------------------------------------
+ 
+ module GHC.Windows (
++#ifdef ghcjs_HOST_OS
++                   ) where
++
++#else
+         -- * Types
+         BOOL,
+         LPBOOL,
+@@ -193,3 +197,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h LocalFree"
+ -- | Get the last system error produced in the current thread.
+ foreign import WINDOWS_CCONV unsafe "windows.h GetLastError"
+     getLastError :: IO ErrCode
++
++#endif
+diff --git a/System/CPUTime.hsc b/System/CPUTime.hsc
+index 85634b7..46309b2 100644
+--- a/System/CPUTime.hsc
++++ b/System/CPUTime.hsc
+@@ -24,6 +24,13 @@ module System.CPUTime
+          cpuTimePrecision  -- :: Integer
+         ) where
+ 
++##ifdef ghcjs_HOST_OS
++getCPUTime :: IO Integer
++getCPUTime = return 0
++
++cpuTimePrecision :: Integer
++cpuTimePrecision = 1
++##else
+ import Prelude
+ 
+ import Data.Ratio
+@@ -161,3 +168,4 @@ foreign import ccall unsafe clk_tck :: CLong
+ 
+ clockTicks :: Int
+ clockTicks = fromIntegral clk_tck
++##endif
+\ No newline at end of file
+diff --git a/System/Environment/ExecutablePath.hsc b/System/Environment/ExecutablePath.hsc
+index 22665f4..e294931 100644
+--- a/System/Environment/ExecutablePath.hsc
++++ b/System/Environment/ExecutablePath.hsc
+@@ -18,6 +18,13 @@
+ 
+ module System.Environment.ExecutablePath ( getExecutablePath ) where
+ 
++##if defined(ghcjs_HOST_OS)
++
++getExecutablePath :: IO FilePath
++getExecutablePath = return "a.jsexe"
++
++##else
++
+ -- The imports are purposely kept completely disjoint to prevent edits
+ -- to one OS implementation from breaking another.
+ 
+@@ -173,3 +180,5 @@ getExecutablePath =
+ --------------------------------------------------------------------------------
+ 
+ #endif
++
++##endif
+\ No newline at end of file
+diff --git a/System/Timeout.hs b/System/Timeout.hs
+index 59e6647..ba5edf5 100644
+--- a/System/Timeout.hs
++++ b/System/Timeout.hs
+@@ -18,7 +18,7 @@
+ 
+ module System.Timeout ( timeout ) where
+ 
+-#ifndef mingw32_HOST_OS
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+ import Control.Monad
+ import GHC.Event           (getSystemTimerManager,
+                             registerTimeout, unregisterTimeout)
+@@ -79,7 +79,7 @@ timeout :: Int -> IO a -> IO (Maybe a)
+ timeout n f
+     | n <  0    = fmap Just f
+     | n == 0    = return Nothing
+-#ifndef mingw32_HOST_OS
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+     | rtsSupportsBoundThreads = do
+         -- In the threaded RTS, we use the Timer Manager to delay the
+         -- (fairly expensive) 'forkIO' call until the timeout has expired.
