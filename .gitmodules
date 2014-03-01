@@ -40,3 +40,12 @@
 [submodule "boot/directory"]
 	path = boot/directory
 	url = http://git.haskell.org/packages/directory.git/
+[submodule "boot/unix"]
+	path = boot/unix
+	url = https://github.com/ghc/packages-unix.git
+[submodule "boot/Win32"]
+	path = boot/Win32
+	url = https://github.com/ghc/packages-Win32.git
+[submodule "boot/time"]
+	path = boot/time
+	url = https://github.com/ghc/packages-time.git

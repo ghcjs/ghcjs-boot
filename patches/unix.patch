@@ -1,0 +1,47 @@
+diff --git a/System/Posix/Process/Internals.hs b/System/Posix/Process/Internals.hs
+index bd3dd31..cad7cbf 100644
+--- a/System/Posix/Process/Internals.hs
++++ b/System/Posix/Process/Internals.hs
+@@ -11,7 +11,12 @@ import Foreign
+ import Foreign.C
+ import System.Exit
+ import System.IO.Error
++
++#ifdef ghcjs_HOST_OS
++type Signal = CInt
++#else
+ import GHC.Conc (Signal)
++#endif
+ 
+ -- | The exit status of a process
+ data ProcessStatus
+diff --git a/System/Posix/Signals.hsc b/System/Posix/Signals.hsc
+index d4c6d51..cabdda8 100644
+--- a/System/Posix/Signals.hsc
++++ b/System/Posix/Signals.hsc
+@@ -357,11 +357,13 @@ installHandler :: Signal
+                -> Maybe SignalSet       -- ^ other signals to block
+                -> IO Handler            -- ^ old handler
+ 
+-#ifdef __PARALLEL_HASKELL__
++##if defined(__PARALLEL_HASKELL__)
+ installHandler =
+   error "installHandler: not available for Parallel Haskell"
+-#else
+-
++##elif defined(ghcjs_HOST_OS)
++installHandler =
++  error "installHandler: not available for GHCJS"
++##else
+ installHandler sig handler _maybe_mask = do
+   ensureIOManagerIsRunning  -- for the threaded RTS
+ 
+@@ -449,7 +451,7 @@ unmarshalSigInfo fp = do
+         siginfoError  = Errno errno,
+         siginfoSpecific = extra }
+ 
+-#endif /* !__PARALLEL_HASKELL__ */
++##endif /* !__PARALLEL_HASKELL__ */
+ #endif /* __GLASGOW_HASKELL__ */
+ 
+ -- -----------------------------------------------------------------------------
