@@ -231,6 +231,24 @@ index e52f1a0..09ceed5 100644
  editTimeouts mgr g = atomicModifyIORef' (emTimeouts mgr) $ \tq -> (g tq, ())
  
 +#endif
+diff --git a/GHC/IO/Encoding.hs b/GHC/IO/Encoding.hs
+index eb4d74c..7cafa17 100644
+--- a/GHC/IO/Encoding.hs
++++ b/GHC/IO/Encoding.hs
+@@ -141,8 +141,11 @@ mkGlobal x = unsafePerformIO $ do
+ 
+ -- | /Since: 4.5.0.0/
+ initLocaleEncoding, initFileSystemEncoding, initForeignEncoding :: TextEncoding
+-
+-#if !defined(mingw32_HOST_OS)
++#if defined(ghcjs_HOST_OS)
++initLocaleEncoding     = utf8
++initFileSystemEncoding = utf8
++initForeignEncoding    = utf8
++#elif !defined(mingw32_HOST_OS)
+ -- It is rather important that we don't just call Iconv.mkIconvEncoding here
+ -- because some iconvs (in particular GNU iconv) will brokenly UTF-8 encode
+ -- lone surrogates without complaint.
 diff --git a/GHC/IO/Encoding/CodePage/API.hs b/GHC/IO/Encoding/CodePage/API.hs
 index 570ea80..4a9b702 100644
 --- a/GHC/IO/Encoding/CodePage/API.hs
