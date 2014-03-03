@@ -49,3 +49,6 @@
 [submodule "boot/time"]
 	path = boot/time
 	url = https://github.com/ghc/packages-time.git
+[submodule "boot/process"]
+	path = boot/process
+	url = https://github.com/ghc/packages-process.git

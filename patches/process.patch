@@ -1,0 +1,128 @@
+diff --git a/System/Process.hs b/System/Process.hs
+index 26dab2a..5eb9271 100644
+--- a/System/Process.hs
++++ b/System/Process.hs
+@@ -84,7 +84,7 @@ import System.Process.Internals
+ import Control.Exception (SomeException, mask, try, throwIO)
+ import Control.DeepSeq (rnf)
+ import System.IO.Error (mkIOError, ioeSetErrorString)
+-#if !defined(mingw32_HOST_OS)
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+ import System.Posix.Types
+ import System.Posix.Process (getProcessGroupIDOf)
+ #endif
+@@ -103,7 +103,7 @@ import GHC.IO.Exception ( ioException, IOErrorType(..), IOException(..) )
+ #if defined(mingw32_HOST_OS)
+ import System.Win32.Process (getProcessId)
+ import System.Win32.Console (generateConsoleCtrlEvent, cTRL_BREAK_EVENT)
+-#else
++#elif !defined(ghcjs_HOST_OS)
+ import System.Posix.Signals
+ #endif
+ #endif
+@@ -680,7 +680,8 @@ interruptProcessGroupOf ph = do
+         case p_ of
+             ClosedHandle _ -> return ()
+             OpenHandle h -> do
+-#if mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++#elif defined(mingw32_HOST_OS)
+                 pid <- getProcessId h
+                 generateConsoleCtrlEvent cTRL_BREAK_EVENT pid
+ -- We can't use an #elif here, because MIN_VERSION_unix isn't defined
+diff --git a/System/Process/Internals.hs b/System/Process/Internals.hs
+index c4f8797..7b29966 100644
+--- a/System/Process/Internals.hs
++++ b/System/Process/Internals.hs
+@@ -31,7 +31,7 @@ module System.Process.Internals (
+ #endif
+         startDelegateControlC,
+         endDelegateControlC,
+-#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
++#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__) && !defined(ghcjs_HOST_OS)
+         pPrPr_disableITimers, c_execvpe,
+         ignoreSignal, defaultSignal,
+ #endif
+@@ -40,7 +40,7 @@ module System.Process.Internals (
+         fdToHandle,
+   ) where
+ 
+-#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
++#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__) && !defined(ghcjs_HOST_OS)
+ import Control.Monad
+ import Data.Char
+ import System.Posix.Types
+@@ -68,10 +68,12 @@ import GHC.IO.Handle.Internals
+ import GHC.IO.Handle.Types hiding (ClosedHandle)
+ import System.IO.Error
+ import Data.Typeable
+-#if defined(mingw32_HOST_OS)
++#if defined(mingw32_HOST_OS) || defined(ghcjs_HOST_OS)
+ import GHC.IO.IOMode
++#endif
++#if defined(mingw32_HOST_OS)
+ import System.Win32.DebugApi (PHANDLE)
+-#else
++#elif !defined(ghcjs_HOST_OS)
+ import System.Posix.Signals as Sig
+ #endif
+ #endif
+@@ -120,7 +122,17 @@ withProcessHandle
+         -> IO a
+ withProcessHandle (ProcessHandle m _) io = withMVar m io
+ 
+-#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
++#if defined(ghcjs_HOST_OS)
++
++type PHANDLE = Int
++
++mkProcessHandle :: PHANDLE -> Bool -> IO ProcessHandle
++mkProcessHandle _ _ = error "mkProcessHandle: unsupported on GHCJS"
++
++closePHANDLE :: PHANDLE -> IO ()
++closePHANDLE _ = return ()
++
++#elif !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
+ 
+ type PHANDLE = CPid
+ 
+@@ -200,8 +212,16 @@ createProcess_
+   :: String                     -- ^ function name (for error messages)
+   -> CreateProcess
+   -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
++#if defined(ghcjs_HOST_OS)
++createProcess_ _ _ = error "createProcess_: unsupported on GHCJS"
+ 
+-#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
++startDelegateControlC :: IO ()
++startDelegateControlC = return ()
++
++endDelegateControlC :: ExitCode -> IO ()
++endDelegateControlC _ = return ()
++
++#elif !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
+ 
+ #ifdef __GLASGOW_HASKELL__
+ 
+@@ -619,7 +639,9 @@ use lpCommandLine alone, which CreateProcess supports.
+ -}
+ 
+ translate :: String -> String
+-#if mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++translate = id
++#elif defined(mingw32_HOST_OS)
+ translate xs = '"' : snd (foldr escape (True,"\"") xs)
+   where escape '"'  (_,     str) = (True,  '\\' : '"'  : str)
+         escape '\\' (True,  str) = (True,  '\\' : '\\' : str)
+@@ -676,7 +698,9 @@ runGenProcess_
+  -> Maybe CLong                -- ^ handler for SIGINT
+  -> Maybe CLong                -- ^ handler for SIGQUIT
+  -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
+-#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
++#if defined(ghcjs_HOST_OS)
++runGenProcess_ _ _ _ = error "runGenProcess_: not supported on GHCJS"
++#elif !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
+ runGenProcess_ fun c (Just sig) (Just sig') | sig == defaultSignal && sig == sig'
+                          = createProcess_ fun c { delegate_ctlc = True }
+ runGenProcess_ fun c _ _ = createProcess_ fun c

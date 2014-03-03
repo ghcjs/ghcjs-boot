@@ -1,0 +1,300 @@
+diff --git a/System/Directory.hs b/System/Directory.hs
+index ab035d8..b3d3bac 100644
+--- a/System/Directory.hs
++++ b/System/Directory.hs
+@@ -102,7 +102,9 @@ import Data.Time.Clock.POSIX
+ 
+ import GHC.IO.Exception ( IOErrorType(InappropriateType) )
+ 
+-#ifdef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++
++#elif defined(mingw32_HOST_OS)
+ import System.Posix.Types
+ import System.Posix.Internals
+ import qualified System.Win32 as Win32
+@@ -195,7 +197,13 @@ The operation may fail with:
+ 
+ getPermissions :: FilePath -> IO Permissions
+ getPermissions name = do
+-#ifdef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++  return (Permissions { readable   = False
++                      , writable   = False
++                      , executable = False
++                      , searchable = False
++                      })
++#elif defined(mingw32_HOST_OS)
+   withFilePath name $ \s -> do
+   -- stat() does a better job of guessing the permissions on Windows
+   -- than access() does.  e.g. for execute permission, it looks at the
+@@ -248,7 +256,9 @@ The operation may fail with:
+ 
+ setPermissions :: FilePath -> Permissions -> IO ()
+ setPermissions name (Permissions r w e s) = do
+-#ifdef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++  return ()
++#elif defined(mingw32_HOST_OS)
+   allocaBytes sizeof_stat $ \ p_stat -> do
+   withFilePath name $ \p_name -> do
+     throwErrnoIfMinus1_ "setPermissions" $
+@@ -284,7 +294,9 @@ foreign import ccall unsafe "_wchmod"
+ 
+ copyPermissions :: FilePath -> FilePath -> IO ()
+ copyPermissions source dest = do
+-#ifdef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++  return ()
++#elif defined(mingw32_HOST_OS)
+   allocaBytes sizeof_stat $ \ p_stat -> do
+   withFilePath source $ \p_source -> do
+   withFilePath dest $ \p_dest -> do
+@@ -339,7 +351,9 @@ The path refers to an existing non-directory object.
+ 
+ createDirectory :: FilePath -> IO ()
+ createDirectory path = do
+-#ifdef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++  return ()
++#elif defined(mingw32_HOST_OS)
+   Win32.createDirectory path Nothing
+ #else
+   Posix.createDirectory path 0o777
+@@ -394,7 +408,9 @@ createDirectoryIfMissing create_parents path0
+           -- directory.
+           | isAlreadyExistsError e
+          || isPermissionError e -> (do
+-#ifdef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++              return ()
++#elif defined(mingw32_HOST_OS)
+               withFileStatus "createDirectoryIfMissing" dir $ \st -> do
+                  isDir <- isDirectory st
+                  if isDir then return ()
+@@ -452,7 +468,9 @@ The operand refers to an existing non-directory object.
+ 
+ removeDirectory :: FilePath -> IO ()
+ removeDirectory path =
+-#ifdef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++  return ()
++#elif defined(mingw32_HOST_OS)
+   Win32.removeDirectory path
+ #else
+   Posix.removeDirectory path
+@@ -515,7 +533,9 @@ The operand refers to an existing directory.
+ 
+ removeFile :: FilePath -> IO ()
+ removeFile path =
+-#if mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++  return ()
++#elif defined(mingw32_HOST_OS)
+   Win32.deleteFile path
+ #else
+   Posix.removeLink path
+@@ -572,8 +592,11 @@ Either path refers to an existing non-directory object.
+ 
+ renameDirectory :: FilePath -> FilePath -> IO ()
+ renameDirectory opath npath = do
++#if defined(ghcjs_HOST_OS)
++   return ()
++#else
+    -- XXX this test isn't performed atomically with the following rename
+-#ifdef mingw32_HOST_OS
++#if defined(mingw32_HOST_OS)
+    -- ToDo: use Win32 API
+    withFileStatus "renameDirectory" opath $ \st -> do
+    is_dir <- isDirectory st
+@@ -586,11 +609,12 @@ renameDirectory opath npath = do
+                           (mkIOError InappropriateType "renameDirectory" Nothing (Just opath))
+                           "not a directory")
+         else do
+-#ifdef mingw32_HOST_OS
++#if defined(mingw32_HOST_OS)
+    Win32.moveFileEx opath npath Win32.mOVEFILE_REPLACE_EXISTING
+ #else
+    Posix.rename opath npath
+ #endif
++#endif
+ 
+ {- |@'renameFile' old new@ changes the name of an existing file system
+ object from /old/ to /new/.  If the /new/ object already
+@@ -638,8 +662,11 @@ Either path refers to an existing directory.
+ 
+ renameFile :: FilePath -> FilePath -> IO ()
+ renameFile opath npath = do
++#if defined(ghcjs_HOST_OS)
++   return ()
++#else
+    -- XXX this test isn't performed atomically with the following rename
+-#ifdef mingw32_HOST_OS
++#if defined(mingw32_HOST_OS)
+    -- ToDo: use Win32 API
+    withFileOrSymlinkStatus "renameFile" opath $ \st -> do
+    is_dir <- isDirectory st
+@@ -652,11 +679,14 @@ renameFile opath npath = do
+                           (mkIOError InappropriateType "renameFile" Nothing (Just opath))
+                           "is a directory")
+         else do
+-#ifdef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++   return ()
++#elif defined(mingw32_HOST_OS)
+    Win32.moveFileEx opath npath Win32.mOVEFILE_REPLACE_EXISTING
+ #else
+    Posix.rename opath npath
+ #endif
++#endif
+ 
+ #endif /* __GLASGOW_HASKELL__ */
+ 
+@@ -706,6 +736,9 @@ copyFile fromFPath toFPath =
+ -- do, and on some an exception will be thrown.
+ canonicalizePath :: FilePath -> IO FilePath
+ canonicalizePath fpath =
++#if defined(ghcjs_HOST_OS)
++  return fpath
++#else
+ #if defined(mingw32_HOST_OS)
+          do path <- Win32.getFullPathName fpath
+ #else
+@@ -725,6 +758,7 @@ foreign import ccall unsafe "realpath"
+                               -> CString
+                               -> IO CString
+ #endif
++#endif
+ 
+ -- | 'makeRelative' the current directory.
+ makeRelativeToCurrentDirectory :: FilePath -> IO FilePath
+@@ -759,7 +793,9 @@ findExecutable fileName = do
+ -- occurences that are executable.
+ findExecutables :: String -> IO [FilePath]
+ findExecutables binary = do
+-#if defined(mingw32_HOST_OS)
++#if defined(ghcjs_HOST_OS)
++    return []
++#elif defined(mingw32_HOST_OS)
+     file <- Win32.searchPath Nothing binary ('.':exeExtension)
+     return $ maybeToList file
+ #else
+@@ -832,7 +868,9 @@ getDirectoryContents :: FilePath -> IO [FilePath]
+ getDirectoryContents path =
+   modifyIOError ((`ioeSetFileName` path) .
+                  (`ioeSetLocation` "getDirectoryContents")) $ do
+-#ifndef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++    return []
++#elif !defined(mingw32_HOST_OS)
+     bracket
+       (Posix.openDirStream path)
+       Posix.closeDirStream
+@@ -897,7 +935,9 @@ recommended to use absolute rather than relative `FilePath`s.
+ #ifdef __GLASGOW_HASKELL__
+ getCurrentDirectory :: IO FilePath
+ getCurrentDirectory = do
+-#ifdef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++  return "/"
++#elif defined(mingw32_HOST_OS)
+   Win32.getCurrentDirectory
+ #else
+   Posix.getWorkingDirectory
+@@ -942,7 +982,9 @@ recommended to use absolute rather than relative `FilePath`s.
+ 
+ setCurrentDirectory :: FilePath -> IO ()
+ setCurrentDirectory path =
+-#ifdef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++  return ()
++#elif defined(mingw32_HOST_OS)
+   Win32.setCurrentDirectory path
+ #else
+   Posix.changeWorkingDirectory path
+@@ -958,7 +1000,9 @@ and 'False' otherwise.
+ 
+ doesDirectoryExist :: FilePath -> IO Bool
+ doesDirectoryExist name =
+-#ifdef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++   return False
++#elif defined(mingw32_HOST_OS)
+    (withFileStatus "doesDirectoryExist" name $ \st -> isDirectory st)
+ #else
+    (do stat <- Posix.getFileStatus name
+@@ -972,7 +1016,9 @@ if the argument file exists and is not a directory, and 'False' otherwise.
+ 
+ doesFileExist :: FilePath -> IO Bool
+ doesFileExist name =
+-#ifdef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++   return False
++#elif defined(mingw32_HOST_OS)
+    (withFileStatus "doesFileExist" name $ \st -> do b <- isDirectory st; return (not b))
+ #else
+    (do stat <- Posix.getFileStatus name
+@@ -998,7 +1044,9 @@ call.
+ 
+ getModificationTime :: FilePath -> IO UTCTime
+ getModificationTime name = do
+-#ifdef mingw32_HOST_OS
++#if defined(ghcjs_HOST_OS)
++  return $ posixSecondsToUTCTime 0
++#elif defined(mingw32_HOST_OS)
+  -- ToDo: use Win32 API so we can get sub-second resolution
+  withFileStatus "getModificationTime" name $ \ st -> do
+  modificationTime st
+@@ -1052,7 +1100,7 @@ foreign import ccall unsafe "HsDirectory.h __hscore_S_IXUSR" s_IXUSR :: CMode
+ foreign import ccall unsafe "__hscore_S_IFDIR" s_IFDIR :: CMode
+ #endif
+ 
+-#ifndef mingw32_HOST_OS
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+ #ifdef __GLASGOW_HASKELL__
+ foreign import ccall unsafe "__hscore_long_path_size"
+   long_path_size :: Int
+@@ -1086,7 +1134,9 @@ cannot be found.
+ getHomeDirectory :: IO FilePath
+ getHomeDirectory =
+   modifyIOError ((`ioeSetLocation` "getHomeDirectory")) $ do
+-#if defined(mingw32_HOST_OS)
++#if defined(ghcjs_HOST_OS)
++    return "/"
++#elif defined(mingw32_HOST_OS)
+     r <- E.try $ Win32.sHGetFolderPath nullPtr Win32.cSIDL_PROFILE nullPtr 0
+     case (r :: Either IOException String) of
+       Right s -> return s
+@@ -1129,7 +1179,9 @@ cannot be found.
+ getAppUserDataDirectory :: String -> IO FilePath
+ getAppUserDataDirectory appName = do
+   modifyIOError ((`ioeSetLocation` "getAppUserDataDirectory")) $ do
+-#if defined(mingw32_HOST_OS)
++#if defined(ghcjs_HOST_OS)
++    return "/"
++#elif defined(mingw32_HOST_OS)
+     s <- Win32.sHGetFolderPath nullPtr Win32.cSIDL_APPDATA nullPtr 0
+     return (s++'\\':appName)
+ #else
+@@ -1161,7 +1213,9 @@ cannot be found.
+ getUserDocumentsDirectory :: IO FilePath
+ getUserDocumentsDirectory = do
+   modifyIOError ((`ioeSetLocation` "getUserDocumentsDirectory")) $ do
+-#if defined(mingw32_HOST_OS)
++#if defined(ghcjs_HOST_OS)
++    return "/"
++#elif defined(mingw32_HOST_OS)
+     Win32.sHGetFolderPath nullPtr Win32.cSIDL_PERSONAL nullPtr 0
+ #else
+     getEnv "HOME"
+@@ -1195,7 +1249,9 @@ The function doesn\'t verify whether the path exists.
+ -}
+ getTemporaryDirectory :: IO FilePath
+ getTemporaryDirectory = do
+-#if defined(mingw32_HOST_OS)
++#if defined(ghcjs_HOST_OS)
++  return "/"
++#elif defined(mingw32_HOST_OS)
+   Win32.getTemporaryDirectory
+ #else
+   getEnv "TMPDIR"

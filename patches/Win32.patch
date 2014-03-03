@@ -1,0 +1,681 @@
+diff --git a/Graphics/Win32/Control.hsc b/Graphics/Win32/Control.hsc
+index 84842b8..cec9a23 100644
+--- a/Graphics/Win32/Control.hsc
++++ b/Graphics/Win32/Control.hsc
+@@ -17,6 +17,8 @@
+ 
+ module Graphics.Win32.Control where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import Graphics.Win32.GDI.Types
+ import Graphics.Win32.Window
+ import System.Win32.Types
+@@ -344,3 +346,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h InitCommonControls"
+ -- % , PBM_SETBARCOLOR
+ -- % , PBM_SETBKCOLOR
+ -- % , PBM_SETRANGE32
++
++##endif
+diff --git a/Graphics/Win32/Dialogue.hsc b/Graphics/Win32/Dialogue.hsc
+index 1750c55..f544ee7 100644
+--- a/Graphics/Win32/Dialogue.hsc
++++ b/Graphics/Win32/Dialogue.hsc
+@@ -17,6 +17,8 @@
+ 
+ module Graphics.Win32.Dialogue where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import Graphics.Win32.GDI.Types
+ import Graphics.Win32.Control
+ import Graphics.Win32.Message
+@@ -332,3 +334,5 @@ foreign import WINDOWS_CCONV "windows.h SetDlgItemTextW"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++##endif
+diff --git a/Graphics/Win32/GDI/Bitmap.hsc b/Graphics/Win32/GDI/Bitmap.hsc
+index 4d1c092..602558c 100644
+--- a/Graphics/Win32/GDI/Bitmap.hsc
++++ b/Graphics/Win32/GDI/Bitmap.hsc
+@@ -16,6 +16,9 @@
+ -----------------------------------------------------------------------------
+ 
+ module Graphics.Win32.GDI.Bitmap(
++##ifdef ghcjs_HOST_OS
++    ) where
++##else
+ 	RasterOp3,
+ 	RasterOp4,
+ 	sRCCOPY,
+@@ -419,3 +422,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h CreateDIBitmap"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++##endif
+diff --git a/Graphics/Win32/GDI/Brush.hsc b/Graphics/Win32/GDI/Brush.hsc
+index 2a16f6e..c4eb6d6 100644
+--- a/Graphics/Win32/GDI/Brush.hsc
++++ b/Graphics/Win32/GDI/Brush.hsc
+@@ -17,6 +17,7 @@
+ 
+ module Graphics.Win32.GDI.Brush where
+ 
++##ifndef ghcjs_HOST_OS
+ import System.Win32.Types
+ import Graphics.Win32.GDI.Types
+ 
+@@ -75,3 +76,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h GetStockObject"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++##endif
+diff --git a/Graphics/Win32/GDI/Clip.hsc b/Graphics/Win32/GDI/Clip.hsc
+index e0f317a..bef0873 100644
+--- a/Graphics/Win32/GDI/Clip.hsc
++++ b/Graphics/Win32/GDI/Clip.hsc
+@@ -17,6 +17,8 @@
+ 
+ module Graphics.Win32.GDI.Clip where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import Control.Monad
+ import Graphics.Win32.GDI.Types
+ import System.Win32.Types
+@@ -155,3 +157,5 @@ setClipboardViewer wnd =
+   failIfNull "SetClipboardViewer" $ c_SetClipboardViewer wnd
+ foreign import WINDOWS_CCONV unsafe "windows.h SetClipboardViewer"
+   c_SetClipboardViewer :: HWND -> IO HWND
++
++##endif
+\ No newline at end of file
+diff --git a/Graphics/Win32/GDI/Font.hsc b/Graphics/Win32/GDI/Font.hsc
+index c9f9896..c29c071 100644
+--- a/Graphics/Win32/GDI/Font.hsc
++++ b/Graphics/Win32/GDI/Font.hsc
+@@ -33,6 +33,8 @@ module Graphics.Win32.GDI.Font
+ -}
+ 	where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types
+ import Graphics.Win32.GDI.Types
+ 
+@@ -205,3 +207,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h GetStockObject"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++##endif
+\ No newline at end of file
+diff --git a/Graphics/Win32/GDI/Graphics2D.hs b/Graphics/Win32/GDI/Graphics2D.hs
+index f61ca21..2523b7f 100644
+--- a/Graphics/Win32/GDI/Graphics2D.hs
++++ b/Graphics/Win32/GDI/Graphics2D.hs
+@@ -18,6 +18,8 @@
+ module Graphics.Win32.GDI.Graphics2D
+ 	where
+ 
++#ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types
+ import Graphics.Win32.GDI.Types
+ 
+@@ -224,3 +226,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h GetTextExtentPoint32W"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++#endif
+diff --git a/Graphics/Win32/GDI/HDC.hs b/Graphics/Win32/GDI/HDC.hs
+index e99b505..d460480 100644
+--- a/Graphics/Win32/GDI/HDC.hs
++++ b/Graphics/Win32/GDI/HDC.hs
+@@ -19,6 +19,8 @@ module Graphics.Win32.GDI.HDC
+ 	( module Graphics.Win32.GDI.HDC
+ 	) where
+ 
++#ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types
+ import Graphics.Win32.GDI.Types
+ 
+@@ -318,3 +320,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h DeleteDC"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++#endif
+diff --git a/Graphics/Win32/GDI/Palette.hsc b/Graphics/Win32/GDI/Palette.hsc
+index cd8030d..f9bf742 100644
+--- a/Graphics/Win32/GDI/Palette.hsc
++++ b/Graphics/Win32/GDI/Palette.hsc
+@@ -17,6 +17,8 @@
+ 
+ module Graphics.Win32.GDI.Palette where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types
+ import Graphics.Win32.GDI.Types
+ 
+@@ -48,3 +50,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h DeleteObject"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++##endif
+diff --git a/Graphics/Win32/GDI/Path.hs b/Graphics/Win32/GDI/Path.hs
+index e210edf..b23a15f 100644
+--- a/Graphics/Win32/GDI/Path.hs
++++ b/Graphics/Win32/GDI/Path.hs
+@@ -16,6 +16,9 @@
+ -----------------------------------------------------------------------------
+ 
+ module Graphics.Win32.GDI.Path
++#ifdef ghcjs_HOST_OS
++    ( ) where
++#else
+ 	( beginPath, closeFigure, endPath, fillPath, flattenPath
+ 	, pathToRegion, strokeAndFillPath, strokePath, widenPath
+ 	) where
+@@ -89,3 +92,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h WidenPath"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++#endif
+diff --git a/Graphics/Win32/GDI/Pen.hsc b/Graphics/Win32/GDI/Pen.hsc
+index 9cc84d2..d8a87f4 100644
+--- a/Graphics/Win32/GDI/Pen.hsc
++++ b/Graphics/Win32/GDI/Pen.hsc
+@@ -17,6 +17,8 @@
+ 
+ module Graphics.Win32.GDI.Pen where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types
+ import Graphics.Win32.GDI.Types
+ 
+@@ -105,3 +107,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h CreatePen"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++##endif
+diff --git a/Graphics/Win32/GDI/Region.hs b/Graphics/Win32/GDI/Region.hs
+index 385e845..978d976 100644
+--- a/Graphics/Win32/GDI/Region.hs
++++ b/Graphics/Win32/GDI/Region.hs
+@@ -17,6 +17,8 @@
+ 
+ module Graphics.Win32.GDI.Region where
+ 
++#ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types
+ import Graphics.Win32.GDI.Types
+ 
+@@ -148,3 +150,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h RectInRegion"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++#endif
+diff --git a/Graphics/Win32/GDI/Types.hsc b/Graphics/Win32/GDI/Types.hsc
+index f514e42..2c4ba06 100644
+--- a/Graphics/Win32/GDI/Types.hsc
++++ b/Graphics/Win32/GDI/Types.hsc
+@@ -54,6 +54,8 @@ module Graphics.Win32.GDI.Types
+ -}
+ 	where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types
+ 
+ import Control.Monad( zipWithM_ )
+@@ -395,3 +397,5 @@ foreign import ccall unsafe "HsGDI.h"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++##endif
+diff --git a/Graphics/Win32/Icon.hs b/Graphics/Win32/Icon.hs
+index 53c1268..9a0136b 100644
+--- a/Graphics/Win32/Icon.hs
++++ b/Graphics/Win32/Icon.hs
+@@ -17,6 +17,8 @@
+ 
+ module Graphics.Win32.Icon where
+ 
++#ifndef ghcjs_HOST_OS
++
+ import Graphics.Win32.GDI.Types
+ import System.Win32.Types
+ 
+@@ -47,3 +49,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h DestroyIcon"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++#endif
+diff --git a/Graphics/Win32/Key.hsc b/Graphics/Win32/Key.hsc
+index ff21d51..7dce772 100644
+--- a/Graphics/Win32/Key.hsc
++++ b/Graphics/Win32/Key.hsc
+@@ -17,6 +17,8 @@
+ 
+ module Graphics.Win32.Key where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import Graphics.Win32.GDI.Types
+ import System.Win32.Types
+ 
+@@ -123,3 +125,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h GetKBCodePage"
+ 
+ foreign import WINDOWS_CCONV unsafe "windows.h IsWindowEnabled"
+   isWindowEnabled :: HWND -> IO Bool
++
++##endif
+diff --git a/Graphics/Win32/Menu.hsc b/Graphics/Win32/Menu.hsc
+index 6d744dc..a5a6071 100644
+--- a/Graphics/Win32/Menu.hsc
++++ b/Graphics/Win32/Menu.hsc
+@@ -63,6 +63,8 @@ module Graphics.Win32.Menu
+ 
+        ) -} where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import Graphics.Win32.GDI.Types
+ import System.Win32.Types
+ 
+@@ -474,3 +476,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h RemoveMenu"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++##endif
+diff --git a/Graphics/Win32/Message.hsc b/Graphics/Win32/Message.hsc
+index 083d602..5e7c0b7 100644
+--- a/Graphics/Win32/Message.hsc
++++ b/Graphics/Win32/Message.hsc
+@@ -17,6 +17,8 @@
+ 
+ module Graphics.Win32.Message where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types
+ 
+ ##include "windows_cconv.h"
+@@ -176,3 +178,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h RegisterWindowMessageW"
+ ----------------------------------------------------------------
+ -- Phew!
+ ----------------------------------------------------------------
++
++##endif
+diff --git a/Graphics/Win32/Misc.hsc b/Graphics/Win32/Misc.hsc
+index d06be81..db2e6a5 100644
+--- a/Graphics/Win32/Misc.hsc
++++ b/Graphics/Win32/Misc.hsc
+@@ -17,6 +17,8 @@
+ 
+ module Graphics.Win32.Misc where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import Graphics.Win32.GDI.Types
+ import System.Win32.Types
+ 
+@@ -296,3 +298,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h timeGetTime"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++##endif
+diff --git a/Graphics/Win32/Resource.hsc b/Graphics/Win32/Resource.hsc
+index cf22f38..c4ea6e7 100644
+--- a/Graphics/Win32/Resource.hsc
++++ b/Graphics/Win32/Resource.hsc
+@@ -17,6 +17,8 @@
+ 
+ module Graphics.Win32.Resource where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types
+ 
+ import Foreign
+@@ -146,3 +148,5 @@ updateResource h ty name lang p_data data_len =
+     c_UpdateResource h ty c_name lang p_data data_len
+ foreign import WINDOWS_CCONV unsafe "windows.h UpdateResourceW"
+   c_UpdateResource :: HANDLE -> LPCTSTR -> LPCTSTR -> WORD -> Addr -> DWORD -> IO Bool
++
++##endif
+diff --git a/Graphics/Win32/Window.hsc b/Graphics/Win32/Window.hsc
+index 791549a..34cd08f 100644
+--- a/Graphics/Win32/Window.hsc
++++ b/Graphics/Win32/Window.hsc
+@@ -18,6 +18,8 @@
+ 
+ module Graphics.Win32.Window where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types
+ import Graphics.Win32.GDI.Types
+ import Graphics.Win32.Message
+@@ -696,3 +698,5 @@ foreign import WINDOWS_CCONV "windows.h SendMessageW"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++##endif
+diff --git a/System/Win32/Console.hsc b/System/Win32/Console.hsc
+index b6b5368..c5cb2ff 100644
+--- a/System/Win32/Console.hsc
++++ b/System/Win32/Console.hsc
+@@ -16,6 +16,11 @@
+ -----------------------------------------------------------------------------
+ 
+ module System.Win32.Console (
++
++##ifdef ghcjs_HOST_OS
++  ) where
++##else
++
+ 	-- * Console code pages
+ 	getConsoleCP,
+ 	setConsoleCP,
+@@ -58,3 +63,5 @@ foreign import WINDOWS_CCONV safe "windows.h GenerateConsoleCtrlEvent"
+     c_GenerateConsoleCtrlEvent :: CtrlEvent -> DWORD -> IO BOOL
+ 
+ -- ToDo: lots more
++
++##endif
+diff --git a/System/Win32/DLL.hsc b/System/Win32/DLL.hsc
+index 74c567d..88b3f72 100644
+--- a/System/Win32/DLL.hsc
++++ b/System/Win32/DLL.hsc
+@@ -17,6 +17,8 @@
+ 
+ module System.Win32.DLL where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types
+ 
+ import Foreign
+@@ -84,3 +86,5 @@ loadLibraryEx name h flags =
+   failIfNull "LoadLibraryEx" $ c_LoadLibraryEx c_name h flags
+ foreign import WINDOWS_CCONV unsafe "windows.h LoadLibraryExW"
+   c_LoadLibraryEx :: LPCTSTR -> HANDLE -> LoadLibraryFlags -> IO HINSTANCE
++
++##endif
+diff --git a/System/Win32/DebugApi.hsc b/System/Win32/DebugApi.hsc
+index 6b7242f..160c2f2 100644
+--- a/System/Win32/DebugApi.hsc
++++ b/System/Win32/DebugApi.hsc
+@@ -16,6 +16,8 @@
+ -----------------------------------------------------------------------------
+ module System.Win32.DebugApi where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import Control.Exception( bracket_ )
+ import Data.Word        ( Word8, Word32 )
+ import Foreign          ( Ptr, nullPtr, ForeignPtr, mallocForeignPtrBytes
+@@ -407,3 +409,5 @@ foreign import WINDOWS_CCONV "windows.h IsDebuggerPresent"
+ 
+ foreign import WINDOWS_CCONV "windows.h  DebugBreak"
+     debugBreak :: IO ()
++
++##endif
+\ No newline at end of file
+diff --git a/System/Win32/File.hsc b/System/Win32/File.hsc
+index b0e0ad2..c92e734 100644
+--- a/System/Win32/File.hsc
++++ b/System/Win32/File.hsc
+@@ -24,6 +24,8 @@ module System.Win32.File
+ -}
+ where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types
+ import System.Win32.Time
+ 
+@@ -602,3 +604,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h SetVolumeLabelW"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++##endif
+diff --git a/System/Win32/FileMapping.hsc b/System/Win32/FileMapping.hsc
+index 9bfd6e4..19c0188 100644
+--- a/System/Win32/FileMapping.hsc
++++ b/System/Win32/FileMapping.hsc
+@@ -16,6 +16,8 @@
+ -----------------------------------------------------------------------------
+ module System.Win32.FileMapping where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types   ( HANDLE, DWORD, BOOL, SIZE_T, LPCTSTR, withTString
+                             , failIf, failIfNull, DDWORD, ddwordToDwords
+                             , iNVALID_HANDLE_VALUE )
+@@ -172,3 +174,5 @@ foreign import WINDOWS_CCONV "windows.h UnmapViewOfFile"
+ {-# CFILES cbits/HsWin32.c #-}
+ foreign import ccall "HsWin32.h &UnmapViewOfFileFinaliser"
+     c_UnmapViewOfFileFinaliser :: FunPtr (Ptr a -> IO ())
++
++##endif
+diff --git a/System/Win32/Info.hsc b/System/Win32/Info.hsc
+index b6275da..6ed2e50 100644
+--- a/System/Win32/Info.hsc
++++ b/System/Win32/Info.hsc
+@@ -17,6 +17,8 @@
+ 
+ module System.Win32.Info where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types
+ 
+ import Control.Exception (catch)
+@@ -387,3 +389,5 @@ type SMSetting = UINT
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++##endif
+diff --git a/System/Win32/Mem.hsc b/System/Win32/Mem.hsc
+index 8a49d8a..4ae33e3 100644
+--- a/System/Win32/Mem.hsc
++++ b/System/Win32/Mem.hsc
+@@ -17,6 +17,8 @@
+ 
+ module System.Win32.Mem where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types
+ 
+ import Foreign
+@@ -270,3 +272,5 @@ virtualUnlock addr size =
+   failIfFalse_ "VirtualUnlock" $ c_VirtualUnlock addr size
+ foreign import WINDOWS_CCONV unsafe "windows.h VirtualUnlock"
+   c_VirtualUnlock :: Addr -> DWORD -> IO Bool
++
++##endif
+\ No newline at end of file
+diff --git a/System/Win32/NLS.hsc b/System/Win32/NLS.hsc
+index d861592..4baf1d0 100644
+--- a/System/Win32/NLS.hsc
++++ b/System/Win32/NLS.hsc
+@@ -16,6 +16,9 @@
+ -----------------------------------------------------------------------------
+ 
+ module System.Win32.NLS  (
++##ifdef ghcjs_HOST_OS
++    ) where
++##else
+ 	module System.Win32.NLS,
+ 
+ 	-- defined in System.Win32.Types
+@@ -381,3 +384,4 @@ foreign import WINDOWS_CCONV unsafe "MultiByteToWideChar"
+         -> LPWSTR  -- lpWideCharStr
+         -> CInt    -- cchWideChar
+         -> IO CInt
++##endif
+diff --git a/System/Win32/Process.hsc b/System/Win32/Process.hsc
+index e2f4ddf..6507fdc 100644
+--- a/System/Win32/Process.hsc
++++ b/System/Win32/Process.hsc
+@@ -16,6 +16,9 @@
+ -----------------------------------------------------------------------------
+ 
+ module System.Win32.Process where
++
++##ifndef ghcjs_HOST_OS
++
+ import Control.Exception    ( bracket )
+ import Control.Monad        ( liftM5 )
+ import Foreign              ( Ptr, peekByteOff, allocaBytes, pokeByteOff
+@@ -128,3 +131,5 @@ th32SnapEnumProcesses h = allocaBytes (#size PROCESSENTRY32) $ \pe -> do
+                 entry <- peekProcessEntry32 pe
+                 ok' <- c_Process32Next h pe
+                 readAndNext ok' pe (entry:res)
++
++##endif
+diff --git a/System/Win32/Registry.hsc b/System/Win32/Registry.hsc
+index 9d9f6ce..c29370f 100644
+--- a/System/Win32/Registry.hsc
++++ b/System/Win32/Registry.hsc
+@@ -16,6 +16,11 @@
+ -----------------------------------------------------------------------------
+ 
+ module System.Win32.Registry
++
++##ifdef ghcjs_HOST_OS
++        () where
++##else
++
+ 		( module System.Win32.Registry
+ 		) where
+ {- What's really on offer:
+@@ -515,3 +520,5 @@ regUnLoadKey key subkey =
+   failUnlessSuccess "RegUnLoadKey" $ c_RegUnLoadKey p_key c_subkey
+ foreign import WINDOWS_CCONV unsafe "windows.h RegUnLoadKeyW"
+   c_RegUnLoadKey :: PKEY -> LPCTSTR -> IO ErrCode
++
++##endif
+diff --git a/System/Win32/Security.hsc b/System/Win32/Security.hsc
+index f00d251..31328e7 100644
+--- a/System/Win32/Security.hsc
++++ b/System/Win32/Security.hsc
+@@ -22,7 +22,10 @@
+ --
+ -----------------------------------------------------------------------------
+ 
+-module System.Win32.Security ( 
++module System.Win32.Security (
++##ifdef ghcjs_HOST_OS
++        ) where
++##else
+         -- * Types
+         SID, PSID,
+         ACL, PACL,
+@@ -235,3 +238,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h GetFileSecurityW"
+ --      -> BOOL -- OpenAsSelf
+ --      -> PHANDLE -- TokenHandle
+ --      -> IO BOOL
++
++##endif
+diff --git a/System/Win32/Shell.hsc b/System/Win32/Shell.hsc
+index f25e32e..78d7750 100644
+--- a/System/Win32/Shell.hsc
++++ b/System/Win32/Shell.hsc
+@@ -16,6 +16,9 @@
+ -----------------------------------------------------------------------------
+ 
+ module System.Win32.Shell (
++##ifdef ghcjs_HOST_OS
++  ) where
++##else
+   sHGetFolderPath,
+   CSIDL,
+   cSIDL_PROFILE,
+@@ -81,3 +84,4 @@ raiseUnsupported loc =
+ foreign import WINDOWS_CCONV unsafe "SHGetFolderPathW"
+   c_SHGetFolderPath :: HWND -> CInt -> HANDLE -> DWORD -> LPTSTR
+                     -> IO HRESULT
++##endif
+diff --git a/System/Win32/SimpleMAPI.hsc b/System/Win32/SimpleMAPI.hsc
+index 93ac39d..3d7e8ef 100644
+--- a/System/Win32/SimpleMAPI.hsc
++++ b/System/Win32/SimpleMAPI.hsc
+@@ -17,6 +17,8 @@
+ module System.Win32.SimpleMAPI
+ where
+ 
++##ifndef ghcjs_HOST_OS
++
+ -- I am not sure why exactly, but with mingw64 mapi.h does not define
+ -- some of the values we use, e.g. MAPI_LOGOFF_SHARED.
+ -- mapix.h does define MAPI_LOGOFF_SHARED, but the various flags
+@@ -409,3 +411,5 @@ handleIOException :: (IOException -> IO a) -> IO a -> IO a
+ handleIOException = handle
+ 
+ #endif
++
++##endif
+diff --git a/System/Win32/Time.hsc b/System/Win32/Time.hsc
+index a977975..9f29ece 100644
+--- a/System/Win32/Time.hsc
++++ b/System/Win32/Time.hsc
+@@ -16,6 +16,8 @@
+ -----------------------------------------------------------------------------
+ module System.Win32.Time where
+ 
++##ifndef ghcjs_HOST_OS
++
+ import System.Win32.Types   ( DWORD, WORD, LONG, BOOL, failIf, failIf_, HANDLE
+                             , peekTStringLen, LCID, LPTSTR, LPCTSTR, DDWORD
+                             , LARGE_INTEGER, ddwordToDwords, dwordsToDdword )
+@@ -307,3 +309,5 @@ getTimeFormat locale flags st fmt =
+             size <- failIf (==0) "getTimeFormat: GetTimeFormat" $
+                 c_GetTimeFormat locale flags st fmt (castPtr out) size
+             peekTStringLen (out,fromIntegral size)
++
++##endif
+diff --git a/System/Win32/Types.hs b/System/Win32/Types.hs
+index 5b15b93..7ba99d4 100644
+--- a/System/Win32/Types.hs
++++ b/System/Win32/Types.hs
+@@ -16,6 +16,9 @@
+ -----------------------------------------------------------------------------
+ 
+ module System.Win32.Types
++#ifdef ghcjs_HOST_OS
++    ( ) where
++#else
+ 	( module System.Win32.Types
+ 	, nullPtr
+ 	) where
+@@ -306,3 +309,5 @@ foreign import ccall unsafe "HsWin32.h prim_SUBLANGID"
+ ----------------------------------------------------------------
+ -- End
+ ----------------------------------------------------------------
++
++#endif
