@@ -18,17 +18,13 @@ index 5e736ab..c5bb333 100644
  import Distribution.Text
  import System.Cmd
  import System.FilePath
-@@ -21,10 +25,11 @@ main :: IO ()
+@@ -21,8 +25,9 @@ main :: IO ()
  main = do let hooks = simpleUserHooks {
                    regHook = addPrimModule
                            $ regHook simpleUserHooks,
 +                  instHook = myInstHook,
                    buildHook = build_primitive_sources
                              $ buildHook simpleUserHooks,
--                  makefileHook = build_primitive_sources
--                               $ makefileHook simpleUserHooks,
-+--                  makefileHook = build_primitive_sources
-+--                               $ makefileHook simpleUserHooks,
                    haddockHook = addPrimModuleForHaddock
                                $ build_primitive_sources
                                $ haddockHook simpleUserHooks }
