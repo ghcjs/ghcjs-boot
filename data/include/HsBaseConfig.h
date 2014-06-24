@@ -1,5 +1,5 @@
 #ifndef ghcjs_HOST_OS
-#include "../include_native/HsBaseConfig.h"
+#include "../ghcjs-boot/boot/base/include/HsBaseConfig.h"
 #else
 
 /* include/HsBaseConfig.h.  Generated from HsBaseConfig.h.in by configure.  */
