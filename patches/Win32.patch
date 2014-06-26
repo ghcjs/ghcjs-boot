@@ -1,5 +1,5 @@
 diff --git a/Graphics/Win32/Control.hsc b/Graphics/Win32/Control.hsc
-index 84842b8..cec9a23 100644
+index 6e680ab..4ac8d01 100644
 --- a/Graphics/Win32/Control.hsc
 +++ b/Graphics/Win32/Control.hsc
 @@ -17,6 +17,8 @@
@@ -8,10 +8,10 @@ index 84842b8..cec9a23 100644
  
 +##ifndef ghcjs_HOST_OS
 +
- import Graphics.Win32.GDI.Types
- import Graphics.Win32.Window
- import System.Win32.Types
-@@ -344,3 +346,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h InitCommonControls"
+ import Data.Bits ((.|.))
+ import Graphics.Win32.GDI.Types (HMENU, HWND)
+ import Graphics.Win32.Message (WindowMessage)
+@@ -346,3 +348,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h InitCommonControls"
  -- % , PBM_SETBARCOLOR
  -- % , PBM_SETBKCOLOR
  -- % , PBM_SETRANGE32
@@ -268,7 +268,7 @@ index 53c1268..9a0136b 100644
 +
 +#endif
 diff --git a/Graphics/Win32/Key.hsc b/Graphics/Win32/Key.hsc
-index ff21d51..7dce772 100644
+index e1c414b..97395cf 100644
 --- a/Graphics/Win32/Key.hsc
 +++ b/Graphics/Win32/Key.hsc
 @@ -17,6 +17,8 @@
@@ -277,10 +277,10 @@ index ff21d51..7dce772 100644
  
 +##ifndef ghcjs_HOST_OS
 +
- import Graphics.Win32.GDI.Types
- import System.Win32.Types
- 
-@@ -123,3 +125,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h GetKBCodePage"
+ import Control.Monad (liftM)
+ import Graphics.Win32.GDI.Types (HWND)
+ import System.Win32.Types (DWORD, UINT, WORD, ptrToMaybe)
+@@ -122,3 +124,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h GetKBCodePage"
  
  foreign import WINDOWS_CCONV unsafe "windows.h IsWindowEnabled"
    isWindowEnabled :: HWND -> IO Bool
@@ -363,7 +363,7 @@ index cf22f38..c4ea6e7 100644
 +
 +##endif
 diff --git a/Graphics/Win32/Window.hsc b/Graphics/Win32/Window.hsc
-index 791549a..34cd08f 100644
+index abb9e15..3c74b95 100644
 --- a/Graphics/Win32/Window.hsc
 +++ b/Graphics/Win32/Window.hsc
 @@ -18,6 +18,8 @@
@@ -372,10 +372,10 @@ index 791549a..34cd08f 100644
  
 +##ifndef ghcjs_HOST_OS
 +
- import System.Win32.Types
- import Graphics.Win32.GDI.Types
- import Graphics.Win32.Message
-@@ -696,3 +698,5 @@ foreign import WINDOWS_CCONV "windows.h SendMessageW"
+ import Control.Monad (liftM)
+ import Data.Maybe (fromMaybe)
+ import Data.Word (Word32)
+@@ -706,3 +708,5 @@ foreign import WINDOWS_CCONV "windows.h SendMessageW"
  ----------------------------------------------------------------
  -- End
  ----------------------------------------------------------------
@@ -443,7 +443,7 @@ index 6b7242f..160c2f2 100644
 +##endif
 \ No newline at end of file
 diff --git a/System/Win32/File.hsc b/System/Win32/File.hsc
-index b0e0ad2..c92e734 100644
+index 0b921c4..5ca64ef 100644
 --- a/System/Win32/File.hsc
 +++ b/System/Win32/File.hsc
 @@ -24,6 +24,8 @@ module System.Win32.File
@@ -455,7 +455,7 @@ index b0e0ad2..c92e734 100644
  import System.Win32.Types
  import System.Win32.Time
  
-@@ -602,3 +604,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h SetVolumeLabelW"
+@@ -653,3 +655,5 @@ foreign import WINDOWS_CCONV unsafe "windows.h SetVolumeLabelW"
  ----------------------------------------------------------------
  -- End
  ----------------------------------------------------------------
@@ -481,7 +481,7 @@ index 9bfd6e4..19c0188 100644
 +
 +##endif
 diff --git a/System/Win32/Info.hsc b/System/Win32/Info.hsc
-index b6275da..6ed2e50 100644
+index 23e2eac..8bfc3b8 100644
 --- a/System/Win32/Info.hsc
 +++ b/System/Win32/Info.hsc
 @@ -17,6 +17,8 @@
@@ -490,10 +490,10 @@ index b6275da..6ed2e50 100644
  
 +##ifndef ghcjs_HOST_OS
 +
- import System.Win32.Types
- 
  import Control.Exception (catch)
-@@ -387,3 +389,5 @@ type SMSetting = UINT
+ import Foreign.Marshal.Alloc (alloca)
+ import Foreign.Marshal.Array (allocaArray)
+@@ -392,3 +394,5 @@ type SMSetting = UINT
  ----------------------------------------------------------------
  -- End
  ----------------------------------------------------------------
@@ -539,7 +539,7 @@ index d861592..4baf1d0 100644
          -> IO CInt
 +##endif
 diff --git a/System/Win32/Process.hsc b/System/Win32/Process.hsc
-index e2f4ddf..6507fdc 100644
+index cffc482..2cd4b20 100644
 --- a/System/Win32/Process.hsc
 +++ b/System/Win32/Process.hsc
 @@ -16,6 +16,9 @@
@@ -552,14 +552,14 @@ index e2f4ddf..6507fdc 100644
  import Control.Exception    ( bracket )
  import Control.Monad        ( liftM5 )
  import Foreign              ( Ptr, peekByteOff, allocaBytes, pokeByteOff
-@@ -128,3 +131,5 @@ th32SnapEnumProcesses h = allocaBytes (#size PROCESSENTRY32) $ \pe -> do
+@@ -128,3 +131,5 @@ th32SnapEnumProcesses h = allocaBytes (#size PROCESSENTRY32W) $ \pe -> do
                  entry <- peekProcessEntry32 pe
                  ok' <- c_Process32Next h pe
                  readAndNext ok' pe (entry:res)
 +
 +##endif
 diff --git a/System/Win32/Registry.hsc b/System/Win32/Registry.hsc
-index 9d9f6ce..c29370f 100644
+index cb9cd8e..5a7ae4f 100644
 --- a/System/Win32/Registry.hsc
 +++ b/System/Win32/Registry.hsc
 @@ -16,6 +16,11 @@
@@ -574,7 +574,7 @@ index 9d9f6ce..c29370f 100644
  		( module System.Win32.Registry
  		) where
  {- What's really on offer:
-@@ -515,3 +520,5 @@ regUnLoadKey key subkey =
+@@ -523,3 +528,5 @@ regUnLoadKey key subkey =
    failUnlessSuccess "RegUnLoadKey" $ c_RegUnLoadKey p_key c_subkey
  foreign import WINDOWS_CCONV unsafe "windows.h RegUnLoadKeyW"
    c_RegUnLoadKey :: PKEY -> LPCTSTR -> IO ErrCode
@@ -660,7 +660,7 @@ index a977975..9f29ece 100644
 +
 +##endif
 diff --git a/System/Win32/Types.hs b/System/Win32/Types.hs
-index 5b15b93..7ba99d4 100644
+index 68a4ff1..9047212 100644
 --- a/System/Win32/Types.hs
 +++ b/System/Win32/Types.hs
 @@ -16,6 +16,9 @@
@@ -673,7 +673,7 @@ index 5b15b93..7ba99d4 100644
  	( module System.Win32.Types
  	, nullPtr
  	) where
-@@ -306,3 +309,5 @@ foreign import ccall unsafe "HsWin32.h prim_SUBLANGID"
+@@ -322,3 +325,5 @@ foreign import ccall unsafe "HsWin32.h prim_SUBLANGID"
  ----------------------------------------------------------------
  -- End
  ----------------------------------------------------------------

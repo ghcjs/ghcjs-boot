@@ -1,5 +1,5 @@
 diff --git a/Setup.hs b/Setup.hs
-index 5e736ab..c5bb333 100644
+index 5bb17e2..549aaad 100644
 --- a/Setup.hs
 +++ b/Setup.hs
 @@ -6,11 +6,15 @@ module Main (main) where
@@ -18,7 +18,7 @@ index 5e736ab..c5bb333 100644
  import Distribution.Text
  import System.Cmd
  import System.FilePath
-@@ -21,8 +25,9 @@ main :: IO ()
+@@ -21,6 +25,7 @@ main :: IO ()
  main = do let hooks = simpleUserHooks {
                    regHook = addPrimModule
                            $ regHook simpleUserHooks,
@@ -26,9 +26,7 @@ index 5e736ab..c5bb333 100644
                    buildHook = build_primitive_sources
                              $ buildHook simpleUserHooks,
                    haddockHook = addPrimModuleForHaddock
-                               $ build_primitive_sources
-                               $ haddockHook simpleUserHooks }
-@@ -60,21 +65,25 @@ addPrimModuleToPD pd =
+@@ -58,21 +63,25 @@ addPrimModuleToPD pd =
  
  build_primitive_sources :: Hook a -> Hook a
  build_primitive_sources f pd lbi uhs x
@@ -63,7 +61,7 @@ index 5e736ab..c5bb333 100644
        f pd lbi uhs x
  
  -- Replace a file only if the new version is different from the old.
-@@ -88,3 +97,22 @@ maybeUpdateFile source target = do
+@@ -86,3 +95,22 @@ maybeUpdateFile source target = do
                          when exists $ removeFile target
                          renameFile source target
  
@@ -86,3 +84,16 @@ index 5e736ab..c5bb333 100644
 +     pkg_descr localbuildinfo uh registerFlags
 +
 +
+diff --git a/ghc-prim.cabal b/ghc-prim.cabal
+index ffb32af..ee922ce 100644
+--- a/ghc-prim.cabal
++++ b/ghc-prim.cabal
+@@ -27,6 +27,8 @@ flag include-ghc-prim
+ 
+ Library
+     default-language: Haskell2010
++    default-extensions:
++        MagicHash
+     other-extensions:
+         BangPatterns
+         CPP

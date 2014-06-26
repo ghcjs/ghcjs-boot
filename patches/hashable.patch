@@ -1,9 +1,9 @@
 diff --git a/Data/Hashable/Class.hs b/Data/Hashable/Class.hs
-index 871a1c9..7648a97 100644
+index 1ab9879..b809004 100644
 --- a/Data/Hashable/Class.hs
 +++ b/Data/Hashable/Class.hs
-@@ -83,7 +83,7 @@ import Foreign.C.Types (CInt)
- import qualified Data.ByteString.Lazy.Internal as BL  -- foldlChunks
+@@ -87,7 +87,7 @@ import qualified Data.ByteString.Lazy.Internal as BL  -- foldlChunks
+ import qualified Data.ByteString.Short.Internal as BSI
  #endif
  
 -#ifdef VERSION_integer_gmp
@@ -11,7 +11,7 @@ index 871a1c9..7648a97 100644
  import GHC.Exts (Int(..))
  import GHC.Integer.GMP.Internals (Integer(..))
  #endif
-@@ -234,7 +234,7 @@ instance Hashable Char where
+@@ -242,7 +242,7 @@ instance Hashable Char where
      hashWithSalt = defaultHashWithSalt
  
  instance Hashable Integer where

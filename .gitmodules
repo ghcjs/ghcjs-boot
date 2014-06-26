@@ -28,15 +28,6 @@
 [submodule "ghcjs/ghcjs-base"]
 	path = ghcjs/ghcjs-base
 	url = https://github.com/ghcjs/ghcjs-base.git
-[submodule "extra/cabal"]
-	path = extra/cabal
-	url = https://github.com/ghcjs/cabal.git
-[submodule "extra/hashable"]
-	path = extra/hashable
-	url = https://github.com/tibbe/hashable.git
-[submodule "extra/text"]
-	path = extra/text
-	url = https://github.com/bos/text.git
 [submodule "boot/directory"]
 	path = boot/directory
 	url = http://git.haskell.org/packages/directory.git/
@@ -52,3 +43,72 @@
 [submodule "boot/process"]
 	path = boot/process
 	url = https://github.com/ghc/packages-process.git
+[submodule "boot/bytestring"]
+	path = boot/bytestring
+	url = https://github.com/haskell/bytestring.git
+[submodule "boot/dlist"]
+	path = boot/dlist
+	url = https://github.com/spl/dlist.git
+[submodule "boot/mtl"]
+	path = boot/mtl
+	url = https://github.com/ekmett/mtl.git
+[submodule "boot/filepath"]
+	path = boot/filepath
+	url = http://git.haskell.org/packages/filepath.git
+[submodule "boot/old-locale"]
+	path = boot/old-locale
+	url = http://git.haskell.org/packages/old-locale.git
+[submodule "boot/primitive"]
+	path = boot/primitive
+	url = https://github.com/haskell/primitive
+[submodule "boot/scientific"]
+	path = boot/scientific
+	url = https://github.com/basvandijk/scientific.git
+[submodule "boot/syb"]
+	path = boot/syb
+	url = https://github.com/dreixel/syb.git
+[submodule "boot/unordered-containers"]
+	path = boot/unordered-containers
+	url = https://github.com/tibbe/unordered-containers.git
+[submodule "boot/vector"]
+	path = boot/vector
+	url = https://github.com/haskell/vector.git
+[submodule "boot/attoparsec"]
+	path = boot/attoparsec
+	url = https://github.com/bos/attoparsec
+[submodule "boot/aeson"]
+	path = boot/aeson
+	url = https://github.com/bos/aeson.git
+[submodule "boot/old-time"]
+	path = boot/old-time
+	url = https://git.haskell.org/packages/old-time.git
+[submodule "boot/random"]
+	path = boot/random
+	url = http://git.haskell.org/packages/random.git
+[submodule "boot/text"]
+	path = boot/text
+	url = https://github.com/bos/text
+[submodule "boot/cabal"]
+	path = boot/cabal
+	url = https://github.com/ghcjs/cabal.git
+[submodule "boot/hashable"]
+	path = boot/hashable
+	url = https://github.com/tibbe/hashable.git
+[submodule "boot/extensible-exceptions"]
+	path = boot/extensible-exceptions
+	url = http://git.haskell.org/packages/extensible-exceptions.git
+[submodule "boot/transformers"]
+	path = boot/transformers
+	url = http://git.haskell.org/darcs-mirrors/transformers.git
+[submodule "boot/async"]
+	path = boot/async
+	url = https://github.com/simonmar/async.git
+[submodule "boot/parallel"]
+	path = boot/parallel
+	url = http://git.haskell.org/packages/parallel.git
+[submodule "boot/stm"]
+	path = boot/stm
+	url = http://git.haskell.org/packages/stm.git
+[submodule "boot/case-insensitive"]
+	path = boot/case-insensitive
+	url = https://github.com/basvandijk/case-insensitive.git
