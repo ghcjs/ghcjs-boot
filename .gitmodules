@@ -112,3 +112,6 @@
 [submodule "boot/case-insensitive"]
 	path = boot/case-insensitive
 	url = https://github.com/basvandijk/case-insensitive.git
+[submodule "boot/binary"]
+	path = boot/binary
+	url = https://github.com/kolmodin/binary.git
