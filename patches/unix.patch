@@ -1,3 +1,29 @@
+diff --git a/System/Posix/Files/Common.hsc b/System/Posix/Files/Common.hsc
+index 3056014..fbe9887 100644
+--- a/System/Posix/Files/Common.hsc
++++ b/System/Posix/Files/Common.hsc
+@@ -528,7 +528,7 @@ foreign import ccall unsafe "fchown"
+ -- Note: calls @ftruncate@.
+ setFdSize :: Fd -> FileOffset -> IO ()
+ setFdSize (Fd fd) off =
+-  throwErrnoIfMinus1_ "setFdSize" (c_ftruncate fd off)
++  throwErrnoIfMinus1_ "setFdSize" (c_ftruncate fd (fromIntegral off))
+ 
+ -- -----------------------------------------------------------------------------
+ -- pathconf()/fpathconf() support
+diff --git a/System/Posix/IO/Common.hsc b/System/Posix/IO/Common.hsc
+index 8de0ac0..93ac244 100644
+--- a/System/Posix/IO/Common.hsc
++++ b/System/Posix/IO/Common.hsc
+@@ -295,7 +295,7 @@ mode2Int SeekFromEnd  = (#const SEEK_END)
+ -- | May throw an exception if this is an invalid descriptor.
+ fdSeek :: Fd -> SeekMode -> FileOffset -> IO FileOffset
+ fdSeek (Fd fd) mode off =
+-  throwErrnoIfMinus1 "fdSeek" (Base.c_lseek fd off (mode2Int mode))
++  throwErrnoIfMinus1 "fdSeek" (fmap fromIntegral $ Base.c_lseek fd (fromIntegral off) (mode2Int mode))
+ 
+ -- -----------------------------------------------------------------------------
+ -- Locking
 diff --git a/System/Posix/Process/Internals.hs b/System/Posix/Process/Internals.hs
 index bd3dd31..cad7cbf 100644
 --- a/System/Posix/Process/Internals.hs

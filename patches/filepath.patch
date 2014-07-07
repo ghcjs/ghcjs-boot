@@ -1,0 +1,73 @@
+diff --git a/System/FilePath.hs b/System/FilePath.hs
+index fcfc351..ca14329 100644
+--- a/System/FilePath.hs
++++ b/System/FilePath.hs
+@@ -19,7 +19,10 @@ same interface. See either for examples and a list of the available
+ functions.
+ -}
+ 
+-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
++#if defined(ghcjs_HOST_OS)
++module System.FilePath (module System.FilePath.Current) where
++import System.FilePath.Current
++#elif defined(mingw32_HOST_OS) || defined(__MINGW32__)
+ module System.FilePath(module System.FilePath.Windows) where
+ import System.FilePath.Windows
+ #else
+diff --git a/System/FilePath/Current.hs b/System/FilePath/Current.hs
+index e69de29..0355326 100644
+--- a/System/FilePath/Current.hs
++++ b/System/FilePath/Current.hs
+@@ -0,0 +1,4 @@
++{-# LANGUAGE CPP #-}
++#define MODULE_NAME     Current
++#define IS_CURRENT      1
++#include "Internal.hs"
+diff --git a/System/FilePath/Internal.hs b/System/FilePath/Internal.hs
+index 09f3560..64b1e0f 100644
+--- a/System/FilePath/Internal.hs
++++ b/System/FilePath/Internal.hs
+@@ -1,4 +1,6 @@
+-#if __GLASGOW_HASKELL__ >= 704
++#ifdef IS_CURRENT
++{-# LANGUAGE JavaScriptFFI, Trustworthy #-}
++#elif __GLASGOW_HASKELL__ >= 704
+ {-# LANGUAGE Safe #-}
+ #endif
+ 
+@@ -43,6 +45,8 @@
+ 
+ module System.FilePath.MODULE_NAME
+     (
++    isWindows, isPosix,
++    
+     -- * Separator predicates
+     FilePath,
+     pathSeparator, pathSeparators, isPathSeparator,
+@@ -110,8 +114,11 @@ isPosix = not isWindows
+ 
+ -- | Is the operating system Windows like
+ isWindows :: Bool
++#ifdef IS_CURRENT
++foreign import javascript unsafe "h$filepath_isWindows()" isWindows :: Bool
++#else
+ isWindows = IS_WINDOWS
+-
++#endif
+ 
+ ---------------------------------------------------------------------
+ -- The basic functions
+diff --git a/filepath.cabal b/filepath.cabal
+index c510089..e8c7749 100644
+--- a/filepath.cabal
++++ b/filepath.cabal
+@@ -36,6 +36,9 @@ Library
+         System.FilePath
+         System.FilePath.Posix
+         System.FilePath.Windows
++    if impl(GHCJS>=0.1)
++        Exposed-modules:
++            System.FilePath.Current
+ 
+     Build-Depends:
+         base >= 4 && < 4.8
