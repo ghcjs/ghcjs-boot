@@ -24,13 +24,13 @@ index e69de29..0355326 100644
 +#define IS_CURRENT      1
 +#include "Internal.hs"
 diff --git a/System/FilePath/Internal.hs b/System/FilePath/Internal.hs
-index 09f3560..64b1e0f 100644
+index 09f3560..76a4fb2 100644
 --- a/System/FilePath/Internal.hs
 +++ b/System/FilePath/Internal.hs
 @@ -1,4 +1,6 @@
 -#if __GLASGOW_HASKELL__ >= 704
 +#ifdef IS_CURRENT
-+{-# LANGUAGE JavaScriptFFI, Trustworthy #-}
++{-# LANGUAGE ForeignFunctionInterface, JavaScriptFFI, Trustworthy #-}
 +#elif __GLASGOW_HASKELL__ >= 704
  {-# LANGUAGE Safe #-}
  #endif
