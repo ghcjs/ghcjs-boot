@@ -482,7 +482,7 @@ index 22665f4..e294931 100644
 +##endif
 \ No newline at end of file
 diff --git a/System/Posix/Internals.hs b/System/Posix/Internals.hs
-index 89ef6f4..3b4103b 100644
+index 89ef6f4..d7e2b0d 100644
 --- a/System/Posix/Internals.hs
 +++ b/System/Posix/Internals.hs
 @@ -1,6 +1,9 @@
@@ -544,7 +544,7 @@ index 89ef6f4..3b4103b 100644
 +    c_fstat :: CInt -> Ptr CStat -> IO CInt
 +foreign import javascript unsafe "$r = h$base_isatty($1);"
 +    c_isatty :: CInt -> IO CInt
-+foreign import javascript unsafe "$r1 = h$base_lseek($1,$2_1,$2_2,$3); $r2 = h$ret1;"
++foreign import javascript interruptible "h$base_lseek($1,$2_1,$2_2,$3,$c);"
 +   c_lseek :: CInt -> Int64 -> CInt -> IO Int64
 +foreign import javascript interruptible "h$base_lstat($1_1,$1_2,$2_1,$2_2,$c);" -- fixme wrong type
 +   lstat :: CFilePath -> Ptr CStat -> IO CInt
