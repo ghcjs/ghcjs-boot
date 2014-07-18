@@ -74,7 +74,7 @@ index 87e9a41..c32ebca 100644
  -- ----------------------------------------------------------------------------
  -- Old deprecated variants
 diff --git a/System/Process/Internals.hs b/System/Process/Internals.hs
-index 9dc2af7..5b8f685 100644
+index 9dc2af7..870603b 100644
 --- a/System/Process/Internals.hs
 +++ b/System/Process/Internals.hs
 @@ -5,6 +5,10 @@
@@ -144,7 +144,7 @@ index 9dc2af7..5b8f685 100644
 +type JSString = JSRef ()
 +
 +fromJSStrings :: JSRef a -> IO [String]
-+fromJSStrings x = mapM fromJSString =<< fromJSArray x
++fromJSStrings x = fmap (map fromJSString) (fromJSArray x)
 +
 +fromJSInts :: JSRef a -> IO [Int]
 +fromJSInts x = map fromJSInt <$> fromJSArray x
