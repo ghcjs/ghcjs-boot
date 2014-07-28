@@ -694,7 +694,7 @@ index 59e6647..ba5edf5 100644
          -- In the threaded RTS, we use the Timer Manager to delay the
          -- (fairly expensive) 'forkIO' call until the timeout has expired.
 diff --git a/base.cabal b/base.cabal
-index f8937dc..25fda76 100644
+index 8aa8cf7..d53999d 100644
 --- a/base.cabal
 +++ b/base.cabal
 @@ -308,23 +308,24 @@ Library
