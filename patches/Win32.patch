@@ -382,22 +382,20 @@ index abb9e15..3c74b95 100644
 +
 +##endif
 diff --git a/System/Win32/Console.hsc b/System/Win32/Console.hsc
-index b6b5368..c5cb2ff 100644
+index b6b5368..57bf2c1 100644
 --- a/System/Win32/Console.hsc
 +++ b/System/Win32/Console.hsc
-@@ -16,6 +16,11 @@
+@@ -16,6 +16,9 @@
  -----------------------------------------------------------------------------
  
  module System.Win32.Console (
-+
 +##ifdef ghcjs_HOST_OS
-+  ) where
++    ) where
 +##else
-+
  	-- * Console code pages
  	getConsoleCP,
  	setConsoleCP,
-@@ -58,3 +63,5 @@ foreign import WINDOWS_CCONV safe "windows.h GenerateConsoleCtrlEvent"
+@@ -58,3 +61,5 @@ foreign import WINDOWS_CCONV safe "windows.h GenerateConsoleCtrlEvent"
      c_GenerateConsoleCtrlEvent :: CtrlEvent -> DWORD -> IO BOOL
  
  -- ToDo: lots more
@@ -603,7 +601,7 @@ index f00d251..31328e7 100644
 +
 +##endif
 diff --git a/System/Win32/Shell.hsc b/System/Win32/Shell.hsc
-index f25e32e..78d7750 100644
+index f25e32e..7423bab 100644
 --- a/System/Win32/Shell.hsc
 +++ b/System/Win32/Shell.hsc
 @@ -16,6 +16,9 @@
@@ -611,15 +609,16 @@ index f25e32e..78d7750 100644
  
  module System.Win32.Shell (
 +##ifdef ghcjs_HOST_OS
-+  ) where
++    ) where
 +##else
    sHGetFolderPath,
    CSIDL,
    cSIDL_PROFILE,
-@@ -81,3 +84,4 @@ raiseUnsupported loc =
+@@ -81,3 +84,5 @@ raiseUnsupported loc =
  foreign import WINDOWS_CCONV unsafe "SHGetFolderPathW"
    c_SHGetFolderPath :: HWND -> CInt -> HANDLE -> DWORD -> LPTSTR
                      -> IO HRESULT
++
 +##endif
 diff --git a/System/Win32/SimpleMAPI.hsc b/System/Win32/SimpleMAPI.hsc
 index 93ac39d..3d7e8ef 100644
