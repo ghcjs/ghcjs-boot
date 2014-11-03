@@ -127,7 +127,7 @@ index 3a57c93..994921f 100644
  #endif
    | otherwise = error "registerDelay: requires -threaded"
 diff --git a/GHC/Conc/Windows.hs b/GHC/Conc/Windows.hs
-index ad60a07..ab5ca57 100644
+index a957182..6cb32e4 100644
 --- a/GHC/Conc/Windows.hs
 +++ b/GHC/Conc/Windows.hs
 @@ -19,6 +19,9 @@
@@ -140,22 +140,23 @@ index ad60a07..ab5ca57 100644
         ( ensureIOManagerIsRunning
  
         -- * Waiting
-@@ -338,3 +341,4 @@ foreign import ccall unsafe "sendIOManagerEvent" -- in the RTS (ThrIOManager.c)
+@@ -336,3 +339,4 @@ foreign import ccall unsafe "sendIOManagerEvent" -- in the RTS (ThrIOManager.c)
  foreign import WINDOWS_CCONV "WaitForSingleObject"
     c_WaitForSingleObject :: HANDLE -> DWORD -> IO DWORD
  
 +#endif
 diff --git a/GHC/Event.hs b/GHC/Event.hs
-index b49645e..1ac7d78 100644
+index 3dcf309..3f7cabd 100644
 --- a/GHC/Event.hs
 +++ b/GHC/Event.hs
-@@ -1,4 +1,4 @@
--{-# LANGUAGE Trustworthy #-}
-+{-# LANGUAGE CPP, Trustworthy #-}
+@@ -1,5 +1,6 @@
+ {-# LANGUAGE NoImplicitPrelude #-}
+ {-# LANGUAGE Trustworthy #-}
++{-# LANGUAGE CPP #-}
  
  -- ----------------------------------------------------------------------------
  -- | This module provides scalable event notification for file
-@@ -9,6 +9,9 @@
+@@ -10,6 +11,9 @@
  -- ----------------------------------------------------------------------------
  
  module GHC.Event
@@ -164,14 +165,14 @@ index b49645e..1ac7d78 100644
 +#else
      ( -- * Types
        EventManager
- 
-@@ -42,3 +45,4 @@ import GHC.Event.TimerManager (TimeoutCallback, TimeoutKey, registerTimeout,
-                                updateTimeout, unregisterTimeout)
+     , TimerManager
+@@ -44,3 +48,4 @@ import GHC.Event.TimerManager (TimeoutCallback, TimeoutKey, registerTimeout,
+                                updateTimeout, unregisterTimeout, TimerManager)
  import GHC.Event.Thread (getSystemEventManager, getSystemTimerManager)
  
 +#endif
 diff --git a/GHC/Event/Manager.hs b/GHC/Event/Manager.hs
-index 14f7098..3233be9 100644
+index 29edd97..0f78b09 100644
 --- a/GHC/Event/Manager.hs
 +++ b/GHC/Event/Manager.hs
 @@ -8,6 +8,9 @@
@@ -184,7 +185,7 @@ index 14f7098..3233be9 100644
      ( -- * Types
        EventManager
  
-@@ -479,3 +482,5 @@ onFdEvent mgr fd evs =
+@@ -482,3 +485,5 @@ onFdEvent mgr fd evs =
  nullToNothing :: [a] -> Maybe [a]
  nullToNothing []       = Nothing
  nullToNothing xs@(_:_) = Just xs
@@ -192,7 +193,7 @@ index 14f7098..3233be9 100644
 +#endif
 \ No newline at end of file
 diff --git a/GHC/Event/Thread.hs b/GHC/Event/Thread.hs
-index c599047..3b17648 100644
+index 482e41f..9800f6e 100644
 --- a/GHC/Event/Thread.hs
 +++ b/GHC/Event/Thread.hs
 @@ -1,6 +1,9 @@
@@ -206,14 +207,15 @@ index c599047..3b17648 100644
      ( getSystemEventManager
      , getSystemTimerManager
      , ensureIOManagerIsRunning
-@@ -344,3 +347,5 @@ ioManagerCapabilitiesChanged = do
-               Just (_,mgr) <- readIOArray eventManagerArray i
-               tid <- restartPollLoop mgr i
-               writeIOArray eventManagerArray i (Just (tid,mgr))
+@@ -359,3 +362,6 @@ foreign import ccall unsafe "setIOManagerControlFd"
+ 
+ foreign import ccall unsafe "setTimerManagerControlFd"
+    c_setTimerManagerControlFd :: CInt -> IO ()
 +
 +#endif
++
 diff --git a/GHC/Event/TimerManager.hs b/GHC/Event/TimerManager.hs
-index e52f1a0..09ceed5 100644
+index bf6339a..c01b4fb 100644
 --- a/GHC/Event/TimerManager.hs
 +++ b/GHC/Event/TimerManager.hs
 @@ -8,6 +8,9 @@
@@ -226,16 +228,16 @@ index e52f1a0..09ceed5 100644
      ( -- * Types
        TimerManager
  
-@@ -268,3 +271,4 @@ updateTimeout mgr (TK key) us = do
+@@ -267,3 +270,4 @@ updateTimeout mgr (TK key) us = do
  editTimeouts :: TimerManager -> TimeoutEdit -> IO ()
  editTimeouts mgr g = atomicModifyIORef' (emTimeouts mgr) $ \tq -> (g tq, ())
  
 +#endif
 diff --git a/GHC/IO/Encoding.hs b/GHC/IO/Encoding.hs
-index eb4d74c..7cafa17 100644
+index 68bc0cf..55bb8e5 100644
 --- a/GHC/IO/Encoding.hs
 +++ b/GHC/IO/Encoding.hs
-@@ -141,8 +141,11 @@ mkGlobal x = unsafePerformIO $ do
+@@ -140,8 +140,11 @@ mkGlobal x = unsafePerformIO $ do
  
  -- | /Since: 4.5.0.0/
  initLocaleEncoding, initFileSystemEncoding, initForeignEncoding :: TextEncoding
@@ -250,10 +252,10 @@ index eb4d74c..7cafa17 100644
  -- because some iconvs (in particular GNU iconv) will brokenly UTF-8 encode
  -- lone surrogates without complaint.
 diff --git a/GHC/IO/Encoding/CodePage/API.hs b/GHC/IO/Encoding/CodePage/API.hs
-index 570ea80..4a9b702 100644
+index fc915ec..2e2830c 100644
 --- a/GHC/IO/Encoding/CodePage/API.hs
 +++ b/GHC/IO/Encoding/CodePage/API.hs
-@@ -27,6 +27,7 @@ import GHC.ForeignPtr (castForeignPtr)
+@@ -26,6 +26,7 @@ import GHC.ForeignPtr (castForeignPtr)
  
  import System.Posix.Internals
  
@@ -261,7 +263,7 @@ index 570ea80..4a9b702 100644
  
  c_DEBUG_DUMP :: Bool
  c_DEBUG_DUMP = False
-@@ -424,3 +425,8 @@ cpRecode try' is_valid_prefix max_i_size min_o_size iscale oscale = go
+@@ -423,3 +424,8 @@ cpRecode try' is_valid_prefix max_i_size min_o_size iscale oscale = go
              -- Must have interpreted all given bytes successfully
              -- We need to iterate until we have consumed the complete contents of the buffer
              Right wrote_elts -> go (bufferRemove n ibuf) (obuf { bufR = bufR obuf + wrote_elts })
@@ -271,10 +273,10 @@ index 570ea80..4a9b702 100644
 +mkCodePageEncoding = ""
 +#endif
 diff --git a/GHC/IO/FD.hs b/GHC/IO/FD.hs
-index 2023526..b996f4d 100644
+index 610c9ea..15e8551 100644
 --- a/GHC/IO/FD.hs
 +++ b/GHC/IO/FD.hs
-@@ -563,7 +563,11 @@ writeRawBufferPtrNoBlock loc !fd buf off len
+@@ -562,7 +562,11 @@ writeRawBufferPtrNoBlock loc !fd buf off len
      safe_write    = do_write (c_safe_write (fdFD fd) (buf `plusPtr` off) len)
  
  isNonBlocking :: FD -> Bool
@@ -287,19 +289,19 @@ index 2023526..b996f4d 100644
  foreign import ccall unsafe "fdReady"
    unsafe_fdReady :: CInt -> CInt -> CInt -> CInt -> IO CInt
 diff --git a/GHC/Stack.hsc b/GHC/Stack.hsc
-index 079f5b0..17329b2 100644
+index edd0f4f..e9f2e3f 100644
 --- a/GHC/Stack.hsc
 +++ b/GHC/Stack.hsc
 @@ -13,7 +13,7 @@
  -- /Since: 4.5.0.0/
  -----------------------------------------------------------------------------
  
--{-# LANGUAGE UnboxedTuples, MagicHash #-}
-+{-# LANGUAGE CPP, UnboxedTuples, MagicHash #-}
+-{-# LANGUAGE UnboxedTuples, MagicHash, NoImplicitPrelude #-}
++{-# LANGUAGE CPP, UnboxedTuples, MagicHash, NoImplicitPrelude #-}
  module GHC.Stack (
      -- * Call stack
      currentCallStack,
-@@ -60,6 +60,22 @@ getCCSOf obj = IO $ \s ->
+@@ -61,6 +61,22 @@ getCCSOf obj = IO $ \s ->
     case getCCSOf## obj s of
       (## s', addr ##) -> (## s', Ptr addr ##)
  
@@ -322,7 +324,7 @@ index 079f5b0..17329b2 100644
  ccsCC :: Ptr CostCentreStack -> IO (Ptr CostCentre)
  ccsCC p = (# peek CostCentreStack, cc) p
  
-@@ -74,6 +90,7 @@ ccModule p = (# peek CostCentre, module) p
+@@ -75,6 +91,7 @@ ccModule p = (# peek CostCentre, module) p
  
  ccSrcSpan :: Ptr CostCentre -> IO CString
  ccSrcSpan p = (# peek CostCentre, srcloc) p
@@ -331,15 +333,15 @@ index 079f5b0..17329b2 100644
  -- | returns a '[String]' representing the current call stack.  This
  -- can be useful for debugging.
 diff --git a/GHC/Stats.hsc b/GHC/Stats.hsc
-index 11e31b9..173b498 100644
+index 1a895b5..27f1433 100644
 --- a/GHC/Stats.hsc
 +++ b/GHC/Stats.hsc
 @@ -1,3 +1,4 @@
 +{-# LANGUAGE CPP #-}
- {-# LANGUAGE Safe #-}
+ {-# LANGUAGE NoImplicitPrelude #-}
+ {-# LANGUAGE Trustworthy #-}
  {-# LANGUAGE RecordWildCards #-}
- {-# OPTIONS_GHC -funbox-strict-fields #-}
-@@ -96,6 +97,28 @@ getGCStats = do
+@@ -100,6 +101,28 @@ getGCStats = do
      "getGCStats: GC stats not enabled. Use `+RTS -T -RTS' to enable them."
      Nothing
      Nothing
@@ -368,7 +370,7 @@ index 11e31b9..173b498 100644
    allocaBytes (#size GCStats) $ \p -> do
      getGCStats_ p
      bytesAllocated <- (# peek GCStats, bytes_allocated) p
-@@ -120,6 +143,7 @@ getGCStats = do
+@@ -124,6 +147,7 @@ getGCStats = do
      wallSeconds <- (# peek GCStats, wall_seconds) p
      parTotBytesCopied <- (# peek GCStats, par_tot_bytes_copied) p
      parMaxBytesCopied <- (# peek GCStats, par_max_bytes_copied) p
@@ -377,10 +379,10 @@ index 11e31b9..173b498 100644
  
  {-
 diff --git a/GHC/TopHandler.lhs b/GHC/TopHandler.lhs
-index ee8e792..56dbe71 100644
+index 52ac6c8..e8f70a2 100644
 --- a/GHC/TopHandler.lhs
 +++ b/GHC/TopHandler.lhs
-@@ -71,7 +71,9 @@ runMainIO main =
+@@ -69,7 +69,9 @@ runMainIO main =
        topHandler
  
  install_interrupt_handler :: IO () -> IO ()
@@ -390,8 +392,8 @@ index ee8e792..56dbe71 100644
 +#elif defined(mingw32_HOST_OS)
  install_interrupt_handler handler = do
    _ <- GHC.ConsoleHandler.installHandler $
-      Catch $ \event -> 
-@@ -185,7 +187,7 @@ unreachable :: IO a
+      Catch $ \event ->
+@@ -183,7 +185,7 @@ unreachable :: IO a
  unreachable = fail "If you can read this, shutdownHaskellAndExit did not exit."
  
  exitHelper :: CInt -> Int -> IO a
@@ -400,19 +402,17 @@ index ee8e792..56dbe71 100644
  exitHelper exitKind r =
    shutdownHaskellAndExit (fromIntegral r) exitKind >> unreachable
  #else
-@@ -206,8 +208,8 @@ foreign import ccall "shutdownHaskellAndSignal"
- #endif
+@@ -205,7 +207,7 @@ foreign import ccall "shutdownHaskellAndSignal"
  
  exitInterrupted :: IO a
--exitInterrupted = 
+ exitInterrupted =
 -#ifdef mingw32_HOST_OS
-+exitInterrupted =
 +#if defined(mingw32_HOST_OS) || defined(ghcjs_HOST_OS)
    safeExit 252
  #else
    -- we must exit via the default action for SIGINT, so that the
 diff --git a/GHC/Windows.hs b/GHC/Windows.hs
-index 940ba58..b531a72 100644
+index 6b23019..af80799 100644
 --- a/GHC/Windows.hs
 +++ b/GHC/Windows.hs
 @@ -20,6 +20,10 @@
@@ -433,10 +433,10 @@ index 940ba58..b531a72 100644
 +
 +#endif
 diff --git a/System/CPUTime.hsc b/System/CPUTime.hsc
-index 85634b7..46309b2 100644
+index 1d2f341..5d2141a 100644
 --- a/System/CPUTime.hsc
 +++ b/System/CPUTime.hsc
-@@ -24,6 +24,13 @@ module System.CPUTime
+@@ -24,6 +24,14 @@ module System.CPUTime
           cpuTimePrecision  -- :: Integer
          ) where
  
@@ -447,15 +447,15 @@ index 85634b7..46309b2 100644
 +cpuTimePrecision :: Integer
 +cpuTimePrecision = 1
 +##else
- import Prelude
- 
++
  import Data.Ratio
-@@ -161,3 +168,4 @@ foreign import ccall unsafe clk_tck :: CLong
+ 
+ import Foreign.Safe
+@@ -159,3 +167,4 @@ foreign import ccall unsafe clk_tck :: CLong
  
  clockTicks :: Int
  clockTicks = fromIntegral clk_tck
 +##endif
-\ No newline at end of file
 diff --git a/System/Environment/ExecutablePath.hsc b/System/Environment/ExecutablePath.hsc
 index 22665f4..e294931 100644
 --- a/System/Environment/ExecutablePath.hsc
@@ -482,7 +482,7 @@ index 22665f4..e294931 100644
 +##endif
 \ No newline at end of file
 diff --git a/System/Posix/Internals.hs b/System/Posix/Internals.hs
-index 89ef6f4..d7e2b0d 100644
+index 30bf19c..e20edd3 100644
 --- a/System/Posix/Internals.hs
 +++ b/System/Posix/Internals.hs
 @@ -1,6 +1,9 @@
@@ -495,7 +495,7 @@ index 89ef6f4..d7e2b0d 100644
  
  -----------------------------------------------------------------------------
  -- |
-@@ -137,7 +140,7 @@ ioe_unknownfiletype = IOError Nothing UnsupportedOperation "fdType"
+@@ -134,7 +137,7 @@ ioe_unknownfiletype = IOError Nothing UnsupportedOperation "fdType"
                          Nothing
  
  fdGetMode :: FD -> IO IOMode
@@ -504,7 +504,7 @@ index 89ef6f4..d7e2b0d 100644
  fdGetMode _ = do
      -- We don't have a way of finding out which flags are set on FDs
      -- on Windows, so make a handle that thinks that anything goes.
-@@ -317,7 +320,7 @@ foreign import ccall unsafe "consUtils.h is_console__"
+@@ -314,7 +317,7 @@ foreign import ccall unsafe "consUtils.h is_console__"
  -- Turning on non-blocking for a file descriptor
  
  setNonBlockingFD :: FD -> Bool -> IO ()
@@ -513,7 +513,7 @@ index 89ef6f4..d7e2b0d 100644
  setNonBlockingFD fd set = do
    flags <- throwErrnoIfMinus1Retry "setNonBlockingFD"
                   (c_fcntl_read fd const_f_getfl)
-@@ -339,7 +342,7 @@ setNonBlockingFD _ _ = return ()
+@@ -336,7 +339,7 @@ setNonBlockingFD _ _ = return ()
  -- -----------------------------------------------------------------------------
  -- Set close-on-exec for a file descriptor
  
@@ -522,7 +522,7 @@ index 89ef6f4..d7e2b0d 100644
  setCloseOnExec :: FD -> IO ()
  setCloseOnExec fd = do
    throwErrnoIfMinus1_ "setCloseOnExec" $
-@@ -355,6 +358,139 @@ type CFilePath = CString
+@@ -352,6 +355,139 @@ type CFilePath = CString
  type CFilePath = CWString
  #endif
  
@@ -662,7 +662,7 @@ index 89ef6f4..d7e2b0d 100644
  foreign import ccall unsafe "HsBase.h access"
     c_access :: CString -> CInt -> IO CInt
  
-@@ -554,6 +690,8 @@ foreign import capi  unsafe "stdio.h value SEEK_CUR" sEEK_CUR :: CInt
+@@ -551,6 +687,8 @@ foreign import capi  unsafe "stdio.h value SEEK_CUR" sEEK_CUR :: CInt
  foreign import capi  unsafe "stdio.h value SEEK_SET" sEEK_SET :: CInt
  foreign import capi  unsafe "stdio.h value SEEK_END" sEEK_END :: CInt
  
@@ -672,7 +672,7 @@ index 89ef6f4..d7e2b0d 100644
  Note: CSsize
  
 diff --git a/System/Timeout.hs b/System/Timeout.hs
-index 59e6647..ba5edf5 100644
+index 322a842..12d50f3 100644
 --- a/System/Timeout.hs
 +++ b/System/Timeout.hs
 @@ -18,7 +18,7 @@
@@ -694,7 +694,7 @@ index 59e6647..ba5edf5 100644
          -- In the threaded RTS, we use the Timer Manager to delay the
          -- (fairly expensive) 'forkIO' call until the timeout has expired.
 diff --git a/base.cabal b/base.cabal
-index 8aa8cf7..d53999d 100644
+index 6277d89..cb64926 100644
 --- a/base.cabal
 +++ b/base.cabal
 @@ -308,23 +308,24 @@ Library
@@ -737,5 +737,5 @@ index 8aa8cf7..d53999d 100644
 +                GHC.Event.TimerManager
 +                GHC.Event.Unique
  
-     -- We need to set the package name to base (without a version number)
+     -- We need to set the package key to base (without a version number)
      -- as it's magic.

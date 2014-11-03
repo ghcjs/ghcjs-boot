@@ -1,10 +1,10 @@
 diff --git a/System/FilePath.hs b/System/FilePath.hs
-index fcfc351..ca14329 100644
+index 331ae81..0c75d25 100644
 --- a/System/FilePath.hs
 +++ b/System/FilePath.hs
-@@ -19,7 +19,10 @@ same interface. See either for examples and a list of the available
- functions.
+@@ -20,7 +20,10 @@ functions.
  -}
+ 
  
 -#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 +#if defined(ghcjs_HOST_OS)
@@ -24,7 +24,7 @@ index e69de29..0355326 100644
 +#define IS_CURRENT      1
 +#include "Internal.hs"
 diff --git a/System/FilePath/Internal.hs b/System/FilePath/Internal.hs
-index 09f3560..76a4fb2 100644
+index af20ad6..a698244 100644
 --- a/System/FilePath/Internal.hs
 +++ b/System/FilePath/Internal.hs
 @@ -1,4 +1,6 @@
@@ -35,7 +35,7 @@ index 09f3560..76a4fb2 100644
  {-# LANGUAGE Safe #-}
  #endif
  
-@@ -43,6 +45,8 @@
+@@ -47,6 +49,8 @@
  
  module System.FilePath.MODULE_NAME
      (
@@ -44,7 +44,7 @@ index 09f3560..76a4fb2 100644
      -- * Separator predicates
      FilePath,
      pathSeparator, pathSeparators, isPathSeparator,
-@@ -110,8 +114,11 @@ isPosix = not isWindows
+@@ -108,8 +112,11 @@ isPosix = not isWindows
  
  -- | Is the operating system Windows like
  isWindows :: Bool
@@ -58,10 +58,10 @@ index 09f3560..76a4fb2 100644
  ---------------------------------------------------------------------
  -- The basic functions
 diff --git a/filepath.cabal b/filepath.cabal
-index c510089..e8c7749 100644
+index 1aaed72..497c650 100644
 --- a/filepath.cabal
 +++ b/filepath.cabal
-@@ -36,6 +36,9 @@ Library
+@@ -40,6 +40,9 @@ library
          System.FilePath
          System.FilePath.Posix
          System.FilePath.Windows
@@ -69,5 +69,5 @@ index c510089..e8c7749 100644
 +        Exposed-modules:
 +            System.FilePath.Current
  
-     Build-Depends:
-         base >= 4 && < 4.8
+     build-depends:
+         base >= 4 && < 4.9

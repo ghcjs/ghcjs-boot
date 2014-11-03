@@ -85,10 +85,10 @@ index 5bb17e2..549aaad 100644
 +
 +
 diff --git a/ghc-prim.cabal b/ghc-prim.cabal
-index ffb32af..e87310b 100644
+index c87f336..57bb2e0 100644
 --- a/ghc-prim.cabal
 +++ b/ghc-prim.cabal
-@@ -27,17 +27,19 @@ flag include-ghc-prim
+@@ -23,17 +23,19 @@ flag include-ghc-prim
  
  Library
      default-language: Haskell2010

@@ -1,5 +1,5 @@
 diff --git a/System/Process.hs b/System/Process.hs
-index 87e9a41..c32ebca 100644
+index cafe2cc..d19bd25 100644
 --- a/System/Process.hs
 +++ b/System/Process.hs
 @@ -4,6 +4,10 @@
@@ -31,7 +31,7 @@ index 87e9a41..c32ebca 100644
  import System.Posix.Signals
  # endif
  #endif
-@@ -670,7 +674,8 @@ interruptProcessGroupOf ph = do
+@@ -651,7 +655,8 @@ interruptProcessGroupOf ph = do
          case p_ of
              ClosedHandle _ -> return ()
              OpenHandle h -> do
@@ -41,7 +41,7 @@ index 87e9a41..c32ebca 100644
                  pid <- getProcessId h
                  generateConsoleCtrlEvent cTRL_BREAK_EVENT pid
  -- We can't use an #elif here, because MIN_VERSION_unix isn't defined
-@@ -686,6 +691,23 @@ interruptProcessGroupOf ph = do
+@@ -667,6 +672,23 @@ interruptProcessGroupOf ph = do
  -- ----------------------------------------------------------------------------
  -- Interface to C bits
  
@@ -65,7 +65,7 @@ index 87e9a41..c32ebca 100644
  foreign import ccall unsafe "terminateProcess"
    c_terminateProcess
          :: PHANDLE
-@@ -703,6 +725,7 @@ foreign import ccall interruptible "waitForProcess" -- NB. safe - can block
+@@ -684,6 +706,7 @@ foreign import ccall interruptible "waitForProcess" -- NB. safe - can block
          -> Ptr CInt
          -> IO CInt
  
@@ -74,7 +74,7 @@ index 87e9a41..c32ebca 100644
  -- ----------------------------------------------------------------------------
  -- Old deprecated variants
 diff --git a/System/Process/Internals.hs b/System/Process/Internals.hs
-index 9dc2af7..870603b 100644
+index d5cc90b..bce9522 100644
 --- a/System/Process/Internals.hs
 +++ b/System/Process/Internals.hs
 @@ -5,6 +5,10 @@
@@ -88,7 +88,7 @@ index 9dc2af7..870603b 100644
  -----------------------------------------------------------------------------
  -- |
  -- Module      :  System.Process.Internals
-@@ -31,7 +35,7 @@ module System.Process.Internals (
+@@ -33,7 +37,7 @@ module System.Process.Internals (
  #endif
      startDelegateControlC,
      endDelegateControlC,
@@ -97,7 +97,7 @@ index 9dc2af7..870603b 100644
      pPrPr_disableITimers, c_execvpe,
      ignoreSignal, defaultSignal,
  #endif
-@@ -49,7 +53,7 @@ import Foreign.Ptr
+@@ -51,7 +55,7 @@ import Foreign.Ptr
  import Foreign.Storable
  import System.IO.Unsafe
  
@@ -106,7 +106,7 @@ index 9dc2af7..870603b 100644
  import Control.Monad
  import Data.Char
  import System.IO
-@@ -68,10 +72,12 @@ import GHC.IO.Handle.Internals
+@@ -70,10 +74,12 @@ import GHC.IO.Handle.Internals
  import GHC.IO.Handle.Types hiding (ClosedHandle)
  import System.IO.Error
  import Data.Typeable
@@ -121,7 +121,7 @@ index 9dc2af7..870603b 100644
  import System.Posix.Signals as Sig
  # endif
  #endif
-@@ -82,6 +88,11 @@ import System.Environment       ( getEnv )
+@@ -84,6 +90,11 @@ import System.Environment       ( getEnv )
  import System.FilePath
  #endif
  
@@ -133,7 +133,7 @@ index 9dc2af7..870603b 100644
  #include "HsProcessConfig.h"
  #include "processFlags.h"
  
-@@ -95,6 +106,46 @@ import System.FilePath
+@@ -97,6 +108,46 @@ import System.FilePath
  # endif
  #endif
  
@@ -180,7 +180,7 @@ index 9dc2af7..870603b 100644
  -- ----------------------------------------------------------------------------
  -- ProcessHandle type
  
-@@ -120,7 +171,19 @@ withProcessHandle
+@@ -122,7 +173,19 @@ withProcessHandle
          -> IO a
  withProcessHandle (ProcessHandle m _) io = withMVar m io
  
@@ -201,7 +201,7 @@ index 9dc2af7..870603b 100644
  
  type PHANDLE = CPid
  
-@@ -201,7 +264,50 @@ createProcess_
+@@ -222,7 +285,50 @@ createProcess_
    -> CreateProcess
    -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
  
@@ -253,7 +253,7 @@ index 9dc2af7..870603b 100644
  
  #ifdef __GLASGOW_HASKELL__
  
-@@ -447,6 +553,31 @@ fd_stdin  = 0
+@@ -468,6 +574,31 @@ fd_stdin  = 0
  fd_stdout = 1
  fd_stderr = 2
  
@@ -285,7 +285,7 @@ index 9dc2af7..870603b 100644
  mbFd :: String -> FD -> StdStream -> IO FD
  mbFd _   _std CreatePipe      = return (-1)
  mbFd _fun std Inherit         = return std
-@@ -463,6 +594,7 @@ mbFd fun _std (UseHandle hdl) =
+@@ -484,6 +615,7 @@ mbFd fun _std (UseHandle hdl) =
                        "createProcess" (Just hdl) Nothing
                     `ioeSetErrorString` "handle is not a file descriptor")
  
@@ -293,7 +293,7 @@ index 9dc2af7..870603b 100644
  mbPipe :: StdStream -> Ptr FD -> IOMode -> IO (Maybe Handle)
  mbPipe CreatePipe pfd  mode = fmap Just (pfdToHandle pfd mode)
  mbPipe _std      _pfd _mode = return Nothing
-@@ -483,6 +615,9 @@ pfdToHandle pfd mode = do
+@@ -504,6 +636,9 @@ pfdToHandle pfd mode = do
  #endif
    mkHandleFromFD fD' fd_type filepath mode False {-is_socket-} (Just enc)
  
@@ -303,7 +303,7 @@ index 9dc2af7..870603b 100644
  -- ----------------------------------------------------------------------------
  -- commandToProcess
  
-@@ -500,7 +635,21 @@ pfdToHandle pfd mode = do
+@@ -521,7 +656,21 @@ pfdToHandle pfd mode = do
     Windows isn't required (or desirable) here.
  -}
  
@@ -326,7 +326,7 @@ index 9dc2af7..870603b 100644
  
  commandToProcess :: CmdSpec -> (FilePath, [String])
  commandToProcess (ShellCommand string) = ("/bin/sh", ["-c", string])
-@@ -619,7 +768,9 @@ use lpCommandLine alone, which CreateProcess supports.
+@@ -640,7 +789,9 @@ use lpCommandLine alone, which CreateProcess supports.
  -}
  
  translate :: String -> String
@@ -337,7 +337,7 @@ index 9dc2af7..870603b 100644
  translate xs = '"' : snd (foldr escape (True,"\"") xs)
    where escape '"'  (_,     str) = (True,  '\\' : '"'  : str)
          escape '\\' (True,  str) = (True,  '\\' : '\\' : str)
-@@ -676,7 +827,7 @@ runGenProcess_
+@@ -697,7 +848,7 @@ runGenProcess_
   -> Maybe CLong                -- ^ handler for SIGINT
   -> Maybe CLong                -- ^ handler for SIGQUIT
   -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
@@ -347,11 +347,11 @@ index 9dc2af7..870603b 100644
                           = createProcess_ fun c { delegate_ctlc = True }
  runGenProcess_ fun c _ _ = createProcess_ fun c
 diff --git a/process.cabal b/process.cabal
-index e8d07b5..b8b534e 100644
+index 0afdca7..82a7422 100644
 --- a/process.cabal
 +++ b/process.cabal
-@@ -65,7 +65,8 @@ library
-     build-depends: base      >= 4.4 && < 4.8,
+@@ -60,7 +60,8 @@ library
+     build-depends: base      >= 4.4 && < 4.9,
                     directory >= 1.1 && < 1.3,
                     filepath  >= 1.2 && < 1.4,
 -                   deepseq   >= 1.1 && < 1.4

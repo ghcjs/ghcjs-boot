@@ -1,5 +1,5 @@
 diff --git a/System/Posix/Files/Common.hsc b/System/Posix/Files/Common.hsc
-index 3056014..fbe9887 100644
+index 62fff6b..1cc4889 100644
 --- a/System/Posix/Files/Common.hsc
 +++ b/System/Posix/Files/Common.hsc
 @@ -528,7 +528,7 @@ foreign import ccall unsafe "fchown"
