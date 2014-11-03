@@ -118,7 +118,7 @@ main = getArgs >>= \args ->
        do s <- getContents
           case parse s of
              Left err -> error ("parse error at " ++ (show err))
-             Right p_o_specs@(Info _ entries)
+             Right p_o_specs@(Info _ _)
                 -> seq (sanityTop p_o_specs) (
                    case head args of
 
@@ -187,9 +187,6 @@ main = getArgs >>= \args ->
                       "--make-haskell-source" 
                          -> putStr (gen_hs_source p_o_specs)
 
-                      "--make-ext-core-source"
-                         -> putStr (gen_ext_core_source entries)
-
                       "--make-latex-doc"
                          -> putStr (gen_latex_doc p_o_specs)
 
@@ -215,7 +212,6 @@ known_args
        "--primop-vector-tycons",
        "--make-haskell-wrappers",
        "--make-haskell-source",
-       "--make-ext-core-source",
        "--make-latex-doc"
      ]
 
@@ -231,7 +227,7 @@ gen_hs_source (Info defaults entries) =
     ++ "consumed by haddock.\n"
     ++ "-}\n"
     ++ "\n"
-        ++ "-----------------------------------------------------------------------------\n"
+        ++ (replicate 77 '-' ++ "\n") -- For 80-col cleanliness
         ++ "-- |\n"
         ++ "-- Module      :  GHC.Prim\n"
         ++ "-- \n"
@@ -242,16 +238,21 @@ gen_hs_source (Info defaults entries) =
         ++ "-- GHC\'s primitive types and operations.\n"
         ++ "-- Use GHC.Exts from the base package instead of importing this\n"
         ++ "-- module directly.\n"
-        ++ "--\n" 
-        ++ "-----------------------------------------------------------------------------\n"
+        ++ "--\n"
+        ++ (replicate 77 '-' ++ "\n") -- For 80-col cleanliness
+        ++ "{-# LANGUAGE Unsafe #-}\n"
+        ++ "{-# LANGUAGE MagicHash #-}\n"
         ++ "{-# LANGUAGE MultiParamTypeClasses #-}\n"
+        ++ "{-# LANGUAGE NoImplicitPrelude #-}\n"
+        ++ "{-# LANGUAGE UnboxedTuples #-}\n"
         ++ "module GHC.Prim (\n"
-        ++ unlines (map (("\t" ++) . hdr) entries')
+        ++ unlines (map (("        " ++) . hdr) entries')
         ++ ") where\n"
     ++ "\n"
     ++ "{-\n"
         ++ unlines (map opt defaults)
     ++ "-}\n"
+    ++ "import GHC.Types (Coercible)\n"
         ++ unlines (concatMap ent entries') ++ "\n\n\n"
      where entries' = concatMap desugarVectorSpec entries
 
@@ -268,8 +269,6 @@ gen_hs_source (Info defaults entries) =
            hdr (PseudoOpSpec { name = n })                       = wrapOp n ++ ","
            hdr (PrimTypeSpec { ty = TyApp (TyCon n) _ })         = wrapTy n ++ ","
            hdr (PrimTypeSpec {})                                 = error $ "Illegal type spec"
-           hdr (PrimClassSpec { cls = TyApp (TyCon n) _ })       = wrapTy n ++ ","
-           hdr (PrimClassSpec {})                                = error "Illegal class spec"
            hdr (PrimVecTypeSpec { ty = TyApp (VecTyCon n _) _ }) = wrapTy n ++ ","
            hdr (PrimVecTypeSpec {})                              = error $ "Illegal type spec"
 
@@ -277,7 +276,6 @@ gen_hs_source (Info defaults entries) =
            ent o@(PrimOpSpec {})      = spec o
            ent o@(PrimVecOpSpec {})   = spec o
            ent o@(PrimTypeSpec {})    = spec o
-           ent o@(PrimClassSpec {})   = spec o
            ent o@(PrimVecTypeSpec {}) = spec o
            ent o@(PseudoOpSpec {})    = spec o
 
@@ -301,8 +299,6 @@ gen_hs_source (Info defaults entries) =
                               wrapOp n ++ " = let x = x in x" ]
                         PrimTypeSpec { ty = t }   ->
                             [ "data " ++ pprTy t ]
-                        PrimClassSpec { cls = t }   ->
-                            [ "class " ++ pprTy t ]
                         PrimVecTypeSpec { ty = t }   ->
                             [ "data " ++ pprTy t ]
                         Section { } -> []
@@ -496,13 +492,6 @@ gen_latex_doc (Info defaults entries)
                  ++ d ++ "}{"
                  ++ mk_options o
                  ++ "}\n"
-           mk_entry (PrimClassSpec {cls=t,desc=d,opts=o}) =
-                 "\\primclassspec{"
-                 ++ latex_encode (mk_source_ty t) ++ "}{"
-                 ++ latex_encode (mk_core_ty t) ++ "}{"
-                 ++ d ++ "}{"
-                 ++ mk_options o
-                 ++ "}\n"
            mk_entry (PrimVecTypeSpec {}) =
                  ""
            mk_entry (PseudoOpSpec {name=n,ty=t,desc=d,opts=o}) =
@@ -649,7 +638,7 @@ gen_latex_doc (Info defaults entries)
 
 gen_wrappers :: Info -> String
 gen_wrappers (Info _ entries)
-   = "{-# LANGUAGE CPP, NoImplicitPrelude, UnboxedTuples #-}\n"
+   = "{-# LANGUAGE MagicHash, NoImplicitPrelude, UnboxedTuples #-}\n"
         -- Dependencies on Prelude must be explicit in libraries/base, but we
         -- don't need the Prelude here so we add NoImplicitPrelude.
      ++ "module GHC.PrimopWrappers where\n" 
@@ -750,7 +739,7 @@ gen_primop_vector_tys_exports (Info _ entries)
 
     mkVecTypes :: Entry -> String
     mkVecTypes i =
-        "\t" ++ ty_id ++ ", " ++ tycon_id ++ ","
+        "        " ++ ty_id ++ ", " ++ tycon_id ++ ","
       where
         ty_id    = prefix i ++ "PrimTy"
         tycon_id = prefix i ++ "PrimTyCon"
@@ -904,10 +893,13 @@ ppType (TyApp (TyCon "MutVar#") [x,y])          = "mkMutVarPrimTy " ++ ppType x
 ppType (TyApp (TyCon "MutableArray#") [x,y])    = "mkMutableArrayPrimTy " ++ ppType x
                                                    ++ " " ++ ppType y
 ppType (TyApp (TyCon "MutableArrayArray#") [x]) = "mkMutableArrayArrayPrimTy " ++ ppType x
+ppType (TyApp (TyCon "SmallMutableArray#") [x,y]) = "mkSmallMutableArrayPrimTy " ++ ppType x
+                                                    ++ " " ++ ppType y
 ppType (TyApp (TyCon "MutableByteArray#") [x])  = "mkMutableByteArrayPrimTy " 
                                                    ++ ppType x
 ppType (TyApp (TyCon "Array#") [x])             = "mkArrayPrimTy " ++ ppType x
 ppType (TyApp (TyCon "ArrayArray#") [])         = "mkArrayArrayPrimTy"
+ppType (TyApp (TyCon "SmallArray#") [x])        = "mkSmallArrayPrimTy " ++ ppType x
 
 
 ppType (TyApp (TyCon "Weak#")       [x]) = "mkWeakPrimTy " ++ ppType x
