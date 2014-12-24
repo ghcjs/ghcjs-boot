@@ -171,7 +171,7 @@ patG ss = do { ss' <- sequence ss; return (PatG ss') }
 
 patGE :: [StmtQ] -> ExpQ -> Q (Guard, Exp)
 patGE ss e = do { ss' <- sequence ss;
-		  e'  <- e;
+                  e'  <- e;
                   return (PatG ss', e') }
 
 -------------------------------------------------------------------------------
@@ -295,6 +295,10 @@ stringE = litE . stringL
 
 fieldExp :: Name -> ExpQ -> Q (Name, Exp)
 fieldExp s e = do { e' <- e; return (s,e') }
+
+-- | @staticE x = [| static x |]@
+staticE :: ExpQ -> ExpQ
+staticE = fmap StaticE
 
 -- ** 'arithSeqE' Shortcuts
 fromE :: ExpQ -> ExpQ
@@ -458,6 +462,19 @@ closedTypeFamilyKindD tc tvs kind eqns =
 
 roleAnnotD :: Name -> [Role] -> DecQ
 roleAnnotD name roles = return $ RoleAnnotD name roles
+
+standaloneDerivD :: CxtQ -> TypeQ -> DecQ
+standaloneDerivD ctxtq tyq =
+  do
+    ctxt <- ctxtq
+    ty   <- tyq
+    return $ StandaloneDerivD ctxt ty
+
+defaultSigD :: Name -> TypeQ -> DecQ
+defaultSigD n tyq =
+  do
+    ty <- tyq
+    return $ DefaultSigD n ty
 
 tySynEqn :: [TypeQ] -> TypeQ -> TySynEqnQ
 tySynEqn lhs rhs =
@@ -625,9 +642,12 @@ inferR            = InferR
 -------------------------------------------------------------------------------
 -- *   Callconv
 
-cCall, stdCall :: Callconv
-cCall = CCall
-stdCall = StdCall
+cCall, stdCall, cApi, prim, javaScript :: Callconv
+cCall      = CCall
+stdCall    = StdCall
+cApi       = CApi
+prim       = Prim
+javaScript = JavaScript
 
 -------------------------------------------------------------------------------
 -- *   Safety

@@ -41,15 +41,15 @@ module Language.Haskell.TH(
         TExp, unType,
 
         -- * Names
-        Name, NameSpace,	-- Abstract
+        Name, NameSpace,        -- Abstract
         -- ** Constructing names
         mkName,         -- :: String -> Name
         newName,        -- :: String -> Q Name
         -- ** Deconstructing names
-        nameBase,	-- :: Name -> String
-        nameModule,	-- :: Name -> Maybe String
+        nameBase,       -- :: Name -> String
+        nameModule,     -- :: Name -> Maybe String
         -- ** Built-in names
-        tupleTypeName, tupleDataName,	-- Int -> Name
+        tupleTypeName, tupleDataName,   -- Int -> Name
         unboxedTupleTypeName, unboxedTupleDataName, -- :: Int -> Name
 
     -- * The algebraic data types
@@ -90,7 +90,7 @@ module Language.Haskell.TH(
         normalB, guardedB, normalG, normalGE, patG, patGE, match, clause,
 
     -- *** Expressions
-        dyn, global, varE, conE, litE, appE, uInfixE, parensE,
+        dyn, global, varE, conE, litE, appE, uInfixE, parensE, staticE,
         infixE, infixApp, sectionL, sectionR,
         lamE, lam1E, lamCaseE, tupE, condE, multiIfE, letE, caseE, appsE,
         listE, sigE, recConE, recUpdE, stringE, fieldExp,
@@ -124,7 +124,7 @@ module Language.Haskell.TH(
     -- **** Data
         valD, funD, tySynD, dataD, newtypeD,
     -- **** Class
-    classD, instanceD, sigD,
+    classD, instanceD, sigD, standaloneDerivD, defaultSigD,
     -- **** Role annotations
     roleAnnotD,
     -- **** Type Family / Data Family
@@ -133,7 +133,8 @@ module Language.Haskell.TH(
     newtypeInstD, tySynInstD,
     typeFam, dataFam, tySynEqn,
     -- **** Foreign Function Interface (FFI)
-    cCall, stdCall, unsafe, safe, forImpD,
+    cCall, stdCall, cApi, prim, javaScript,
+    unsafe, safe, forImpD,
     -- **** Pragmas
     ruleVar, typedRuleVar,
     pragInlD, pragSpecD, pragSpecInlD, pragSpecInstD, pragRuleD, pragAnnD,
