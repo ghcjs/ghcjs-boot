@@ -16,7 +16,7 @@ index 331ae81..0c75d25 100644
  #else
 diff --git a/System/FilePath/Current.hs b/System/FilePath/Current.hs
 index e69de29..0355326 100644
---- a/System/FilePath/Current.hs
+--- a/System/FilePath/Current.hs 
 +++ b/System/FilePath/Current.hs
 @@ -0,0 +1,4 @@
 +{-# LANGUAGE CPP #-}

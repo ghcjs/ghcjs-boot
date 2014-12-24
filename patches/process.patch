@@ -1,51 +1,63 @@
-diff --git a/System/Process.hs b/System/Process.hs
-index cafe2cc..d19bd25 100644
---- a/System/Process.hs
-+++ b/System/Process.hs
-@@ -4,6 +4,10 @@
+diff --git a/System/Process.hsc b/System/Process.hsc
+index 4fca71e..2948c63 100644
+--- a/System/Process.hsc
++++ b/System/Process.hsc
+@@ -8,6 +8,10 @@
  {-# LANGUAGE InterruptibleFFI #-}
  #endif
  
-+#ifdef ghcjs_HOST_OS
++##ifdef ghcjs_HOST_OS
 +{-# LANGUAGE JavaScriptFFI #-}
-+#endif
++##endif
 +
  -----------------------------------------------------------------------------
  -- |
  -- Module      :  System.Process
-@@ -90,7 +94,7 @@ import System.Exit      ( ExitCode(..) )
- import System.IO
+@@ -86,10 +90,12 @@ import System.IO
  import System.IO.Error (mkIOError, ioeSetErrorString)
  
--#if !defined(mingw32_HOST_OS)
-+#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+ #if defined(mingw32_HOST_OS)
++##if !defined(ghcjs_HOST_OS)
+ # include <io.h>        /* for _close and _pipe */
+ # include <fcntl.h>     /* for _O_BINARY */
+ import Control.Exception (onException)
+ import Foreign.C.Types (CInt(..), CUInt(..))
++##endif
+ #else
  import System.Posix.Process (getProcessGroupIDOf)
- import System.Posix.Types
- #endif
-@@ -100,7 +104,7 @@ import GHC.IO.Exception ( ioException, IOErrorType(..), IOException(..) )
- # if defined(mingw32_HOST_OS)
+ import qualified System.Posix.IO as Posix
+@@ -102,7 +108,9 @@ import GHC.IO.Exception ( ioException, IOErrorType(..), IOException(..) )
  import System.Win32.Console (generateConsoleCtrlEvent, cTRL_BREAK_EVENT)
  import System.Win32.Process (getProcessId)
--# else
-+# elif !defined(ghcjs_HOST_OS)
+ # else
++##if !defined(ghcjs_HOST_OS)
  import System.Posix.Signals
++##endif
  # endif
  #endif
-@@ -651,7 +655,8 @@ interruptProcessGroupOf ph = do
+ 
+@@ -658,7 +666,8 @@ interruptProcessGroupOf ph = do
          case p_ of
              ClosedHandle _ -> return ()
              OpenHandle h -> do
 -#if mingw32_HOST_OS
-+#if defined(ghcjs_HOST_OS)
-+#elif defined(mingw32_HOST_OS)
++##if !defined(ghcjs_HOST_OS)
++#if defined(mingw32_HOST_OS)
                  pid <- getProcessId h
                  generateConsoleCtrlEvent cTRL_BREAK_EVENT pid
  -- We can't use an #elif here, because MIN_VERSION_unix isn't defined
-@@ -667,6 +672,23 @@ interruptProcessGroupOf ph = do
+@@ -668,12 +677,30 @@ interruptProcessGroupOf ph = do
+                 pgid <- getProcessGroupIDOf h
+                 signalProcessGroup sigINT pgid
+ #endif
++##endif
+                 return ()
+ 
+ 
  -- ----------------------------------------------------------------------------
  -- Interface to C bits
  
-+#if defined(ghcjs_HOST_OS)
++##if defined(ghcjs_HOST_OS)
 +
 +
 +foreign import javascript unsafe
@@ -60,21 +72,21 @@ index cafe2cc..d19bd25 100644
 +  "h$process_waitForProcess($1,$2_1,$2_2,$c);"
 +  c_waitForProcess :: PHANDLE -> Ptr CInt -> IO CInt
 +
-+#else
++##else
 +
  foreign import ccall unsafe "terminateProcess"
    c_terminateProcess
          :: PHANDLE
-@@ -684,6 +706,7 @@ foreign import ccall interruptible "waitForProcess" -- NB. safe - can block
+@@ -691,6 +718,7 @@ foreign import ccall interruptible "waitForProcess" -- NB. safe - can block
          -> Ptr CInt
          -> IO CInt
  
-+#endif
++##endif
  
  -- ----------------------------------------------------------------------------
  -- Old deprecated variants
 diff --git a/System/Process/Internals.hs b/System/Process/Internals.hs
-index d5cc90b..bce9522 100644
+index 90651d0..b8f2ac6 100644
 --- a/System/Process/Internals.hs
 +++ b/System/Process/Internals.hs
 @@ -5,6 +5,10 @@
@@ -97,7 +109,7 @@ index d5cc90b..bce9522 100644
      pPrPr_disableITimers, c_execvpe,
      ignoreSignal, defaultSignal,
  #endif
-@@ -51,7 +55,7 @@ import Foreign.Ptr
+@@ -52,7 +56,7 @@ import Foreign.Ptr
  import Foreign.Storable
  import System.IO.Unsafe
  
@@ -106,7 +118,7 @@ index d5cc90b..bce9522 100644
  import Control.Monad
  import Data.Char
  import System.IO
-@@ -70,10 +74,12 @@ import GHC.IO.Handle.Internals
+@@ -71,10 +75,12 @@ import GHC.IO.Handle.Internals
  import GHC.IO.Handle.Types hiding (ClosedHandle)
  import System.IO.Error
  import Data.Typeable
@@ -121,7 +133,7 @@ index d5cc90b..bce9522 100644
  import System.Posix.Signals as Sig
  # endif
  #endif
-@@ -84,6 +90,11 @@ import System.Environment       ( getEnv )
+@@ -85,6 +91,11 @@ import System.Environment       ( getEnv )
  import System.FilePath
  #endif
  
@@ -133,7 +145,7 @@ index d5cc90b..bce9522 100644
  #include "HsProcessConfig.h"
  #include "processFlags.h"
  
-@@ -97,6 +108,46 @@ import System.FilePath
+@@ -98,6 +109,46 @@ import System.FilePath
  # endif
  #endif
  
@@ -180,7 +192,7 @@ index d5cc90b..bce9522 100644
  -- ----------------------------------------------------------------------------
  -- ProcessHandle type
  
-@@ -122,7 +173,19 @@ withProcessHandle
+@@ -123,7 +174,19 @@ withProcessHandle
          -> IO a
  withProcessHandle (ProcessHandle m _) io = withMVar m io
  
@@ -201,7 +213,7 @@ index d5cc90b..bce9522 100644
  
  type PHANDLE = CPid
  
-@@ -222,7 +285,50 @@ createProcess_
+@@ -242,7 +305,50 @@ createProcess_
    -> CreateProcess
    -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
  
@@ -253,7 +265,7 @@ index d5cc90b..bce9522 100644
  
  #ifdef __GLASGOW_HASKELL__
  
-@@ -468,6 +574,31 @@ fd_stdin  = 0
+@@ -488,6 +594,31 @@ fd_stdin  = 0
  fd_stdout = 1
  fd_stderr = 2
  
@@ -285,7 +297,7 @@ index d5cc90b..bce9522 100644
  mbFd :: String -> FD -> StdStream -> IO FD
  mbFd _   _std CreatePipe      = return (-1)
  mbFd _fun std Inherit         = return std
-@@ -484,6 +615,7 @@ mbFd fun _std (UseHandle hdl) =
+@@ -504,6 +635,7 @@ mbFd fun _std (UseHandle hdl) =
                        "createProcess" (Just hdl) Nothing
                     `ioeSetErrorString` "handle is not a file descriptor")
  
@@ -293,7 +305,7 @@ index d5cc90b..bce9522 100644
  mbPipe :: StdStream -> Ptr FD -> IOMode -> IO (Maybe Handle)
  mbPipe CreatePipe pfd  mode = fmap Just (pfdToHandle pfd mode)
  mbPipe _std      _pfd _mode = return Nothing
-@@ -504,6 +636,9 @@ pfdToHandle pfd mode = do
+@@ -524,6 +656,9 @@ pfdToHandle pfd mode = do
  #endif
    mkHandleFromFD fD' fd_type filepath mode False {-is_socket-} (Just enc)
  
@@ -303,7 +315,7 @@ index d5cc90b..bce9522 100644
  -- ----------------------------------------------------------------------------
  -- commandToProcess
  
-@@ -521,7 +656,21 @@ pfdToHandle pfd mode = do
+@@ -541,7 +676,21 @@ pfdToHandle pfd mode = do
     Windows isn't required (or desirable) here.
  -}
  
@@ -326,7 +338,7 @@ index d5cc90b..bce9522 100644
  
  commandToProcess :: CmdSpec -> (FilePath, [String])
  commandToProcess (ShellCommand string) = ("/bin/sh", ["-c", string])
-@@ -640,7 +789,9 @@ use lpCommandLine alone, which CreateProcess supports.
+@@ -660,7 +809,9 @@ use lpCommandLine alone, which CreateProcess supports.
  -}
  
  translate :: String -> String
@@ -337,7 +349,7 @@ index d5cc90b..bce9522 100644
  translate xs = '"' : snd (foldr escape (True,"\"") xs)
    where escape '"'  (_,     str) = (True,  '\\' : '"'  : str)
          escape '\\' (True,  str) = (True,  '\\' : '\\' : str)
-@@ -697,7 +848,7 @@ runGenProcess_
+@@ -717,7 +868,7 @@ runGenProcess_
   -> Maybe CLong                -- ^ handler for SIGINT
   -> Maybe CLong                -- ^ handler for SIGQUIT
   -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
@@ -347,16 +359,15 @@ index d5cc90b..bce9522 100644
                           = createProcess_ fun c { delegate_ctlc = True }
  runGenProcess_ fun c _ _ = createProcess_ fun c
 diff --git a/process.cabal b/process.cabal
-index 0afdca7..82a7422 100644
+index a50146f..308583b 100644
 --- a/process.cabal
 +++ b/process.cabal
-@@ -60,7 +60,8 @@ library
-     build-depends: base      >= 4.4 && < 4.9,
+@@ -63,6 +63,8 @@ library
                     directory >= 1.1 && < 1.3,
                     filepath  >= 1.2 && < 1.4,
--                   deepseq   >= 1.1 && < 1.4
-+                   deepseq   >= 1.1 && < 1.4,
-+                   ghcjs-prim
+                    deepseq   >= 1.1 && < 1.5
++    if impl(ghcjs)
++      build-depends: ghcjs-prim
      if os(windows)
          build-depends: Win32 >=2.2 && < 2.4
          extra-libraries: kernel32

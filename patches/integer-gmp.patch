@@ -21,7 +21,7 @@ index 0a212f7..600c764 100644
        -- * Number theoretic functions
      , gcdInt
 diff --git a/GHC/Integer/GMP/Prim.hs b/GHC/Integer/GMP/Prim.hs
-index 4137dd5..3a10525 100644
+index 4137dd5..407dd4f 100644
 --- a/GHC/Integer/GMP/Prim.hs
 +++ b/GHC/Integer/GMP/Prim.hs
 @@ -118,7 +118,11 @@ default ()
@@ -42,7 +42,7 @@ index 4137dd5..3a10525 100644
  -- used to be primops:
 +#ifdef ghcjs_HOST_OS
 +foreign import prim "integer_cmm_integer2Intzh" integer2Int#
-+  :: Int# -> ByteArray# -> Int#
++   :: Int# -> ByteArray# -> Int#
 +#else
  integer2Int# :: Int# -> ByteArray# -> Int#
  integer2Int# s d = if isTrue# (s ==# 0#)
@@ -56,73 +56,126 @@ index 4137dd5..3a10525 100644
  integer2Word# :: Int# -> ByteArray# -> Word#
  integer2Word# s d = int2Word# (integer2Int# s d)
 diff --git a/GHC/Integer/Logarithms/Internals.hs b/GHC/Integer/Logarithms/Internals.hs
-index 59c800a..9a8a78d 100644
+index 59c800a..551c76d 100644
 --- a/GHC/Integer/Logarithms/Internals.hs
 +++ b/GHC/Integer/Logarithms/Internals.hs
-@@ -23,7 +23,7 @@ import GHC.Integer.Type
+@@ -1,5 +1,8 @@
+ {-# LANGUAGE CPP, MagicHash, UnboxedTuples, NoImplicitPrelude #-}
+ {-# OPTIONS_HADDOCK hide #-}
++#ifdef ghcjs_HOST_OS
++{-# LANGUAGE JavaScriptFFI, UnliftedFFITypes #-}
++#endif
  
+ #include "MachDeps.h"
+ 
+@@ -21,13 +24,54 @@ import GHC.Prim
+ import GHC.Types (isTrue#)
+ import GHC.Integer.Type
+ 
++#if defined(ghcjs_HOST_OS)
++
++foreign import javascript unsafe
++  "h$integer_wordLog2($1)"
++  wordLog2# :: Word# -> Int#
++
++foreign import javascript unsafe
++  "h$integer_integerLog2($1)"
++  js_integerLog2 :: ByteArray# -> Int#
++
++foreign import javascript unsafe
++  "$r1 = h$integer_integerLog2IsPowerOf2($1); $r2 = h$ret1;"
++  js_integerLog2IsPowerOf2 :: ByteArray# -> (# Int#, Int# #)
++
++foreign import javascript unsafe
++  "$r1 = h$integer_intLog2IsPowerOf2($1); $r2 = h$ret1;"
++  js_intLog2IsPowerOf2 :: Int# -> (# Int#, Int# #)
++
++foreign import javascript unsafe
++  "h$integer_roundingMode($1,$2)"
++  js_roundingMode :: ByteArray# -> Int# -> Int#
++
++integerLog2# :: Integer -> Int#
++integerLog2# (S# i)    = wordLog2# (int2Word# i)
++integerLog2# (J# _ ba) = js_integerLog2 ba
++
++integerLog2IsPowerOf2# :: Integer -> (# Int#, Int# #)
++integerLog2IsPowerOf2# (S# i)    = js_intLog2IsPowerOf2 i
++integerLog2IsPowerOf2# (J# _ ba) = js_integerLog2IsPowerOf2 ba
++
++roundingMode# :: Integer -> Int# -> Int#
++roundingMode# (S# i) t =
++    case int2Word# i `and#` ((uncheckedShiftL# 2## t) `minusWord#` 1##) of
++      k -> case uncheckedShiftL# 1## t of
++            c -> if isTrue# (c `gtWord#` k)
++                    then 0#
++                    else if isTrue# (c `ltWord#` k)
++                            then 2#
++                            else 1#
++roundingMode# (J# _ ba) t = js_roundingMode ba t
++
  -- When larger word sizes become common, add support for those,
  -- it is not hard, just tedious.
 -#if (WORD_SIZE_IN_BITS != 32) && (WORD_SIZE_IN_BITS != 64)
-+#if ((WORD_SIZE_IN_BITS != 32) && (WORD_SIZE_IN_BITS != 64)) || ghcjs_HOST_OS
++#elif ((WORD_SIZE_IN_BITS != 32) && (WORD_SIZE_IN_BITS != 64))
  
  -- Less than ideal implementations for strange word sizes
  
+-import GHC.Integer
++-- import GHC.Integer
+ 
+ default ()
+ 
 diff --git a/GHC/Integer/Type.lhs b/GHC/Integer/Type.lhs
-index 0f408ff..3cb9189 100644
+index 0f408ff..3ea0a97 100644
 --- a/GHC/Integer/Type.lhs
 +++ b/GHC/Integer/Type.lhs
 @@ -1,5 +1,8 @@
  \begin{code}
  {-# LANGUAGE BangPatterns, CPP, UnboxedTuples, UnliftedFFITypes, MagicHash, NoImplicitPrelude #-}
 +#ifdef ghcjs_HOST_OS
-+{-# LANGUAGE JavaScriptFFI #-}
++{-# LANGUAGE JavaScriptFFI, GHCForeignImportPrim #-}
 +#endif
  {-# OPTIONS_HADDOCK hide #-}
  
  -- Commentary of Integer library is located on the wiki:
-@@ -182,6 +185,14 @@ int64ToInteger i = if isTrue# (i `leInt64#` intToInt64# 0x7FFFFFFF#) &&
-                         (# s, d #) -> J# s d
- #endif
- 
-+#ifdef ghcjs_HOST_OS
-+foreign import javascript unsafe "$1.negate()"
-+  negateInteger_ghcjs# :: MPZ# -> MPZ#
-+
-+foreign import javascript unsafe "$1.abs()"
-+  absInteger_ghcjs# :: MPZ# -> MPZ#
-+#endif
-+
- integerToInt :: Integer -> Int#
- {-# NOINLINE integerToInt #-}
- integerToInt (S# i)   = i
-@@ -204,6 +215,7 @@ toSmall (J# s# mb#) = smartJ# s# mb#
+@@ -204,6 +207,13 @@ toSmall (J# s# mb#) = smartJ# s# mb#
  
  -- | Smart 'J#' constructor which tries to construct 'S#' if possible
  smartJ# :: Int# -> ByteArray# -> Integer
-+#ifndef ghcjs_HOST_OS
++#ifdef ghcjs_HOST_OS
++smartJ# _  ba = case js_smartJ ba of (# i #) -> i
++
++foreign import javascript unsafe
++  "h$integer_smartJ($1)"
++  js_smartJ :: ByteArray# -> (# Integer #)
++#else
  smartJ# 0# _ = S# 0#
  smartJ# 1# mb#  | isTrue# (v ># 0#) = S# v
      where
-@@ -211,6 +223,7 @@ smartJ# 1# mb#  | isTrue# (v ># 0#) = S# v
- smartJ# (-1#) mb# | isTrue# (v <# 0#) = S# v
+@@ -212,6 +222,7 @@ smartJ# (-1#) mb# | isTrue# (v <# 0#) = S# v
      where
        v = negateInt# (indexIntArray# mb# 0#)
-+#endif
  smartJ# s# mb# = J# s# mb#
++#endif
  
  -- |Construct 'Integer' out of a 'MPZ#' as returned by GMP wrapper primops
-@@ -221,6 +234,9 @@ smartJ# s# mb# = J# s# mb#
+ --
+@@ -221,6 +232,14 @@ smartJ# s# mb# = J# s# mb#
  -- See notes at definition site of 'MPZ#' in "GHC.Integer.GMP.Prim"
  -- for more details.
  mpzToInteger :: MPZ# -> Integer
 +#ifdef ghcjs_HOST_OS
-+mpzToInteger d = J# 0# d
++mpzToInteger b =
++  case js_mpzToInteger b of (# i #) -> i
++
++foreign import javascript unsafe
++  "h$integer_mpzToInteger($1)"
++  js_mpzToInteger :: MPZ# -> (# Integer #)
 +#else
  mpzToInteger (# 0#, _, _ #) = S# 0#
  mpzToInteger (# 1#, _, w# #) | isTrue# (v# >=# 0#) = S# v#
                               | True = case word2Integer# w# of (# _, d #) -> J# 1# d
-@@ -231,6 +247,7 @@ mpzToInteger (# -1#, _, w# #) | isTrue# (v# <=# 0#) = S# v#
+@@ -231,6 +250,7 @@ mpzToInteger (# -1#, _, w# #) | isTrue# (v# <=# 0#) = S# v#
      where
        v# = negateInt# (word2Int# w#)
  mpzToInteger (# s#, mb#, _ #) = J# s# mb#
@@ -130,124 +183,126 @@ index 0f408ff..3cb9189 100644
  
  -- | Variant of 'mpzToInteger' for pairs of 'Integer's
  mpzToInteger2 :: (# MPZ#, MPZ# #) -> (# Integer, Integer #)
-@@ -241,7 +258,11 @@ mpzToInteger2 (# mpz1, mpz2 #) = (# i1, i2 #)
+@@ -241,7 +261,15 @@ mpzToInteger2 (# mpz1, mpz2 #) = (# i1, i2 #)
  
  -- |Negate MPZ#
  mpzNeg :: MPZ# -> MPZ#
 +#ifdef ghcjs_HOST_OS
-+mpzNeg b = negateInteger_ghcjs# b
++mpzNeg ba = js_mpzNeg ba
++
++foreign import javascript unsafe
++  "h$integer_mpzNeg($1)"
++  js_mpzNeg :: MPZ# -> MPZ#
 +#else
  mpzNeg (# s#, mb#, w# #) = (# negateInt# s#, mb#, w# #)
 +#endif
  
  \end{code}
  
-@@ -323,7 +344,11 @@ divModInteger (S# i) (S# j) = (# S# d, S# m #)
+@@ -321,7 +349,7 @@ divModInteger (S# i) (S# j) = (# S# d, S# m #)
+       -- evaluated strictly.
+       !d = i `divInt#` j
        !m = i `modInt#` j
- #if SIZEOF_HSWORD == SIZEOF_LONG
+-#if SIZEOF_HSWORD == SIZEOF_LONG
++#if SIZEOF_HSWORD == SIZEOF_LONG && !defined(ghcjs_HOST_OS)
  divModInteger (J# s1 d1) (S# b) | isTrue# (b <# 0#)
-+#ifdef ghcjs_HOST_OS
-+  = case divModIntegerWord# 0# (negateInteger_ghcjs# d1) (int2Word# (negateInt# b)) of
-+#else
    = case divModIntegerWord# (negateInt# s1) d1 (int2Word# (negateInt# b)) of
-+#endif
            (# q, r #) -> let !q' = mpzToInteger q
-                             !r' = mpzToInteger (mpzNeg r)
-                         in (# q', r' #) -- see also Trac #8726
-@@ -388,7 +413,11 @@ modInteger (S# a) (S# b) = S# (modInt# a b)
+@@ -386,7 +414,7 @@ modInteger :: Integer -> Integer -> Integer
+ modInteger (S# INT_MINBOUND) b = modInteger minIntAsBig b
+ modInteger (S# a) (S# b) = S# (modInt# a b)
  modInteger ia@(S# _) ib@(J# _ _) = modInteger (toBig ia) ib
- #if SIZEOF_HSWORD == SIZEOF_LONG
+-#if SIZEOF_HSWORD == SIZEOF_LONG
++#if SIZEOF_HSWORD == SIZEOF_LONG && !defined(ghcjs_HOST_OS)
  modInteger (J# sa a) (S# b) | isTrue# (b <# 0#)
-+#ifdef ghcjs_HOST_OS
-+  = mpzToInteger (mpzNeg (modIntegerWord# 0# (negateInteger_ghcjs# a) (int2Word# (negateInt# b))))
-+#else
    = mpzToInteger (mpzNeg (modIntegerWord# (negateInt# sa) a (int2Word# (negateInt# b))))
-+#endif
  modInteger (J# sa a) (S# b)
-   = mpzToInteger (modIntegerWord# sa a (int2Word# b))
- #else
-@@ -404,7 +433,11 @@ divInteger (S# a) (S# b) = S# (divInt# a b)
+@@ -404,7 +432,11 @@ divInteger (S# a) (S# b) = S# (divInt# a b)
  divInteger ia@(S# _) ib@(J# _ _) = divInteger (toBig ia) ib
  #if SIZEOF_HSWORD == SIZEOF_LONG
  divInteger (J# sa a) (S# b) | isTrue# (b <# 0#)
 +#ifdef ghcjs_HOST_OS
-+  = mpzToInteger (divIntegerWord# 0# (negateInteger_ghcjs# a) (int2Word# (negateInt# b)))
++  = mpzToInteger (mpzNeg (divIntegerWord# sa a (int2Word# (negateInt# b))))
 +#else
    = mpzToInteger (divIntegerWord# (negateInt# sa) a (int2Word# (negateInt# b)))
 +#endif
  divInteger (J# sa a) (S# b)
    = mpzToInteger (divIntegerWord# sa a (int2Word# b))
  #else
-@@ -426,10 +459,18 @@ gcdInteger a (S# INT_MINBOUND) = gcdInteger a minIntAsBig
+@@ -424,12 +456,19 @@ gcdInteger :: Integer -> Integer -> Integer
+ gcdInteger (S# INT_MINBOUND) b = gcdInteger minIntAsBig b
+ gcdInteger a (S# INT_MINBOUND) = gcdInteger a minIntAsBig
  gcdInteger (S# a) (S# b) = S# (gcdInt a b)
++#ifdef ghcjs_HOST_OS
++gcdInteger ia@(S# a)  ib@(J# sb b)
++ =      if isTrue# (a ==# 0#)                      then absInteger ib
++   else if isTrue# (cmpIntegerInt# sb b 0# ==# 0#) then absInteger ia
++   else S# (gcdIntegerInt# sb b a)
++#else
  gcdInteger ia@(S# a)  ib@(J# sb b)
   =      if isTrue# (a  ==# 0#) then absInteger ib
--   else if isTrue# (sb ==# 0#) then absInteger ia
--   else                             S# (gcdIntegerInt# absSb b absA)
-+#ifdef ghcjs_HOST_OS
-+   else if isTrue# (cmpIntegerInt# sb b 0# ==# 0#)
-+          then absInteger ia
-+          else S# (gcdIntegerInt# sb b a) -- foreign code deals with negative numbers
-+#else
-+   else if isTrue# (sb ==# 0#)
-+          then absInteger ia
-+          else S# (gcdIntegerInt# absSb b absA)
+    else if isTrue# (sb ==# 0#) then absInteger ia
+    else                             S# (gcdIntegerInt# absSb b absA)
         where !absA  = if isTrue# (a  <# 0#) then negateInt# a  else a
               !absSb = if isTrue# (sb <# 0#) then negateInt# sb else sb
 +#endif
-+
  gcdInteger ia@(J# _ _) ib@(S# _) = gcdInteger ib ia
  gcdInteger (J# sa a) (J# sb b)   = mpzToInteger (gcdInteger# sa a sb b)
  
-@@ -471,7 +512,11 @@ divExact (S# a) (J# sb b)
+@@ -469,7 +508,7 @@ divExact (S# INT_MINBOUND) b = divExact minIntAsBig b
+ divExact (S# a) (S# b) = S# (quotInt# a b)
+ divExact (S# a) (J# sb b)
    = S# (quotInt# a (integer2Int# sb b))
- #if SIZEOF_HSWORD == SIZEOF_LONG
+-#if SIZEOF_HSWORD == SIZEOF_LONG
++#if SIZEOF_HSWORD == SIZEOF_LONG && !defined(ghcjs_HOST_OS)
  divExact (J# sa a) (S# b) | isTrue# (b <# 0#)
-+#ifdef ghcjs_HOST_OS
-+  = mpzToInteger (divExactIntegerWord# 0# (negateInteger_ghcjs# a) (int2Word# (negateInt# b)))
-+#else
    = mpzToInteger (divExactIntegerWord# (negateInt# sa) a (int2Word# (negateInt# b)))
-+#endif
  divExact (J# sa a) (S# b) = mpzToInteger (divExactIntegerWord# sa a (int2Word# b))
- #else
- divExact i1@(J# _ _) i2@(S# _) = divExact i1 (toBig i2)
-@@ -600,7 +645,11 @@ instance Ord Integer where
+@@ -600,7 +639,15 @@ instance Ord Integer where
  absInteger :: Integer -> Integer
  absInteger (S# INT_MINBOUND) = NEG_INT_MINBOUND
  absInteger n@(S# i)   = if isTrue# (i >=# 0#) then n else S# (negateInt# i)
 +#ifdef ghcjs_HOST_OS
-+absInteger (J# _ d) = J# 0# (absInteger_ghcjs# d)
++absInteger (J# _ d) = mpzToInteger (js_mpzAbs d)
++
++foreign import javascript unsafe
++  "h$integer_absInteger($1)"
++  js_mpzAbs :: ByteArray# -> MPZ#
 +#else
  absInteger n@(J# s d) = if isTrue# (s >=# 0#) then n else J# (negateInt# s) d
 +#endif
  
  {-# NOINLINE signumInteger #-}
  signumInteger :: Integer -> Integer
-@@ -648,10 +697,18 @@ minusInteger (S# i)      (S# j)    = case subIntC# i j of
+@@ -648,10 +695,18 @@ minusInteger (S# i)      (S# j)    = case subIntC# i j of
                                           else minusInteger (toBig (S# i)) (toBig (S# j))
  #endif
  minusInteger i1@(J# _ _) (S# 0#)   = i1
 +#ifdef ghcjs_HOST_OS
-+minusInteger (S# 0#)    (J# _ d)   = J# 0# (negateInteger_ghcjs# d)
++minusInteger (S# 0#)    (J# _  d2) = J# 0# (js_negateInteger d2)
 +#else
  minusInteger (S# 0#)    (J# s2 d2) = J# (negateInt# s2) d2
 +#endif
  #if SIZEOF_HSWORD == SIZEOF_LONG
  minusInteger (J# s1 d1)  (S# j)    = mpzToInteger (minusIntegerInt# s1 d1 j)
 +#ifdef ghcjs_HOST_OS
-+minusInteger (S# i)     j          = minusInteger (toBig (S# i)) j
++minusInteger i@(S# _)     j@(J# _  _)  = minusInteger (toBig i) j
 +#else
  minusInteger (S# i)     (J# s2 d2) = mpzToInteger (plusIntegerInt# (negateInt# s2) d2 i)
 +#endif
  #else
  minusInteger i1@(J# _ _) i2@(S# _) = minusInteger i1 (toBig i2)
  minusInteger i1@(S# _) i2@(J# _ _) = minusInteger (toBig i1) i2
-@@ -683,7 +740,11 @@ timesInteger (J# s1 d1) (J# s2 d2) = mpzToInteger (timesInteger# s1 d1 s2 d2)
+@@ -683,7 +738,15 @@ timesInteger (J# s1 d1) (J# s2 d2) = mpzToInteger (timesInteger# s1 d1 s2 d2)
  negateInteger :: Integer -> Integer
  negateInteger (S# INT_MINBOUND) = NEG_INT_MINBOUND
  negateInteger (S# i)            = S# (negateInt# i)
 +#ifdef ghcjs_HOST_OS
-+negateInteger (J# _ d)          = J# 0# (negateInteger_ghcjs# d)
++negateInteger (J# _ d)          = J# 0# (js_negateInteger d)
++
++foreign import javascript unsafe
++  "h$integer_negateInteger($1)"
++  js_negateInteger :: ByteArray# -> ByteArray#
 +#else
  negateInteger (J# s d)          = J# (negateInt# s) d
 +#endif
@@ -255,10 +310,10 @@ index 0f408ff..3cb9189 100644
  
  
 diff --git a/integer-gmp.cabal b/integer-gmp.cabal
-index 817a854..57275da 100644
+index 376139f..2ec503a 100644
 --- a/integer-gmp.cabal
 +++ b/integer-gmp.cabal
-@@ -75,6 +75,7 @@ Library
+@@ -71,6 +71,7 @@ Library
          GHC.Integer.Type
  
      c-sources: cbits/cbits.c
