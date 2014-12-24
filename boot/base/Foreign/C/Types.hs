@@ -1,11 +1,7 @@
 {-# LANGUAGE Trustworthy #-}
-{-# LANGUAGE CPP
-           , NoImplicitPrelude
-           , MagicHash
-           , GeneralizedNewtypeDeriving
-  #-}
+{-# LANGUAGE CPP, NoImplicitPrelude, MagicHash, GeneralizedNewtypeDeriving,
+             AutoDeriveTypeable, StandaloneDeriving #-}
 {-# OPTIONS_GHC -fno-warn-unused-binds #-}
-{-# LANGUAGE AutoDeriveTypeable, StandaloneDeriving #-}
 -- XXX -fno-warn-unused-binds stops us warning about unused constructors,
 -- but really we should just remove them if we don't want them
 
@@ -188,11 +184,11 @@ ARITHMETIC_TYPE(CClock,HTYPE_CLOCK_T)
 ARITHMETIC_TYPE(CTime,HTYPE_TIME_T)
 -- | Haskell type representing the C @useconds_t@ type.
 --
--- /Since: 4.4.0.0/
+-- @since 4.4.0.0
 ARITHMETIC_TYPE(CUSeconds,HTYPE_USECONDS_T)
 -- | Haskell type representing the C @suseconds_t@ type.
 --
--- /Since: 4.4.0.0/
+-- @since 4.4.0.0
 ARITHMETIC_TYPE(CSUSeconds,HTYPE_SUSECONDS_T)
 
 -- FIXME: Implement and provide instances for Eq and Storable

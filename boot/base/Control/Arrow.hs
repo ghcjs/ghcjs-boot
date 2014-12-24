@@ -1,5 +1,6 @@
-{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Control.Arrow
@@ -58,7 +59,7 @@ infixr 1 ^<<, <<^
 
 -- | The basic arrow class.
 --
--- Minimal complete definition: 'arr' and 'first', satisfying the laws
+-- Instances should satisfy the following laws:
 --
 --  * @'arr' id = 'id'@
 --
@@ -192,7 +193,7 @@ instance MonadPlus m => ArrowPlus (Kleisli m) where
 -- | Choice, for arrows that support it.  This class underlies the
 -- @if@ and @case@ constructs in arrow notation.
 --
--- Minimal complete definition: 'left', satisfying the laws
+-- Instances should satisfy the following laws:
 --
 --  * @'left' ('arr' f) = 'arr' ('left' f)@
 --

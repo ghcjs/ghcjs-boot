@@ -12,6 +12,12 @@
 
   * Add `System.Exit.die`
 
+  * Deprecate `versionTags` field of `Data.Version.Version`.
+    Add `makeVersion :: [Int] -> Version` constructor function to aid
+    migration to a future `versionTags`-less `Version`.
+
+  * Add `IsList Version` instance
+
   * Weaken RealFloat constraints on some `Data.Complex` functions
 
   * Add `Control.Monad.(<$!>)` as a strict version of `(<$>)`
@@ -71,10 +77,6 @@
 
   * Generalise `Control.Monad.{foldM,foldM_}` to `Foldable`
 
-  * New module `Data.OldList` containing only list-specialised versions of
-    the functions from `Data.List` (in other words, `Data.OldList` corresponds
-    to `base-4.7.0.1`'s `Data.List`)
-
   * `foldr2` (together with `zip` and `zipWith`) is made a bit stricter in the
     second argument, so that the fusion RULES for it do not change the
     semantics. (#9596)
@@ -87,7 +89,64 @@
   * New module `Data.Bifunctor` providing the `Bifunctor(bimap,first,second)`
     class (previously defined in `bifunctors` package) (#9682)
 
+  * New module `Data.Void` providing the canonical uninhabited type `Void`
+    (previously defined in `void` package) (#9814)
+
   * Update Unicode class definitions to Unicode version 7.0
+
+  * Add `Alt`, an `Alternative` wrapper, to `Data.Monoid`. (#9759)
+
+  * Add `isSubsequenceOf` to `Data.List` (#9767)
+
+  * The arguments to `==` and `eq` in `Data.List.nub` and `Data.List.nubBy`
+    are swapped, such that `Data.List.nubBy (<) [1,2]` now returns `[1]`
+    instead of `[1,2]` (#2528, #3280, #7913)
+
+  * New module `Data.Functor.Identity` (previously provided by `transformers`
+    package). (#9664)
+
+  * Add `scanl'`, a strictly accumulating version of `scanl`, to `Data.List`
+    and `Data.OldList`. (#9368)
+
+  * Add `fillBytes` to `Foreign.Marshal.Utils`.
+
+  * Add new `displayException` method to `Exception` typeclass. (#9822)
+
+  * Add `Data.Bits.toIntegralSized`, a size-checked version of
+    `fromIntegral`. (#9816)
+
+  * New module `Numeric.Natural` providing new `Natural` type
+    representing non-negative arbitrary-precision integers.  The `GHC.Natural`
+    module exposes additional GHC-specific primitives. (#9818)
+
+  * Add `(Storable a, Integeral a) => Storable (Ratio a)` instance (#9826)
+
+  * Add `Storable a => Storable (Complex a)` instance (#9826)
+
+  * New module `GHC.RTS.Flags` that provides accessors to runtime flags.
+
+  * Expose functions for per-thread allocation counters and limits in `GHC.Conc`
+
+        disableAllocationLimit :: IO ()
+        enableAllocationLimit :: IO ()
+        getAllocationCounter :: IO Int64
+        setAllocationCounter :: Int64 -> IO ()
+
+    together with a new exception `AllocationLimitExceeded`.
+
+  * Make `read . show = id` for `Data.Fixed` (#9240)
+
+  * Add `calloc` and `callocBytes` to `Foreign.Marshal.Alloc`. (#9859)
+
+  * Add `callocArray` and `callocArray0` to `Foreign.Marshal.Array`. (#9859)
+
+## 4.7.0.2  *Dec 2014*
+
+  * Bundled with GHC 7.8.4
+
+  * Fix performance bug in `Data.List.inits` (#9345)
+
+  * Fix handling of null bytes in `Debug.Trace.trace` (#9395)
 
 ## 4.7.0.1  *Jul 2014*
 

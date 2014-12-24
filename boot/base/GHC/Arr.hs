@@ -1,7 +1,5 @@
-\begin{code}
 {-# LANGUAGE Unsafe #-}
-{-# LANGUAGE NoImplicitPrelude, MagicHash, UnboxedTuples #-}
-{-# OPTIONS_GHC -funbox-strict-fields #-}
+{-# LANGUAGE NoImplicitPrelude, MagicHash, UnboxedTuples, RoleAnnotations #-}
 {-# OPTIONS_HADDOCK hide #-}
 
 -----------------------------------------------------------------------------
@@ -31,6 +29,8 @@ module GHC.Arr (
         newSTArray, boundsSTArray,
         readSTArray, writeSTArray,
         freezeSTArray, thawSTArray,
+        foldlElems, foldlElems', foldl1Elems,
+        foldrElems, foldrElems', foldr1Elems,
 
         -- * Unsafe operations
         fill, done,
@@ -52,16 +52,7 @@ import GHC.Show
 infixl 9  !, //
 
 default ()
-\end{code}
 
-
-%*********************************************************
-%*                                                      *
-\subsection{The @Ix@ class}
-%*                                                      *
-%*********************************************************
-
-\begin{code}
 -- | The 'Ix' class is used to map a contiguous subrange of values in
 -- a type onto integers.  It is used primarily for array indexing
 -- (see the array package).
@@ -116,8 +107,8 @@ class (Ord a) => Ix a where
         --     tuples.  E.g.  (1,2) <= (2,1) but the range is empty
 
     unsafeRangeSize b@(_l,h) = unsafeIndex b h + 1
-\end{code}
 
+{-
 Note that the following is NOT right
         rangeSize (l,h) | l <= h    = index b h + 1
                         | otherwise = 0
@@ -128,11 +119,6 @@ is nevertheless empty.  Consider
 Here l<h, but the second index ranges from 2..1 and
 hence is empty
 
-%*********************************************************
-%*                                                      *
-\subsection{Instances of @Ix@}
-%*                                                      *
-%*********************************************************
 
 Note [Inlining index]
 ~~~~~~~~~~~~~~~~~~~~~
@@ -179,8 +165,8 @@ Note [Out-of-bounds error messages]
 The default method for 'index' generates hoplelessIndexError, because
 Ix doesn't have Show as a superclass.  For particular base types we
 can do better, so we override the default method for index.
+-}
 
-\begin{code}
 -- Abstract these errors from the relevant index functions so that
 -- the guts of the function will be small enough to inline.
 
@@ -369,15 +355,7 @@ instance  (Ix a1, Ix a2, Ix a3, Ix a4, Ix a5) => Ix (a1,a2,a3,a4,a5)  where
       inRange (l5,u5) i5
 
     -- Default method for index
-\end{code}
 
-%*********************************************************
-%*                                                      *
-\subsection{The @Array@ types}
-%*                                                      *
-%*********************************************************
-
-\begin{code}
 -- | The type of immutable non-strict (boxed) arrays
 -- with indices in @i@ and elements in @e@.
 data Array i e
@@ -407,20 +385,18 @@ data STArray s i e
         -- No Ix context for STArray.  They are stupid,
         -- and force an Ix context on the equality instance.
 
+-- Index types should have nominal role, because of Ix class. See also #9220.
+type role Array nominal representational
+type role STArray nominal nominal representational
+
 -- Just pointer equality on mutable arrays:
 instance Eq (STArray s i e) where
     STArray _ _ _ arr1# == STArray _ _ _ arr2# =
         isTrue# (sameMutableArray# arr1# arr2#)
-\end{code}
 
+----------------------------------------------------------------------
+-- Operations on immutable arrays
 
-%*********************************************************
-%*                                                      *
-\subsection{Operations on immutable arrays}
-%*                                                      *
-%*********************************************************
-
-\begin{code}
 {-# NOINLINE arrEleBottom #-}
 arrEleBottom :: a
 arrEleBottom = error "(Array.!): undefined array element"
@@ -496,12 +472,6 @@ done l u n@(I# _) marr#
   = \s1# -> case unsafeFreezeArray# marr# s1# of
               (# s2#, arr# #) -> (# s2#, Array l u n arr# #)
 
--- This is inefficient and I'm not sure why:
--- listArray (l,u) es = unsafeArray (l,u) (zip [0 .. rangeSize (l,u) - 1] es)
--- The code below is better. It still doesn't enable foldr/build
--- transformation on the list of elements; I guess it's impossible
--- using mechanisms currently available.
-
 -- | Construct an array from a pair of bounds and a list of values in
 -- index order.
 {-# INLINE listArray #-}
@@ -509,13 +479,17 @@ listArray :: Ix i => (i,i) -> [e] -> Array i e
 listArray (l,u) es = runST (ST $ \s1# ->
     case safeRangeSize (l,u)            of { n@(I# n#) ->
     case newArray# n# arrEleBottom s1#  of { (# s2#, marr# #) ->
-    let fillFromList i# xs s3# | isTrue# (i# ==# n#) = s3#
-                               | otherwise = case xs of
-            []   -> s3#
-            y:ys -> case writeArray# marr# i# y s3# of { s4# ->
-                    fillFromList (i# +# 1#) ys s4# } in
-    case fillFromList 0# es s2#         of { s3# ->
-    done l u n marr# s3# }}})
+      let
+        go y r = \ i# s3# ->
+            case writeArray# marr# i# y s3# of
+              s4# -> if (isTrue# (i# ==# n# -# 1#))
+                     then s4#
+                     else r (i# +# 1#) s4#
+      in
+        done l u n marr# (
+          if n == 0
+          then s2#
+          else foldr go (\_ s# -> s#) es 0# s2#)}})
 
 -- | The value at the given index in an array.
 {-# INLINE (!) #-}
@@ -585,6 +559,62 @@ indices (Array l u _ _) = range (l,u)
 elems :: Ix i => Array i e -> [e]
 elems arr@(Array _ _ n _) =
     [unsafeAt arr i | i <- [0 .. n - 1]]
+
+-- | A right fold over the elements
+{-# INLINABLE foldrElems #-}
+foldrElems :: Ix i => (a -> b -> b) -> b -> Array i a -> b
+foldrElems f b0 = \ arr@(Array _ _ n _) ->
+  let
+    go i | i == n    = b0
+         | otherwise = f (unsafeAt arr i) (go (i+1))
+  in go 0
+
+-- | A left fold over the elements
+{-# INLINABLE foldlElems #-}
+foldlElems :: Ix i => (b -> a -> b) -> b -> Array i a -> b
+foldlElems f b0 = \ arr@(Array _ _ n _) ->
+  let
+    go i | i == (-1) = b0
+         | otherwise = f (go (i-1)) (unsafeAt arr i)
+  in go (n-1)
+
+-- | A strict right fold over the elements
+{-# INLINABLE foldrElems' #-}
+foldrElems' :: Ix i => (a -> b -> b) -> b -> Array i a -> b
+foldrElems' f b0 = \ arr@(Array _ _ n _) ->
+  let
+    go i a | i == (-1) = a
+           | otherwise = go (i-1) (f (unsafeAt arr i) $! a)
+  in go (n-1) b0
+
+-- | A strict left fold over the elements
+{-# INLINABLE foldlElems' #-}
+foldlElems' :: Ix i => (b -> a -> b) -> b -> Array i a -> b
+foldlElems' f b0 = \ arr@(Array _ _ n _) ->
+  let
+    go i a | i == n    = a
+           | otherwise = go (i+1) (a `seq` f a (unsafeAt arr i))
+  in go 0 b0
+
+-- | A left fold over the elements with no starting value
+{-# INLINABLE foldl1Elems #-}
+foldl1Elems :: Ix i => (a -> a -> a) -> Array i a -> a
+foldl1Elems f = \ arr@(Array _ _ n _) ->
+  let
+    go i | i == 0    = unsafeAt arr 0
+         | otherwise = f (go (i-1)) (unsafeAt arr i)
+  in
+    if n == 0 then error "foldl1: empty Array" else go (n-1)
+
+-- | A right fold over the elements with no starting value
+{-# INLINABLE foldr1Elems #-}
+foldr1Elems :: Ix i => (a -> a -> a) -> Array i a -> a
+foldr1Elems f = \ arr@(Array _ _ n _) ->
+  let
+    go i | i == n-1  = unsafeAt arr i
+         | otherwise = f (unsafeAt arr i) (go (i + 1))
+  in
+    if n == 0 then error "foldr1: empty Array" else go 0
 
 -- | The list of associations of an array in index order.
 {-# INLINE assocs #-}
@@ -676,10 +706,44 @@ unsafeAccum f arr ies = runST (do
     STArray l u n marr# <- thawSTArray arr
     ST (foldr (adjust f marr#) (done l u n marr#) ies))
 
-{-# INLINE amap #-}
+{-# INLINE [1] amap #-}
 amap :: Ix i => (a -> b) -> Array i a -> Array i b
-amap f arr@(Array l u n _) =
-    unsafeArray' (l,u) n [(i, f (unsafeAt arr i)) | i <- [0 .. n - 1]]
+amap f arr@(Array l u n@(I# n#) _) = runST (ST $ \s1# ->
+    case newArray# n# arrEleBottom s1# of
+        (# s2#, marr# #) ->
+          let go i s#
+                | i == n    = done l u n marr# s#
+                | otherwise = fill marr# (i, f (unsafeAt arr i)) (go (i+1)) s#
+          in go 0 s2# )
+
+{-
+amap was originally defined like this:
+
+ amap f arr@(Array l u n _) =
+     unsafeArray' (l,u) n [(i, f (unsafeAt arr i)) | i <- [0 .. n - 1]]
+
+There are two problems:
+
+1. The enumFromTo implementation produces (spurious) code for the impossible
+case of n<0 that ends up duplicating the array freezing code.
+
+2. This implementation relies on list fusion for efficiency. In order to
+implement the amap/coerce rule, we need to delay inlining amap until simplifier
+phase 1, which is when the eftIntList rule kicks in and makes that impossible.
+-}
+
+
+-- See Breitner, Eisenberg, Peyton Jones, and Weirich, "Safe Zero-cost
+-- Coercions for Haskell", section 6.5:
+--   http://research.microsoft.com/en-us/um/people/simonpj/papers/ext-f/coercible.pdf
+{-# RULES
+"amap/coerce" amap coerce = coerce
+ #-}
+
+-- Second functor law:
+{-# RULES
+"amap/amap" forall f g a . amap f (amap g a) = amap (f . g) a
+ #-}
 
 -- | 'ixmap' allows for transformations on array indices.
 -- It may be thought of as providing function composition on the right
@@ -718,16 +782,10 @@ cmpIntArray arr1@(Array l1 u1 n1 _) arr2@(Array l2 u2 n2 _) =
         other -> other
 
 {-# RULES "cmpArray/Int" cmpArray = cmpIntArray #-}
-\end{code}
 
+----------------------------------------------------------------------
+-- Array instances
 
-%*********************************************************
-%*                                                      *
-\subsection{Array instances}
-%*                                                      *
-%*********************************************************
-
-\begin{code}
 instance Ix i => Functor (Array i) where
     fmap = amap
 
@@ -747,15 +805,11 @@ instance (Ix a, Show a, Show b) => Show (Array a b) where
         -- Precedence of 'array' is the precedence of application
 
 -- The Read instance is in GHC.Read
-\end{code}
 
+----------------------------------------------------------------------
+-- Operations on mutable arrays
 
-%*********************************************************
-%*                                                      *
-\subsection{Operations on mutable arrays}
-%*                                                      *
-%*********************************************************
-
+{-
 Idle ADR question: What's the tradeoff here between flattening these
 datatypes into @STArray ix ix (MutableArray# s elt)@ and using
 it as is?  As I see it, the former uses slightly less heap and
@@ -768,8 +822,8 @@ Idle AJG answer: When I looked at the outputted code (though it was 2
 years ago) it seems like you often needed the tuple, and we build
 it frequently. Now we've got the overloading specialiser things
 might be different, though.
+-}
 
-\begin{code}
 {-# INLINE newSTArray #-}
 newSTArray :: Ix i => (i,i) -> e -> ST s (STArray s i e)
 newSTArray (l,u) initial = ST $ \s1# ->
@@ -805,16 +859,10 @@ unsafeWriteSTArray :: Ix i => STArray s i e -> Int -> e -> ST s ()
 unsafeWriteSTArray (STArray _ _ _ marr#) (I# i#) e = ST $ \s1# ->
     case writeArray# marr# i# e s1# of
         s2# -> (# s2#, () #)
-\end{code}
 
+----------------------------------------------------------------------
+-- Moving between mutable and immutable
 
-%*********************************************************
-%*                                                      *
-\subsection{Moving between mutable and immutable}
-%*                                                      *
-%*********************************************************
-
-\begin{code}
 freezeSTArray :: Ix i => STArray s i e -> ST s (Array i e)
 freezeSTArray (STArray l u n@(I# n#) marr#) = ST $ \s1# ->
     case newArray# n# arrEleBottom s1#  of { (# s2#, marr'# #) ->
@@ -849,4 +897,3 @@ unsafeThawSTArray :: Ix i => Array i e -> ST s (STArray s i e)
 unsafeThawSTArray (Array l u n arr#) = ST $ \s1# ->
     case unsafeThawArray# arr# s1#      of { (# s2#, marr# #) ->
     (# s2#, STArray l u n marr# #) }
-\end{code}

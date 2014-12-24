@@ -22,6 +22,7 @@ module GHC.IO.Exception (
   BlockedIndefinitelyOnMVar(..), blockedIndefinitelyOnMVar,
   BlockedIndefinitelyOnSTM(..), blockedIndefinitelyOnSTM,
   Deadlock(..),
+  AllocationLimitExceeded(..), allocationLimitExceeded,
   AssertionFailed(..),
 
   SomeAsyncException(..),
@@ -98,6 +99,25 @@ instance Show Deadlock where
 
 -----
 
+-- |This thread has exceeded its allocation limit.  See
+-- 'GHC.Conc.setAllocationCounter' and
+-- 'GHC.Conc.enableAllocationLimit'.
+--
+-- @since 4.8.0.0
+data AllocationLimitExceeded = AllocationLimitExceeded
+    deriving Typeable
+
+instance Exception AllocationLimitExceeded
+
+instance Show AllocationLimitExceeded where
+    showsPrec _ AllocationLimitExceeded =
+      showString "allocation limit exceeded"
+
+allocationLimitExceeded :: SomeException -- for the RTS
+allocationLimitExceeded = toException AllocationLimitExceeded
+
+-----
+
 -- |'assert' was applied to 'False'.
 data AssertionFailed = AssertionFailed String
     deriving Typeable
@@ -111,7 +131,7 @@ instance Show AssertionFailed where
 
 -- |Superclass for asynchronous exceptions.
 --
--- /Since: 4.7.0.0/
+-- @since 4.7.0.0
 data SomeAsyncException = forall e . Exception e => SomeAsyncException e
   deriving Typeable
 
@@ -120,11 +140,11 @@ instance Show SomeAsyncException where
 
 instance Exception SomeAsyncException
 
--- |/Since: 4.7.0.0/
+-- |@since 4.7.0.0
 asyncExceptionToException :: Exception e => e -> SomeException
 asyncExceptionToException = toException . SomeAsyncException
 
--- |/Since: 4.7.0.0/
+-- |@since 4.7.0.0
 asyncExceptionFromException :: Exception e => SomeException -> Maybe e
 asyncExceptionFromException x = do
     SomeAsyncException a <- fromException x
@@ -174,7 +194,8 @@ data ArrayException
 
 instance Exception ArrayException
 
-stackOverflow, heapOverflow :: SomeException -- for the RTS
+-- for the RTS
+stackOverflow, heapOverflow :: SomeException
 stackOverflow = toException StackOverflow
 heapOverflow  = toException HeapOverflow
 

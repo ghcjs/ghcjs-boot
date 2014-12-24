@@ -1,6 +1,6 @@
 {-# LANGUAGE Unsafe #-}
-{-# LANGUAGE MagicHash, UnboxedTuples, AutoDeriveTypeable, TypeFamilies, MultiParamTypeClasses, FlexibleInstances #-}
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE MagicHash, UnboxedTuples, AutoDeriveTypeable, TypeFamilies,
+             MultiParamTypeClasses, FlexibleInstances, NoImplicitPrelude #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -50,7 +50,7 @@ module GHC.Exts
         --
         -- | These are available from the /Trustworthy/ module "Data.Coerce" as well
         --
-        -- /Since: 4.7.0.0/
+        -- @since 4.7.0.0
         Data.Coerce.coerce, Data.Coerce.Coercible,
 
         -- * Transform comprehensions
@@ -84,6 +84,7 @@ import Data.String
 import Data.OldList
 import Data.Data
 import Data.Ord
+import Data.Version ( Version(..), makeVersion )
 import qualified Debug.Trace
 
 -- XXX This should really be in Data.Tuple, where the definitions are
@@ -151,7 +152,7 @@ data SpecConstrAnnotation = NoSpecConstr | ForceSpecConstr
 -- | The 'IsList' class and its methods are intended to be used in
 --   conjunction with the OverloadedLists extension.
 --
--- /Since: 4.7.0.0/
+-- @since 4.7.0.0
 class IsList l where
   -- | The 'Item' type function returns the type of items of the structure
   --   @l@.
@@ -177,3 +178,9 @@ instance IsList [a] where
   type (Item [a]) = a
   fromList = id
   toList = id
+
+-- | @since 4.8.0.0
+instance IsList Version where
+  type (Item Version) = Int
+  fromList = makeVersion
+  toList = versionBranch

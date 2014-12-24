@@ -1,6 +1,5 @@
 {-# LANGUAGE Trustworthy #-}
-{-# LANGUAGE CPP, NoImplicitPrelude, ScopedTypeVariables #-}
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP, NoImplicitPrelude, ScopedTypeVariables, BangPatterns #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -71,13 +70,12 @@ types of Haskell, the fixed size @Int@ types ('Int8', 'Int16',
 'Int32', 'Int64'), the fixed size @Word@ types ('Word8', 'Word16',
 'Word32', 'Word64'), 'StablePtr', all types from "Foreign.C.Types",
 as well as 'Ptr'.
-
-Minimal complete definition: 'sizeOf', 'alignment', one of 'peek',
-'peekElemOff' and 'peekByteOff', and one of 'poke', 'pokeElemOff' and
-'pokeByteOff'.
 -}
 
 class Storable a where
+   {-# MINIMAL sizeOf, alignment,
+               (peek | peekElemOff | peekByteOff),
+               (poke | pokeElemOff | pokeByteOff) #-}
 
    sizeOf      :: a -> Int
    -- ^ Computes the storage requirements (in bytes) of the argument.
@@ -147,10 +145,6 @@ class Storable a where
    peek ptr = peekElemOff ptr 0
    poke ptr = pokeElemOff ptr 0
 
-   {-# MINIMAL sizeOf, alignment,
-               (peek | peekElemOff | peekByteOff),
-               (poke | pokeElemOff | pokeByteOff) #-}
-
 -- System-dependent, but rather obvious instances
 
 instance Storable Bool where
@@ -213,6 +207,19 @@ STORABLE(Int32,SIZEOF_INT32,ALIGNMENT_INT32,
 
 STORABLE(Int64,SIZEOF_INT64,ALIGNMENT_INT64,
          readInt64OffPtr,writeInt64OffPtr)
+
+instance (Storable a, Integral a) => Storable (Ratio a) where
+    sizeOf _    = 2 * sizeOf (undefined :: a)
+    alignment _ = alignment (undefined :: a )
+    peek p           = do
+                        q <- return $ castPtr p
+                        r <- peek q
+                        i <- peekElemOff q 1
+                        return (r % i)
+    poke p (r :% i)  = do
+                        q <-return $  (castPtr p)
+                        poke q r
+                        pokeElemOff q 1 i
 
 -- XXX: here to avoid orphan instance in GHC.Fingerprint
 instance Storable Fingerprint where

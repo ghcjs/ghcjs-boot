@@ -1,4 +1,3 @@
-\begin{code}
 {-# LANGUAGE Unsafe #-}
 {-# LANGUAGE CPP
            , NoImplicitPrelude
@@ -61,6 +60,12 @@ module GHC.Conc.Sync
         , threadStatus
         , threadCapability
 
+        -- * Allocation counter and quota
+        , setAllocationCounter
+        , getAllocationCounter
+        , enableAllocationLimit
+        , disableAllocationLimit
+
         -- * TVars
         , STM(..)
         , atomically
@@ -118,15 +123,11 @@ import GHC.Show         ( Show(..), showString )
 import GHC.Weak
 
 infixr 0 `par`, `pseq`
-\end{code}
 
-%************************************************************************
-%*                                                                      *
-\subsection{@ThreadId@, @par@, and @fork@}
-%*                                                                      *
-%************************************************************************
+-----------------------------------------------------------------------------
+-- 'ThreadId', 'par', and 'fork'
+-----------------------------------------------------------------------------
 
-\begin{code}
 data ThreadId = ThreadId ThreadId# deriving( Typeable )
 -- ToDo: data ThreadId = ThreadId (Weak ThreadId#)
 -- But since ThreadId# is unlifted, the Weak type must use open
@@ -176,16 +177,98 @@ instance Eq ThreadId where
 instance Ord ThreadId where
    compare = cmpThread
 
+-- | Every thread has an allocation counter that tracks how much
+-- memory has been allocated by the thread.  The counter is
+-- initialized to zero, and 'setAllocationCounter' sets the current
+-- value.  The allocation counter counts *down*, so in the absence of
+-- a call to 'setAllocationCounter' its value is the negation of the
+-- number of bytes of memory allocated by the thread.
+--
+-- There are two things that you can do with this counter:
+--
+-- * Use it as a simple profiling mechanism, with
+--   'getAllocationCounter'.
+--
+-- * Use it as a resource limit.  See 'enableAllocationLimit'.
+--
+-- Allocation accounting is accurate only to about 4Kbytes.
+--
+-- @since 4.8.0.0
+setAllocationCounter :: Int64 -> IO ()
+setAllocationCounter i = do
+  ThreadId t <- myThreadId
+  rts_setThreadAllocationCounter t i
+
+-- | Return the current value of the allocation counter for the
+-- current thread.
+--
+-- @since 4.8.0.0
+getAllocationCounter :: IO Int64
+getAllocationCounter = do
+  ThreadId t <- myThreadId
+  rts_getThreadAllocationCounter t
+
+-- | Enables the allocation counter to be treated as a limit for the
+-- current thread.  When the allocation limit is enabled, if the
+-- allocation counter counts down below zero, the thread will be sent
+-- the 'AllocationLimitExceeded' asynchronous exception.  When this
+-- happens, the counter is reinitialised (by default
+-- to 100K, but tunable with the @+RTS -xq@ option) so that it can handle
+-- the exception and perform any necessary clean up.  If it exhausts
+-- this additional allowance, another 'AllocationLimitExceeded' exception
+-- is sent, and so forth.
+--
+-- Note that memory allocation is unrelated to /live memory/, also
+-- known as /heap residency/.  A thread can allocate a large amount of
+-- memory and retain anything between none and all of it.  It is
+-- better to think of the allocation limit as a limit on
+-- /CPU time/, rather than a limit on memory.
+--
+-- Compared to using timeouts, allocation limits don't count time
+-- spent blocked or in foreign calls.
+--
+-- @since 4.8.0.0
+enableAllocationLimit :: IO ()
+enableAllocationLimit = do
+  ThreadId t <- myThreadId
+  rts_enableThreadAllocationLimit t
+
+-- | Disable allocation limit processing for the current thread.
+--
+-- @since 4.8.0.0
+disableAllocationLimit :: IO ()
+disableAllocationLimit = do
+  ThreadId t <- myThreadId
+  rts_disableThreadAllocationLimit t
+
+-- We cannot do these operations safely on another thread, because on
+-- a 32-bit machine we cannot do atomic operations on a 64-bit value.
+-- Therefore, we only expose APIs that allow getting and setting the
+-- limit of the current thread.
+foreign import ccall unsafe "rts_setThreadAllocationCounter"
+  rts_setThreadAllocationCounter :: ThreadId# -> Int64 -> IO ()
+
+foreign import ccall unsafe "rts_getThreadAllocationCounter"
+  rts_getThreadAllocationCounter :: ThreadId# -> IO Int64
+
+foreign import ccall unsafe "rts_enableThreadAllocationLimit"
+  rts_enableThreadAllocationLimit :: ThreadId# -> IO ()
+
+foreign import ccall unsafe "rts_disableThreadAllocationLimit"
+  rts_disableThreadAllocationLimit :: ThreadId# -> IO ()
+
 {- |
-Sparks off a new thread to run the 'IO' computation passed as the
+Creates a new thread to run the 'IO' computation passed as the
 first argument, and returns the 'ThreadId' of the newly created
 thread.
 
-The new thread will be a lightweight thread; if you want to use a foreign
-library that uses thread-local storage, use 'Control.Concurrent.forkOS' instead.
+The new thread will be a lightweight, /unbound/ thread.  Foreign calls
+made by this thread are not guaranteed to be made by any particular OS
+thread; if you need foreign calls to be made by a particular OS
+thread, then use 'Control.Concurrent.forkOS' instead.
 
-GHC note: the new thread inherits the /masked/ state of the parent
-(see 'Control.Exception.mask').
+The new thread inherits the /masked/ state of the parent (see
+'Control.Exception.mask').
 
 The newly created thread has an exception handler that discards the
 exceptions 'BlockedIndefinitelyOnMVar', 'BlockedIndefinitelyOnSTM', and
@@ -213,7 +296,7 @@ forkIO action = IO $ \ s ->
 -- only be used in that thread; the behaviour is undefined if it is
 -- invoked in a different thread.
 --
--- /Since: 4.4.0.0/
+-- @since 4.4.0.0
 forkIOWithUnmask :: ((forall a . IO a -> IO a) -> IO ()) -> IO ThreadId
 forkIOWithUnmask io = forkIO (io unsafeUnmask)
 
@@ -238,7 +321,7 @@ system supports that, although in practice this is usually unnecessary
 (and may actually degrade performance in some cases - experimentation
 is recommended).
 
-/Since: 4.4.0.0/
+@since 4.4.0.0
 -}
 forkOn :: Int -> IO () -> IO ThreadId
 forkOn (I# cpu) action = IO $ \ s ->
@@ -249,7 +332,7 @@ forkOn (I# cpu) action = IO $ \ s ->
 -- | Like 'forkIOWithUnmask', but the child thread is pinned to the
 -- given CPU, as with 'forkOn'.
 --
--- /Since: 4.4.0.0/
+-- @since 4.4.0.0
 forkOnWithUnmask :: Int -> ((forall a . IO a -> IO a) -> IO ()) -> IO ThreadId
 forkOnWithUnmask cpu io = forkOn cpu (io unsafeUnmask)
 
@@ -269,7 +352,7 @@ Returns the number of Haskell threads that can run truly
 simultaneously (on separate physical processors) at any given time.  To change
 this value, use 'setNumCapabilities'.
 
-/Since: 4.4.0.0/
+@since 4.4.0.0
 -}
 getNumCapabilities :: IO Int
 getNumCapabilities = do
@@ -288,7 +371,7 @@ capabilities is not set larger than the number of physical processor
 cores, and it may often be beneficial to leave one or more cores free
 to avoid contention with other processes in the machine.
 
-/Since: 4.5.0.0/
+@since 4.5.0.0
 -}
 setNumCapabilities :: Int -> IO ()
 setNumCapabilities i = c_setNumCapabilities (fromIntegral i)
@@ -298,7 +381,7 @@ foreign import ccall safe "setNumCapabilities"
 
 -- | Returns the number of CPUs that the machine has
 --
--- /Since: 4.5.0.0/
+-- @since 4.5.0.0
 getNumProcessors :: IO Int
 getNumProcessors = fmap fromIntegral c_getNumberOfProcessors
 
@@ -502,7 +585,7 @@ threadStatus (ThreadId t) = IO $ \s ->
 -- that capability or not.  A thread is locked to a capability if it
 -- was created with @forkOn@.
 --
--- /Since: 4.4.0.0/
+-- @since 4.4.0.0
 threadCapability :: ThreadId -> IO (Int, Bool)
 threadCapability (ThreadId t) = IO $ \s ->
    case threadStatus# t s of
@@ -523,24 +606,20 @@ threadCapability (ThreadId t) = IO $ \s ->
 -- caller must use @deRefWeak@ first to determine whether the thread
 -- still exists.
 --
--- /Since: 4.6.0.0/
+-- @since 4.6.0.0
 mkWeakThreadId :: ThreadId -> IO (Weak ThreadId)
 mkWeakThreadId t@(ThreadId t#) = IO $ \s ->
    case mkWeakNoFinalizer# t# t s of
       (# s1, w #) -> (# s1, Weak w #)
-\end{code}
 
 
-%************************************************************************
-%*                                                                      *
-\subsection[stm]{Transactional heap operations}
-%*                                                                      *
-%************************************************************************
+-----------------------------------------------------------------------------
+-- Transactional heap operations
+-----------------------------------------------------------------------------
 
-TVars are shared memory locations which support atomic memory
-transactions.
+-- TVars are shared memory locations which support atomic memory
+-- transactions.
 
-\begin{code}
 -- |A monad supporting atomic memory transactions.
 newtype STM a = STM (State# RealWorld -> (# State# RealWorld, a #))
                 deriving Typeable
@@ -733,11 +812,10 @@ writeTVar (TVar tvar#) val = STM $ \s1# ->
     case writeTVar# tvar# val s1# of
          s2# -> (# s2#, () #)
 
-\end{code}
+-----------------------------------------------------------------------------
+-- MVar utilities
+-----------------------------------------------------------------------------
 
-MVar utilities
-
-\begin{code}
 withMVar :: MVar a -> (a -> IO b) -> IO b
 withMVar m io =
   mask $ \restore -> do
@@ -755,15 +833,10 @@ modifyMVar_ m io =
             (\e -> do putMVar m a; throw e)
     putMVar m a'
     return ()
-\end{code}
 
-%************************************************************************
-%*                                                                      *
-\subsection{Thread waiting}
-%*                                                                      *
-%************************************************************************
-
-\begin{code}
+-----------------------------------------------------------------------------
+-- Thread waiting
+-----------------------------------------------------------------------------
 
 -- Machinery needed to ensureb that we only have one copy of certain
 -- CAFs in this module even when the base package is present twice, as
@@ -824,5 +897,3 @@ setUncaughtExceptionHandler = writeIORef uncaughtExceptionHandler
 
 getUncaughtExceptionHandler :: IO (SomeException -> IO ())
 getUncaughtExceptionHandler = readIORef uncaughtExceptionHandler
-
-\end{code}

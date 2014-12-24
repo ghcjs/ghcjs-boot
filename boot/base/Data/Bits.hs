@@ -47,7 +47,8 @@ module Data.Bits (
 
   bitDefault,
   testBitDefault,
-  popCountDefault
+  popCountDefault,
+  toIntegralSized
  ) where
 
 -- Defines the @Bits@ class containing bit-based operations.
@@ -56,10 +57,19 @@ module Data.Bits (
 
 #include "MachDeps.h"
 
+#ifdef MIN_VERSION_integer_gmp
+# define HAVE_INTEGER_GMP1 MIN_VERSION_integer_gmp(1,0,0)
+#endif
+
 import Data.Maybe
 import GHC.Enum
 import GHC.Num
 import GHC.Base
+import GHC.Real
+
+#if HAVE_INTEGER_GMP1
+import GHC.Integer.GMP.Internals (bitInteger, popCountInteger)
+#endif
 
 infixl 8 `shift`, `rotate`, `shiftL`, `shiftR`, `rotateL`, `rotateR`
 infixl 7 .&.
@@ -68,19 +78,16 @@ infixl 5 .|.
 
 {-# DEPRECATED bitSize "Use 'bitSizeMaybe' or 'finiteBitSize' instead" #-} -- deprecated in 7.8
 
-{-|
-The 'Bits' class defines bitwise operations over integral types.
-
-* Bits are numbered from 0 with bit 0 being the least
-  significant bit.
-
-Minimal complete definition: '.&.', '.|.', 'xor', 'complement',
-('shift' or ('shiftL' and 'shiftR')), ('rotate' or ('rotateL' and 'rotateR')),
-'bitSize', 'isSigned', 'testBit', 'bit', and 'popCount'.  The latter three can
-be implemented using `testBitDefault', 'bitDefault', and 'popCountDefault', if
-@a@ is also an instance of 'Num'.
--}
+-- | The 'Bits' class defines bitwise operations over integral types.
+--
+-- * Bits are numbered from 0 with bit 0 being the least
+--   significant bit.
 class Eq a => Bits a where
+    {-# MINIMAL (.&.), (.|.), xor, complement,
+                (shift | (shiftL, shiftR)),
+                (rotate | (rotateL, rotateR)),
+                bitSize, bitSizeMaybe, isSigned, testBit, bit, popCount #-}
+
     -- | Bitwise \"and\"
     (.&.) :: a -> a -> a
 
@@ -149,11 +156,14 @@ class Eq a => Bits a where
     -- implementation (which ought to be equivalent to 'zeroBits' for
     -- types which possess a 0th bit).
     --
-    -- /Since: 4.7.0.0/
+    -- @since 4.7.0.0
     zeroBits :: a
     zeroBits = clearBit (bit 0) 0
 
     -- | @bit /i/@ is a value with the @/i/@th bit set and all other bits clear.
+    --
+    -- Can be implemented using `bitDefault' if @a@ is also an
+    -- instance of 'Num'.
     --
     -- See also 'zeroBits'.
     bit               :: Int -> a
@@ -168,13 +178,16 @@ class Eq a => Bits a where
     complementBit     :: a -> Int -> a
 
     -- | Return 'True' if the @n@th bit of the argument is 1
+    --
+    -- Can be implemented using `testBitDefault' if @a@ is also an
+    -- instance of 'Num'.
     testBit           :: a -> Int -> Bool
 
     {-| Return the number of bits in the type of the argument.  The actual
         value of the argument is ignored.  Returns Nothing
         for types that do not have a fixed bitsize, like 'Integer'.
 
-        /Since: 4.7.0.0/
+        @since 4.7.0.0
         -}
     bitSizeMaybe      :: a -> Maybe Int
 
@@ -211,7 +224,7 @@ class Eq a => Bits a where
 
         Defaults to 'shiftL' unless defined explicitly by an instance.
 
-        /Since: 4.5.0.0/ -}
+        @since 4.5.0.0 -}
     unsafeShiftL            :: a -> Int -> a
     {-# INLINE unsafeShiftL #-}
     x `unsafeShiftL` i = x `shiftL` i
@@ -240,7 +253,7 @@ class Eq a => Bits a where
 
         Defaults to 'shiftR' unless defined explicitly by an instance.
 
-        /Since: 4.5.0.0/ -}
+        @since 4.5.0.0 -}
     unsafeShiftR            :: a -> Int -> a
     {-# INLINE unsafeShiftR #-}
     x `unsafeShiftR` i = x `shiftR` i
@@ -268,17 +281,15 @@ class Eq a => Bits a where
     {-| Return the number of set bits in the argument.  This number is
         known as the population count or the Hamming weight.
 
-        /Since: 4.5.0.0/ -}
-    popCount          :: a -> Int
+        Can be implemented using `popCountDefault' if @a@ is also an
+        instance of 'Num'.
 
-    {-# MINIMAL (.&.), (.|.), xor, complement,
-                (shift | (shiftL, shiftR)),
-                (rotate | (rotateL, rotateR)),
-                bitSize, bitSizeMaybe, isSigned, testBit, bit, popCount #-}
+        @since 4.5.0.0 -}
+    popCount          :: a -> Int
 
 -- |The 'FiniteBits' class denotes types with a finite, fixed number of bits.
 --
--- /Since: 4.7.0.0/
+-- @since 4.7.0.0
 class Bits b => FiniteBits b where
     -- | Return the number of bits in the type of the argument.
     -- The actual value of the argument is ignored. Moreover, 'finiteBitSize'
@@ -289,7 +300,7 @@ class Bits b => FiniteBits b where
     -- 'bitSizeMaybe' = 'Just' . 'finiteBitSize'
     -- @
     --
-    -- /Since: 4.7.0.0/
+    -- @since 4.7.0.0
     finiteBitSize :: b -> Int
 
     -- | Count number of zero bits preceding the most significant set bit.
@@ -309,7 +320,7 @@ class Bits b => FiniteBits b where
     -- integral types are implemented using CPU specific machine
     -- instructions.
     --
-    -- /Since: 4.8.0.0/
+    -- @since 4.8.0.0
     countLeadingZeros :: b -> Int
     countLeadingZeros x = (w-1) - go (w-1)
       where
@@ -339,7 +350,7 @@ class Bits b => FiniteBits b where
     -- integral types are implemented using CPU specific machine
     -- instructions.
     --
-    -- /Since: 4.8.0.0/
+    -- @since 4.8.0.0
     countTrailingZeros :: b -> Int
     countTrailingZeros x = go 0
       where
@@ -358,7 +369,7 @@ class Bits b => FiniteBits b where
 --
 -- Note that: @bitDefault i = 1 `shiftL` i@
 --
--- /Since: 4.6.0.0/
+-- @since 4.6.0.0
 bitDefault :: (Bits a, Num a) => Int -> a
 bitDefault = \i -> 1 `shiftL` i
 {-# INLINE bitDefault #-}
@@ -367,7 +378,7 @@ bitDefault = \i -> 1 `shiftL` i
 --
 -- Note that: @testBitDefault x i = (x .&. bit i) /= 0@
 --
--- /Since: 4.6.0.0/
+-- @since 4.6.0.0
 testBitDefault ::  (Bits a, Num a) => a -> Int -> Bool
 testBitDefault = \x i -> (x .&. bit i) /= 0
 {-# INLINE testBitDefault #-}
@@ -377,7 +388,7 @@ testBitDefault = \x i -> (x .&. bit i) /= 0
 -- This implementation is intentionally naive. Instances are expected to provide
 -- an optimized implementation for their size.
 --
--- /Since: 4.6.0.0/
+-- @since 4.6.0.0
 popCountDefault :: (Bits a, Num a) => a -> Int
 popCountDefault = go 0
  where
@@ -386,7 +397,7 @@ popCountDefault = go 0
 {-# INLINABLE popCountDefault #-}
 
 
--- Interpret 'Bool' as 1-bit bit-field; /Since: 4.7.0.0/
+-- Interpret 'Bool' as 1-bit bit-field; @since 4.7.0.0
 instance Bits Bool where
     (.&.) = (&&)
 
@@ -510,14 +521,96 @@ instance Bits Integer where
    testBit x (I# i) = testBitInteger x i
 
    zeroBits   = 0
+
+#if HAVE_INTEGER_GMP1
+   bit (I# i#) = bitInteger i#
+   popCount x  = I# (popCountInteger x)
+#else
    bit        = bitDefault
    popCount   = popCountDefault
+#endif
 
    rotate x i = shift x i   -- since an Integer never wraps around
 
    bitSizeMaybe _ = Nothing
    bitSize _  = error "Data.Bits.bitSize(Integer)"
    isSigned _ = True
+
+-----------------------------------------------------------------------------
+
+-- | Attempt to convert an 'Integral' type @a@ to an 'Integral' type @b@ using
+-- the size of the types as measured by 'Bits' methods.
+--
+-- A simpler version of this function is:
+--
+-- > toIntegral :: (Integral a, Integral b) => a -> Maybe b
+-- > toIntegral x
+-- >   | toInteger x == y = Just (fromInteger y)
+-- >   | otherwise        = Nothing
+-- >   where
+-- >     y = toInteger x
+--
+-- This version requires going through 'Integer', which can be inefficient.
+-- However, @toIntegralSized@ is optimized to allow GHC to statically determine
+-- the relative type sizes (as measured by 'bitSizeMaybe' and 'isSigned') and
+-- avoid going through 'Integer' for many types. (The implementation uses
+-- 'fromIntegral', which is itself optimized with rules for @base@ types but may
+-- go through 'Integer' for some type pairs.)
+--
+-- @since 4.8.0.0
+
+toIntegralSized :: (Integral a, Integral b, Bits a, Bits b) => a -> Maybe b
+toIntegralSized x                 -- See Note [toIntegralSized optimization]
+  | maybe True (<= x) yMinBound
+  , maybe True (x <=) yMaxBound = Just y
+  | otherwise                   = Nothing
+  where
+    y = fromIntegral x
+
+    xWidth = bitSizeMaybe x
+    yWidth = bitSizeMaybe y
+
+    yMinBound
+      | isBitSubType x y = Nothing
+      | isSigned x, not (isSigned y) = Just 0
+      | isSigned x, isSigned y
+      , Just yW <- yWidth = Just (negate $ bit (yW-1)) -- Assumes sub-type
+      | otherwise = Nothing
+
+    yMaxBound
+      | isBitSubType x y = Nothing
+      | isSigned x, not (isSigned y)
+      , Just xW <- xWidth, Just yW <- yWidth
+      , xW <= yW+1 = Nothing -- Max bound beyond a's domain
+      | Just yW <- yWidth = if isSigned y
+                            then Just (bit (yW-1)-1)
+                            else Just (bit yW-1)
+      | otherwise = Nothing
+{-# INLINEABLE toIntegralSized #-}
+
+-- | 'True' if the size of @a@ is @<=@ the size of @b@, where size is measured
+-- by 'bitSizeMaybe' and 'isSigned'.
+isBitSubType :: (Bits a, Bits b) => a -> b -> Bool
+isBitSubType x y
+  -- Reflexive
+  | xWidth == yWidth, xSigned == ySigned = True
+
+  -- Every integer is a subset of 'Integer'
+  | ySigned, Nothing == yWidth                  = True
+  | not xSigned, not ySigned, Nothing == yWidth = True
+
+  -- Sub-type relations between fixed-with types
+  | xSigned == ySigned,   Just xW <- xWidth, Just yW <- yWidth = xW <= yW
+  | not xSigned, ySigned, Just xW <- xWidth, Just yW <- yWidth = xW <  yW
+
+  | otherwise = False
+  where
+    xWidth  = bitSizeMaybe x
+    xSigned = isSigned     x
+
+    yWidth  = bitSizeMaybe y
+    ySigned = isSigned     y
+{-# INLINE isBitSubType #-}
 
 {-      Note [Constant folding for rotate]
         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -543,3 +636,28 @@ own to enable constant folding; for example 'shift':
            10000000 -> ww_sOb
          }
 -}
+
+-- Note [toIntegralSized optimization]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- The code in 'toIntegralSized' relies on GHC optimizing away statically
+-- decidable branches.
+--
+-- If both integral types are statically known, GHC will be able optimize the
+-- code significantly (for @-O1@ and better).
+--
+-- For instance (as of GHC 7.8.1) the following definitions:
+--
+-- > w16_to_i32 = toIntegralSized :: Word16 -> Maybe Int32
+-- >
+-- > i16_to_w16 = toIntegralSized :: Int16 -> Maybe Word16
+--
+-- are translated into the following (simplified) /GHC Core/ language:
+--
+-- > w16_to_i32 = \x -> Just (case x of _ { W16# x# -> I32# (word2Int# x#) })
+-- >
+-- > i16_to_w16 = \x -> case eta of _
+-- >   { I16# b1 -> case tagToEnum# (<=# 0 b1) of _
+-- >       { False -> Nothing
+-- >       ; True -> Just (W16# (narrow16Word# (int2Word# b1)))
+-- >       }
+-- >   }

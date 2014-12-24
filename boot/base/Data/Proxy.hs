@@ -1,4 +1,5 @@
-{-# LANGUAGE NoImplicitPrelude, Trustworthy #-}
+{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE PolyKinds #-}
 
 -----------------------------------------------------------------------------
@@ -12,7 +13,7 @@
 --
 -- Definition of a Proxy type (poly-kinded in GHC)
 --
--- /Since: 4.7.0.0/
+-- @since 4.7.0.0
 -----------------------------------------------------------------------------
 
 module Data.Proxy

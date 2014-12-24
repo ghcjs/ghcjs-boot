@@ -83,6 +83,7 @@ test('enum03', 		when(fast(), skip), compile_and_run, ['-cpp'])
 test('enum04', 		normal, compile_and_run, [''])
 test('exceptionsrun001', 	normal, compile_and_run, [''])
 test('exceptionsrun002', 	normal, compile_and_run, [''])
+test('foldableArray',   normal, compile_and_run, [''])
 test('list001'	,	when(fast(), skip), compile_and_run, [''])
 test('list002', when(fast(), skip), compile_and_run, [''])
 test('list003', when(fast(), skip), compile_and_run, [''])
@@ -109,6 +110,8 @@ test('stableptr004', extra_run_opts('+RTS -K4m -RTS'), compile_and_run, [''])
 test('stableptr005', normal, compile_and_run, [''])
 
 test('weak001', normal, compile_and_run, [''])
+
+test('T2528', normal, compile_and_run, [''])
 
 # In the 65001 codepage, we can't even cat the expected output on msys:
 #     $ cat 4006.stdout
@@ -159,18 +162,21 @@ test('topHandler03',
 
 
 test('T8766',
-        [ stats_num_field('bytes allocated', 
+        [ stats_num_field('bytes allocated',
                           [ (wordsize(64), 16828144, 5)
 	# with GHC-7.6.3: 83937384 (but faster execution than the next line)
 	# before:         58771216 (without call-arity-analysis)
 	# expected value: 16828144 (2014-01-14)
-                          , (wordsize(32), 8433644, 5) ]) 
+                          , (wordsize(32), 8433644, 5) ])
         , only_ways(['normal'])],
       compile_and_run,
       ['-O'])
 
 test('T9111', normal, compile, [''])
 test('T9395', normal, compile_and_run, [''])
-test('T9532', normal, compile_and_run, [''])
+# Fails for debug way due to annotation linting timeout
+test('T9532', omit_ways(['debug']), compile_and_run, [''])
 test('T9586', normal, compile, [''])
 test('T9681', normal, compile_fail, [''])
+test('T8089', normal, compile_and_run, [''])
+test('T9826',normal, compile_and_run,[''])

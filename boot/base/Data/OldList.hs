@@ -65,6 +65,7 @@ module Data.OldList
 
    -- ** Scans
    , scanl
+   , scanl'
    , scanl1
    , scanr
    , scanr1
@@ -230,7 +231,7 @@ infix 5 \\ -- comment to fool cpp: https://www.haskell.org/ghc/docs/latest/html/
 -- > dropWhileEnd isSpace "foo bar" == "foo bar"
 -- > dropWhileEnd isSpace ("foo\n" ++ undefined) == "foo" ++ undefined
 --
--- /Since: 4.5.0.0/
+-- @since 4.5.0.0
 dropWhileEnd :: (a -> Bool) -> [a] -> [a]
 dropWhileEnd p = foldr (\x xs -> if p x && null xs then [] else x : xs) []
 
@@ -338,17 +339,7 @@ isInfixOf needle haystack = any (isPrefixOf needle) (tails haystack)
 -- It is a special case of 'nubBy', which allows the programmer to supply
 -- their own equality test.
 nub                     :: (Eq a) => [a] -> [a]
-#ifdef USE_REPORT_PRELUDE
 nub                     =  nubBy (==)
-#else
--- stolen from HBC
-nub l                   = nub' l []             -- '
-  where
-    nub' [] _           = []                    -- '
-    nub' (x:xs) ls                              -- '
-        | x `elem` ls   = nub' xs ls            -- '
-        | otherwise     = x : nub' xs (x:ls)    -- '
-#endif
 
 -- | The 'nubBy' function behaves just like 'nub', except it uses a
 -- user-supplied equality predicate instead of the overloaded '=='
@@ -358,6 +349,7 @@ nubBy                   :: (a -> a -> Bool) -> [a] -> [a]
 nubBy eq []             =  []
 nubBy eq (x:xs)         =  x : nubBy eq (filter (\ y -> not (eq x y)) xs)
 #else
+-- stolen from HBC
 nubBy eq l              = nubBy' l []
   where
     nubBy' [] _         = []
@@ -367,12 +359,14 @@ nubBy eq l              = nubBy' l []
 
 -- Not exported:
 -- Note that we keep the call to `eq` with arguments in the
--- same order as in the reference implementation
+-- same order as in the reference (prelude) implementation,
+-- and that this order is different from how `elem` calls (==).
+-- See #2528, #3280 and #7913.
 -- 'xs' is the list of things we've seen so far,
 -- 'y' is the potential new element
 elem_by :: (a -> a -> Bool) -> a -> [a] -> Bool
 elem_by _  _ []         =  False
-elem_by eq y (x:xs)     =  y `eq` x || elem_by eq y xs
+elem_by eq y (x:xs)     =  x `eq` y || elem_by eq y xs
 #endif
 
 
@@ -761,6 +755,7 @@ groupBy eq (x:xs)       =  (x:ys) : groupBy eq zs
 inits                   :: [a] -> [[a]]
 inits                   = map toListSB . scanl' snocSB emptySB
 {-# NOINLINE inits #-}
+
 -- We do not allow inits to inline, because it plays havoc with Call Arity
 -- if it fuses with a consumer, and it would generally lead to serious
 -- loss of sharing if allowed to fuse with a producer.
@@ -979,7 +974,7 @@ rqpart cmp x (y:ys) rle rgt r =
 -- input list.  This is called the decorate-sort-undecorate paradigm, or
 -- Schwartzian transform.
 --
--- /Since: 4.8.0.0/
+-- @since 4.8.0.0
 sortOn :: Ord b => (a -> b) -> [a] -> [a]
 sortOn f =
   map snd . sortBy (comparing fst) . map (\x -> let y = f x in y `seq` (y, x))
@@ -1073,11 +1068,25 @@ unlines (l:ls) = l ++ '\n' : unlines ls
 -- | 'words' breaks a string up into a list of words, which were delimited
 -- by white space.
 words                   :: String -> [String]
+{-# NOINLINE [1] words #-}
 words s                 =  case dropWhile {-partain:Char.-}isSpace s of
                                 "" -> []
                                 s' -> w : words s''
                                       where (w, s'') =
                                              break {-partain:Char.-}isSpace s'
+
+{-# RULES
+"words" [~1] forall s . words s = build (\c n -> wordsFB c n s)
+"wordsList" [1] wordsFB (:) [] = words
+ #-}
+wordsFB :: ([Char] -> b -> b) -> b -> String -> b
+{-# NOINLINE [0] wordsFB #-}
+wordsFB c n = go
+  where
+    go s = case dropWhile isSpace s of
+             "" -> n
+             s' -> w `c` go s''
+                   where (w, s'') = break isSpace s'
 
 -- | 'unwords' is an inverse operation to 'words'.
 -- It joins words with separating spaces.
@@ -1086,11 +1095,35 @@ unwords                 :: [String] -> String
 unwords []              =  ""
 unwords ws              =  foldr1 (\w s -> w ++ ' ':s) ws
 #else
--- HBC version (stolen)
--- here's a more efficient version
+-- Here's a lazier version that can get the last element of a
+-- _|_-terminated list.
+{-# NOINLINE [1] unwords #-}
 unwords []              =  ""
-unwords [w]             = w
-unwords (w:ws)          = w ++ ' ' : unwords ws
+unwords (w:ws)          = w ++ go ws
+  where
+    go []     = ""
+    go (v:vs) = ' ' : (v ++ go vs)
+
+-- In general, the foldr-based version is probably slightly worse
+-- than the HBC version, because it adds an extra space and then takes
+-- it back off again. But when it fuses, it reduces allocation. How much
+-- depends entirely on the average word length--it's most effective when
+-- the words are on the short side.
+{-# RULES
+"unwords" [~1] forall ws .
+   unwords ws = tailUnwords (foldr unwordsFB "" ws)
+"unwordsList" [1] forall ws .
+   tailUnwords (foldr unwordsFB "" ws) = unwords ws
+ #-}
+
+{-# INLINE [0] tailUnwords #-}
+tailUnwords           :: String -> String
+tailUnwords []        = []
+tailUnwords (_:xs)    = xs
+
+{-# INLINE [0] unwordsFB #-}
+unwordsFB               :: String -> String -> String
+unwordsFB w r           = ' ' : w ++ r
 #endif
 
 {- A "SnocBuilder" is a version of Chris Okasaki's banker's queue that supports

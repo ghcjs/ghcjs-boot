@@ -1,5 +1,5 @@
-{-# LANGUAGE Unsafe, AutoDeriveTypeable #-}
-{-# LANGUAGE NoImplicitPrelude, MagicHash, UnboxedTuples #-}
+{-# LANGUAGE Unsafe #-}
+{-# LANGUAGE NoImplicitPrelude, MagicHash, UnboxedTuples, AutoDeriveTypeable #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 {-# OPTIONS_HADDOCK hide #-}
 
@@ -156,7 +156,7 @@ tryPutMVar (MVar mvar#) x = IO $ \ s# ->
 -- returns immediately, with 'Nothing' if the 'MVar' was empty, or
 -- @'Just' a@ if the 'MVar' was full with contents @a@.
 --
--- /Since: 4.7.0.0/
+-- @since 4.7.0.0
 tryReadMVar :: MVar a -> IO (Maybe a)
 tryReadMVar (MVar m) = IO $ \ s ->
     case tryReadMVar# m s of

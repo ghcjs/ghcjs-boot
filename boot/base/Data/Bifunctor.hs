@@ -1,5 +1,5 @@
+{-# LANGUAGE Safe #-}
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE NoImplicitPrelude #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -11,15 +11,13 @@
 -- Stability   :  provisional
 -- Portability :  portable
 --
--- /Since: 4.8.0.0/
+-- @since 4.8.0.0
 ----------------------------------------------------------------------------
 module Data.Bifunctor
   ( Bifunctor(..)
   ) where
 
 import Control.Applicative  ( Const(..) )
-import Data.Either          ( Either(..) )
-import GHC.Base             ( (.), id )
 
 -- | Formally, the class 'Bifunctor' represents a bifunctor
 -- from @Hask@ -> @Hask@.
@@ -53,7 +51,7 @@ import GHC.Base             ( (.), id )
 -- 'second' (f '.' g) ≡ 'second' f '.' 'second' g
 -- @
 --
--- /Since: 4.8.0.0/
+-- @since 4.8.0.0
 class Bifunctor p where
     {-# MINIMAL bimap | first, second #-}
 

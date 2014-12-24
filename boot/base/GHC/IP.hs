@@ -1,10 +1,11 @@
+{-# LANGUAGE Safe #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | /Since: 4.6.0.0/
+-- | @since 4.6.0.0
 module GHC.IP (IP(..)) where
 
 import GHC.TypeLits

@@ -1,5 +1,4 @@
-\section[GHC.Base]{Module @GHC.Base@}
-
+{-
 The overall structure of the GHC Prelude is a bit tricky.
 
   a) We want to avoid "orphan modules", i.e. ones with instance
@@ -60,8 +59,8 @@ GHC.Float       Classes: Floating, RealFloat
 
 
 Other Prelude modules are much easier with fewer complex dependencies.
+-}
 
-\begin{code}
 {-# LANGUAGE Unsafe #-}
 {-# LANGUAGE CPP
            , NoImplicitPrelude
@@ -127,8 +126,8 @@ infixr 0  $, $!
 infixl 4 <*>, <*, *>, <**>
 
 default ()              -- Double isn't available yet
-\end{code}
 
+{-
 Note [Depend on GHC.Integer]
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The Integer type is special because TidyPgm uses
@@ -159,16 +158,10 @@ Similarly, tuple syntax (or ()) creates an implicit dependency on
 GHC.Tuple, so we use the same rule as for Integer --- see Note [Depend on
 GHC.Integer] --- to explain this to the build system.  We make GHC.Base
 depend on GHC.Tuple, and everything else depends on GHC.Base or Prelude.
+-}
 
-%*********************************************************
-%*                                                      *
-\subsection{DEBUGGING STUFF}
-%*  (for use when compiling GHC.Base itself doesn't work)
-%*                                                      *
-%*********************************************************
-
-\begin{code}
-{-
+#if 0
+-- for use when compiling GHC.Base itself doesn't work
 data  Bool  =  False | True
 data Ordering = LT | EQ | GT
 data Char = C# Char#
@@ -183,16 +176,7 @@ otherwise = True
 
 build = error "urk"
 foldr = error "urk"
--}
-
-\end{code}
-
-%*********************************************************
-%*                                                      *
-\subsection{The Maybe type}
-%*                                                      *
-%*********************************************************
-\begin{code}
+#endif
 
 -- | The 'Maybe' type encapsulates an optional value.  A value of type
 -- @'Maybe' a@ either contains a value of type @a@ (represented as @'Just' a@),
@@ -207,16 +191,6 @@ foldr = error "urk"
 data  Maybe a  =  Nothing | Just a
   deriving (Eq, Ord)
 
-\end{code}
-
-%*********************************************************
-%*                                                      *
-\subsection{Monoids}
-%*                                                      *
-%*********************************************************
-\begin{code}
-
--- ---------------------------------------------------------------------------
 -- | The class of monoids (types with an associative binary operation that
 -- has an identity).  Instances should satisfy the following laws:
 --
@@ -230,8 +204,6 @@ data  Maybe a  =  Nothing | Just a
 --
 -- The method names refer to the monoid of lists under concatenation,
 -- but there are many other instances.
---
--- Minimal complete definition: 'mempty' and 'mappend'.
 --
 -- Some types can be viewed as a monoid in more than one way,
 -- e.g. both addition and multiplication on numbers.
@@ -253,8 +225,32 @@ class Monoid a where
         mconcat = foldr mappend mempty
 
 instance Monoid [a] where
+        {-# INLINE mempty #-}
         mempty  = []
+        {-# INLINE mappend #-}
         mappend = (++)
+        {-# INLINE mconcat #-}
+        mconcat xss = [x | xs <- xss, x <- xs]
+-- See Note: [List comprehensions and inlining]
+
+{-
+Note: [List comprehensions and inlining]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The list monad operations are traditionally described in terms of concatMap:
+
+xs >>= f = concatMap f xs
+
+Similarly, mconcat for lists is just concat. Here in Base, however, we don't
+have concatMap, and we'll refrain from adding it here so it won't have to be
+hidden in imports. Instead, we use GHC's list comprehension desugaring
+mechanism to define mconcat and the Applicative and Monad instances for lists.
+We mark them INLINE because the inliner is not generally too keen to inline
+build forms such as the ones these desugar to without our insistence.  Defining
+these using list comprehensions instead of foldr has an additional potential
+benefit, as described in compiler/deSugar/DsListComp.lhs: if optimizations
+needed to make foldr/build forms efficient are turned off, we'll get reasonably
+efficient translations anyway.
+-}
 
 instance Monoid b => Monoid (a -> b) where
         mempty _ = mempty
@@ -311,16 +307,8 @@ instance Monoid a => Monoid (Maybe a) where
 instance Monoid a => Applicative ((,) a) where
     pure x = (mempty, x)
     (u, f) <*> (v, x) = (u `mappend` v, f x)
-\end{code}
 
 
-%*********************************************************
-%*                                                      *
-\subsection{Monadic classes @Functor@, @Applicative@, @Monad@ }
-%*                                                      *
-%*********************************************************
-
-\begin{code}
 {- | The 'Functor' class is used for types that can be mapped over.
 Instances of 'Functor' should satisfy the following laws:
 
@@ -393,7 +381,9 @@ class Functor f => Applicative f where
 
     -- | Sequence actions, discarding the value of the first argument.
     (*>) :: f a -> f b -> f b
-    (*>) = liftA2 (const id)
+    a1 *> a2 = (id <$ a1) <*> a2
+    -- This is essentially the same as liftA2 (const id), but if the
+    -- Functor instance has an optimized (<$), we want to use that instead.
 
     -- | Sequence actions, discarding the value of the second argument.
     (<*) :: f a -> f b -> f a
@@ -407,14 +397,34 @@ class Functor f => Applicative f where
 -- This function may be used as a value for `fmap` in a `Functor` instance.
 liftA :: Applicative f => (a -> b) -> f a -> f b
 liftA f a = pure f <*> a
+-- Caution: since this may be used for `fmap`, we can't use the obvious
+-- definition of liftA = fmap.
 
 -- | Lift a binary function to actions.
 liftA2 :: Applicative f => (a -> b -> c) -> f a -> f b -> f c
-liftA2 f a b = (fmap f a) <*> b
+liftA2 f a b = fmap f a <*> b
 
 -- | Lift a ternary function to actions.
 liftA3 :: Applicative f => (a -> b -> c -> d) -> f a -> f b -> f c -> f d
-liftA3 f a b c = (fmap f a) <*> b <*> c
+liftA3 f a b c = fmap f a <*> b <*> c
+
+
+{-# INLINEABLE liftA #-}
+{-# SPECIALISE liftA :: (a1->r) -> IO a1 -> IO r #-}
+{-# SPECIALISE liftA :: (a1->r) -> Maybe a1 -> Maybe r #-}
+{-# INLINEABLE liftA2 #-}
+{-# SPECIALISE liftA2 :: (a1->a2->r) -> IO a1 -> IO a2 -> IO r #-}
+{-# SPECIALISE liftA2 :: (a1->a2->r) -> Maybe a1 -> Maybe a2 -> Maybe r #-}
+{-# INLINEABLE liftA3 #-}
+{-# SPECIALISE liftA3 :: (a1->a2->a3->r) -> IO a1 -> IO a2 -> IO a3 -> IO r #-}
+{-# SPECIALISE liftA3 :: (a1->a2->a3->r) ->
+                                Maybe a1 -> Maybe a2 -> Maybe a3 -> Maybe r #-}
+
+-- | The 'join' function is the conventional monad join operator. It
+-- is used to remove one level of monadic structure, projecting its
+-- bound argument into the outer level.
+join              :: (Monad m) => m (m a) -> m a
+join x            =  x >>= id
 
 {- | The 'Monad' class defines the basic operations over a /monad/,
 a concept from a branch of mathematics known as /category theory/.
@@ -423,28 +433,27 @@ think of a monad as an /abstract datatype/ of actions.
 Haskell's @do@ expressions provide a convenient syntax for writing
 monadic expressions.
 
-Minimal complete definition: '>>=' and 'return'.
-
 Instances of 'Monad' should satisfy the following laws:
 
-> return a >>= k  ==  k a
-> m >>= return  ==  m
-> m >>= (\x -> k x >>= h)  ==  (m >>= k) >>= h
+* @'return' a '>>=' k  =  k a@
+* @m '>>=' 'return'  =  m@
+* @m '>>=' (\x -> k x '>>=' h)  =  (m '>>=' k) '>>=' h@
 
-Instances of both 'Monad' and 'Functor' should additionally satisfy the law:
+Furthermore, the 'Monad' and 'Applicative' operations should relate as follows:
 
-> fmap f xs  ==  xs >>= return . f
+* @'pure' = 'return'@
+* @('<*>') = 'ap'@
+
+The above laws imply:
+
+* @'fmap' f xs  =  xs '>>=' 'return' . f@
+* @('>>') = ('*>')@
+
+and that 'pure' and ('<*>') satisfy the applicative functor laws.
 
 The instances of 'Monad' for lists, 'Data.Maybe.Maybe' and 'System.IO.IO'
 defined in the "Prelude" satisfy these laws.
 -}
-
--- | The 'join' function is the conventional monad join operator. It
--- is used to remove one level of monadic structure, projecting its
--- bound argument into the outer level.
-join              :: (Monad m) => m (m a) -> m a
-join x            =  x >>= id
-
 class Applicative m => Monad m where
     -- | Sequentially compose two actions, passing any value produced
     -- by the first as an argument to the second.
@@ -509,14 +518,32 @@ when p s  = if p then s else pure ()
 -- and collect the results.
 sequence :: Monad m => [m a] -> m [a]
 {-# INLINE sequence #-}
-sequence ms = foldr k (return []) ms
-            where
-              k m m' = do { x <- m; xs <- m'; return (x:xs) }
+sequence = mapM id
+-- Note: [sequence and mapM]
 
 -- | @'mapM' f@ is equivalent to @'sequence' . 'map' f@.
 mapM :: Monad m => (a -> m b) -> [a] -> m [b]
 {-# INLINE mapM #-}
-mapM f as       =  sequence (map f as)
+mapM f as = foldr k (return []) as
+            where
+              k a r = do { x <- f a; xs <- r; return (x:xs) }
+
+{-
+Note: [sequence and mapM]
+~~~~~~~~~~~~~~~~~~~~~~~~~
+Originally, we defined
+
+mapM f = sequence . map f
+
+This relied on list fusion to produce efficient code for mapM, and led to
+excessive allocation in cryptarithm2. Defining
+
+sequence = mapM id
+
+relies only on inlining a tiny function (id) and beta reduction, which tends to
+be a more reliable aspect of simplification. Indeed, this does not lead to
+similar problems in nofib.
+-}
 
 -- | Promote a function to a monad.
 liftM   :: (Monad m) => (a1 -> r) -> m a1 -> m r
@@ -574,7 +601,12 @@ is equivalent to
 -}
 
 ap                :: (Monad m) => m (a -> b) -> m a -> m b
-ap                =  liftM2 id
+ap m1 m2          = do { x1 <- m1; x2 <- m2; return (x1 x2) }
+-- Since many Applicative instances define (<*>) = ap, we
+-- cannot define ap = (<*>)
+{-# INLINEABLE ap #-}
+{-# SPECIALISE ap :: IO (a -> b) -> IO a -> IO b #-}
+{-# SPECIALISE ap :: Maybe (a -> b) -> Maybe a -> Maybe b #-}
 
 -- instances for Prelude types
 
@@ -598,15 +630,19 @@ instance  Functor Maybe  where
     fmap f (Just a)      = Just (f a)
 
 instance Applicative Maybe where
-    pure = return
-    (<*>) = ap
+    pure = Just
+
+    Just f  <*> m       = fmap f m
+    Nothing <*> _m      = Nothing
+
+    Just _m1 *> m2      = m2
+    Nothing  *> _m2     = Nothing
 
 instance  Monad Maybe  where
     (Just x) >>= k      = k x
     Nothing  >>= _      = Nothing
 
-    (Just _) >>  k      = k
-    Nothing  >>  _      = Nothing
+    (>>) = (*>)
 
     return              = Just
     fail _              = Nothing
@@ -617,8 +653,6 @@ instance  Monad Maybe  where
 infixl 3 <|>
 
 -- | A monoid on applicative functors.
---
--- Minimal complete definition: 'empty' and '<|>'.
 --
 -- If defined, 'some' and 'many' should be the least solutions
 -- of the equations:
@@ -669,51 +703,50 @@ class (Alternative m, Monad m) => MonadPlus m where
    mplus :: m a -> m a -> m a
    mplus = (<|>)
 
-instance MonadPlus Maybe where
-   mzero = Nothing
+instance MonadPlus Maybe
 
-   Nothing `mplus` ys  = ys
-   xs      `mplus` _ys = xs
-\end{code}
+----------------------------------------------
+-- The list type
 
-
-%*********************************************************
-%*                                                      *
-\subsection{The list type}
-%*                                                      *
-%*********************************************************
-
-\begin{code}
 instance Functor [] where
+    {-# INLINE fmap #-}
     fmap = map
 
+-- See Note: [List comprehensions and inlining]
 instance Applicative [] where
-    pure = return
-    (<*>) = ap
+    {-# INLINE pure #-}
+    pure x    = [x]
+    {-# INLINE (<*>) #-}
+    fs <*> xs = [f x | f <- fs, x <- xs]
+    {-# INLINE (*>) #-}
+    xs *> ys  = [y | _ <- xs, y <- ys]
 
-instance  Monad []  where
-    m >>= k             = foldr ((++) . k) [] m
-    m >> k              = foldr ((++) . (\ _ -> k)) [] m
+-- See Note: [List comprehensions and inlining]
+instance Monad []  where
+    {-# INLINE (>>=) #-}
+    xs >>= f             = [y | x <- xs, y <- f x]
+    {-# INLINE (>>) #-}
+    (>>) = (*>)
+    {-# INLINE return #-}
     return x            = [x]
+    {-# INLINE fail #-}
     fail _              = []
 
 instance Alternative [] where
     empty = []
     (<|>) = (++)
 
-instance MonadPlus [] where
-   mzero = []
-   mplus = (++)
-\end{code}
+instance MonadPlus []
 
+{-
 A few list functions that appear here because they are used here.
 The rest of the prelude list functions are in GHC.List.
+-}
 
 ----------------------------------------------
 --      foldr/build/augment
 ----------------------------------------------
 
-\begin{code}
 -- | 'foldr', applied to a binary operator, a starting value (typically
 -- the right-identity of the operator), and a list, reduces the list
 -- using the binary operator, from right to left:
@@ -800,14 +833,11 @@ augment g xs = g (:) xs
 
 -- This rule is true, but not (I think) useful:
 --      augment g (augment h t) = augment (\cn -> g c (h c n)) t
-\end{code}
-
 
 ----------------------------------------------
 --              map
 ----------------------------------------------
 
-\begin{code}
 -- | 'map' @f xs@ is the list obtained by applying @f@ to each element
 -- of @xs@, i.e.,
 --
@@ -850,20 +880,17 @@ mapFB c f = \x ys -> c (f x) ys
 "mapFB"     forall c f g.       mapFB (mapFB c f) g     = mapFB c (f.g)
   #-}
 
--- There's also a rule for Map and Data.Coerce. See "Safe Coercions",
--- section 6.4:
---
+-- See Breitner, Eisenberg, Peyton Jones, and Weirich, "Safe Zero-cost
+-- Coercions for Haskell", section 6.5:
 --   http://research.microsoft.com/en-us/um/people/simonpj/papers/ext-f/coercible.pdf
 
 {-# RULES "map/coerce" [1] map coerce = coerce #-}
-
-\end{code}
 
 
 ----------------------------------------------
 --              append
 ----------------------------------------------
-\begin{code}
+
 -- | Append two lists, i.e.,
 --
 -- > [x1, ..., xm] ++ [y1, ..., yn] == [x1, ..., xm, y1, ..., yn]
@@ -882,16 +909,7 @@ mapFB c f = \x ys -> c (f x) ys
 "++"    [~1] forall xs ys. xs ++ ys = augment (\c n -> foldr c n xs) ys
   #-}
 
-\end{code}
 
-
-%*********************************************************
-%*                                                      *
-\subsection{Type @Bool@}
-%*                                                      *
-%*********************************************************
-
-\begin{code}
 -- |'otherwise' is defined as the value 'True'.  It helps to make
 -- guards more readable.  eg.
 --
@@ -899,15 +917,11 @@ mapFB c f = \x ys -> c (f x) ys
 -- >      | otherwise = ...
 otherwise               :: Bool
 otherwise               =  True
-\end{code}
 
-%*********************************************************
-%*                                                      *
-\subsection{Type @Char@ and @String@}
-%*                                                      *
-%*********************************************************
+----------------------------------------------
+-- Type Char and String
+----------------------------------------------
 
-\begin{code}
 -- | A 'String' is a list of characters.  String constants in Haskell are values
 -- of type 'String'.
 --
@@ -919,11 +933,9 @@ unsafeChr (I# i#) = C# (chr# i#)
 -- | The 'Prelude.fromEnum' method restricted to the type 'Data.Char.Char'.
 ord :: Char -> Int
 ord (C# c#) = I# (ord# c#)
-\end{code}
 
-String equality is used when desugaring pattern-matches against strings.
-
-\begin{code}
+-- | This 'String' equality predicate is used when desugaring
+-- pattern-matches against strings.
 eqString :: String -> String -> Bool
 eqString []       []       = True
 eqString (c1:cs1) (c2:cs2) = c1 == c2 && cs1 `eqString` cs2
@@ -932,16 +944,12 @@ eqString _        _        = False
 {-# RULES "eqString" (==) = eqString #-}
 -- eqString also has a BuiltInRule in PrelRules.lhs:
 --      eqString (unpackCString# (Lit s1)) (unpackCString# (Lit s2) = s1==s2
-\end{code}
 
 
-%*********************************************************
-%*                                                      *
-\subsection{Type @Int@}
-%*                                                      *
-%*********************************************************
+----------------------------------------------
+-- 'Int' related definitions
+----------------------------------------------
 
-\begin{code}
 maxInt, minInt :: Int
 
 {- Seems clumsy. Should perhaps put minInt and MaxInt directly into MachDeps.h -}
@@ -955,16 +963,11 @@ maxInt  = I# 0x7FFFFFFF#
 minInt  = I# (-0x8000000000000000#)
 maxInt  = I# 0x7FFFFFFFFFFFFFFF#
 #endif
-\end{code}
 
+----------------------------------------------
+-- The function type
+----------------------------------------------
 
-%*********************************************************
-%*                                                      *
-\subsection{The function type}
-%*                                                      *
-%*********************************************************
-
-\begin{code}
 -- | Identity function.
 id                      :: a -> a
 id x                    =  x
@@ -1026,7 +1029,10 @@ flip f x y              =  f y x
 ($)                     :: (a -> b) -> a -> b
 f $ x                   =  f x
 
--- | Strict (call-by-value) application, defined in terms of 'seq'.
+-- | Strict (call-by-value) application operator. It takes a function and an
+-- argument, evaluates the argument to weak head normal form (WHNF), then calls
+-- the function with that value.
+
 ($!)                    :: (a -> b) -> a -> b
 f $! x                  = let !vx = x in f vx  -- see #2273
 
@@ -1042,15 +1048,11 @@ until p f = go
 -- (which is usually overloaded) to have the same type as the second.
 asTypeOf                :: a -> a -> a
 asTypeOf                =  const
-\end{code}
 
-%*********************************************************
-%*                                                      *
-\subsection{@Functor@ and @Monad@ instances for @IO@}
-%*                                                      *
-%*********************************************************
+----------------------------------------------
+-- Functor/Applicative/Monad instances for IO
+----------------------------------------------
 
-\begin{code}
 instance  Functor IO where
    fmap f x = x >>= (return . f)
 
@@ -1078,14 +1080,8 @@ thenIO (IO m) k = IO $ \ s -> case m s of (# new_s, _ #) -> unIO k new_s
 
 unIO :: IO a -> (State# RealWorld -> (# State# RealWorld, a #))
 unIO (IO a) = a
-\end{code}
 
-%*********************************************************
-%*                                                      *
-\subsection{@getTag@}
-%*                                                      *
-%*********************************************************
-
+{- |
 Returns the 'tag' of a constructor application; this function is used
 by the deriving code for Eq, Ord and Enum.
 
@@ -1097,23 +1093,18 @@ dataToTag# can be an inline primop if it doesn't need to do any
 evaluation, and (b) we want to expose the evaluation to the
 simplifier, because it might be possible to eliminate the evaluation
 in the case when the argument is already known to be evaluated.
-
-\begin{code}
+-}
 {-# INLINE getTag #-}
 getTag :: a -> Int#
-getTag x = x `seq` dataToTag# x
-\end{code}
+getTag !x = dataToTag# x
 
-%*********************************************************
-%*                                                      *
-\subsection{Numeric primops}
-%*                                                      *
-%*********************************************************
+----------------------------------------------
+-- Numeric primops
+----------------------------------------------
 
-Definitions of the boxed PrimOps; these will be
-used in the case of partial applications, etc.
+-- Definitions of the boxed PrimOps; these will be
+-- used in the case of partial applications, etc.
 
-\begin{code}
 {-# INLINE quotInt #-}
 {-# INLINE remInt #-}
 
@@ -1197,14 +1188,11 @@ a `iShiftRL#` b | isTrue# (b >=# WORD_SIZE_IN_BITS#) = 0#
 --      unpackFoldr "foo" c (unpackFoldr "baz" c n)  =  unpackFoldr "foobaz" c n
 
   #-}
-\end{code}
 
 
 #ifdef __HADDOCK__
-\begin{code}
 -- | A special argument for the 'Control.Monad.ST.ST' type constructor,
 -- indexing a state embedded in the 'Prelude.IO' monad by
 -- 'Control.Monad.ST.stToIO'.
 data RealWorld
-\end{code}
 #endif

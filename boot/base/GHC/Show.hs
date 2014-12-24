@@ -1,4 +1,3 @@
-\begin{code}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE CPP, NoImplicitPrelude, BangPatterns, StandaloneDeriving,
              MagicHash, UnboxedTuples #-}
@@ -53,25 +52,13 @@ module GHC.Show
 import GHC.Base
 import GHC.Num
 import GHC.List ((!!), foldr1, break)
-\end{code}
 
-
-
-%*********************************************************
-%*                                                      *
-\subsection{The @Show@ class}
-%*                                                      *
-%*********************************************************
-
-\begin{code}
 -- | The @shows@ functions return a function that prepends the
 -- output 'String' to an existing 'String'.  This allows constant-time
 -- concatenation of results using function composition.
 type ShowS = String -> String
 
 -- | Conversion of values to readable 'String's.
---
--- Minimal complete definition: 'showsPrec' or 'show'.
 --
 -- Derived instances of 'Show' have the following properties, which
 -- are compatible with derived instances of 'Text.Read.Read':
@@ -121,6 +108,8 @@ type ShowS = String -> String
 --   @\"Leaf 1 :^: (Leaf 2 :^: Leaf 3)\"@.
 
 class  Show a  where
+    {-# MINIMAL showsPrec | show #-}
+
     -- | Convert a value to a readable 'String'.
     --
     -- 'showsPrec' should satisfy the law
@@ -155,7 +144,6 @@ class  Show a  where
     showsPrec _ x s = show x ++ s
     show x          = shows x ""
     showList ls   s = showList__ shows ls s
-    {-# MINIMAL showsPrec | show #-}
 
 showList__ :: (a -> ShowS) ->  [a] -> ShowS
 showList__ _     []     s = "[]" ++ s
@@ -169,15 +157,10 @@ appPrec, appPrec1 :: Int
 appPrec = I# 10#        -- Precedence of application:
                         --   one more than the maximum operator precedence of 9
 appPrec1 = I# 11#       -- appPrec + 1
-\end{code}
 
-%*********************************************************
-%*                                                      *
-\subsection{Simple Instances}
-%*                                                      *
-%*********************************************************
-
-\begin{code}
+--------------------------------------------------------------
+-- Simple Instances
+--------------------------------------------------------------
 
 deriving instance Show ()
 
@@ -210,16 +193,11 @@ showWord w# cs
                    showWord (w# `quotWord#` 10##) (C# c# : cs)
 
 deriving instance Show a => Show (Maybe a)
-\end{code}
 
+--------------------------------------------------------------
+-- Show instances for the first few tuple
+--------------------------------------------------------------
 
-%*********************************************************
-%*                                                      *
-\subsection{Show instances for the first few tuples
-%*                                                      *
-%*********************************************************
-
-\begin{code}
 -- The explicit 's' parameters are important
 -- Otherwise GHC thinks that "shows x" might take a lot of work to compute
 -- and generates defns like
@@ -301,16 +279,11 @@ show_tuple :: [ShowS] -> ShowS
 show_tuple ss = showChar '('
               . foldr1 (\s r -> s . showChar ',' . r) ss
               . showChar ')'
-\end{code}
 
+--------------------------------------------------------------
+-- Support code for Show
+--------------------------------------------------------------
 
-%*********************************************************
-%*                                                      *
-\subsection{Support code for @Show@}
-%*                                                      *
-%*********************************************************
-
-\begin{code}
 -- | equivalent to 'showsPrec' with a precedence of 0.
 shows           :: (Show a) => a -> ShowS
 shows           =  showsPrec 0
@@ -332,11 +305,9 @@ showParen b p   =  if b then showChar '(' . p . showChar ')' else p
 
 showSpace :: ShowS
 showSpace = {-showChar ' '-} \ xs -> ' ' : xs
-\end{code}
 
-Code specific for characters
+-- Code specific for characters
 
-\begin{code}
 -- | Convert a character to a string using only printable characters,
 -- using Haskell source-language escape conventions.  For example:
 --
@@ -405,11 +376,9 @@ asciiTab = -- Using an array drags in the array module.  listArray ('\NUL', ' ')
             "DLE", "DC1", "DC2", "DC3", "DC4", "NAK", "SYN", "ETB",
             "CAN", "EM",  "SUB", "ESC", "FS",  "GS",  "RS",  "US",
             "SP"]
-\end{code}
 
-Code specific for Ints.
+-- Code specific for Ints.
 
-\begin{code}
 -- | Convert an 'Int' in the range @0@..@15@ to the corresponding single
 -- digit 'Char'.  This function fails on other inputs, and generates
 -- lower-case hexadecimal digits.
@@ -444,16 +413,11 @@ itos n# cs
                           case chr# (ord# '0'# +# r) of
                           c# ->
                               itos' q (C# c# : cs')
-\end{code}
 
+--------------------------------------------------------------
+-- The Integer instances for Show
+--------------------------------------------------------------
 
-%*********************************************************
-%*                                                      *
-\subsection{The @Integer@ instances for @Show@}
-%*                                                      *
-%*********************************************************
-
-\begin{code}
 instance Show Integer where
     showsPrec p n r
         | p > 6 && n < 0 = '(' : integerToString n (')' : r)
@@ -541,5 +505,3 @@ integerToString n0 cs0
              c@(C# _) -> jblock' (d - 1) q (c : cs)
         where
         (q, r) = n `quotRemInt` 10
-\end{code}
-

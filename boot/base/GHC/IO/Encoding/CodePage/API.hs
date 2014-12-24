@@ -1,5 +1,8 @@
-{-# LANGUAGE CPP, NoImplicitPrelude, NondecreasingIndentation, RecordWildCards, ScopedTypeVariables #-}
+{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE CPP, NoImplicitPrelude, NondecreasingIndentation,
+             RecordWildCards, ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
+
 module GHC.IO.Encoding.CodePage.API (
     mkCodePageEncoding
   ) where

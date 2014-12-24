@@ -58,7 +58,7 @@ mod' n d = n - (fromInteger f) * d where
     f = div' n d
 
 -- | The type parameter should be an instance of 'HasResolution'.
-newtype Fixed a = MkFixed Integer -- ^ /Since: 4.7.0.0/
+newtype Fixed a = MkFixed Integer -- ^ @since 4.7.0.0
         deriving (Eq,Ord)
 
 -- We do this because the automatically derived Data instance requires (Data a) context.
@@ -143,7 +143,9 @@ showFixed chopTrailingZeros fa@(MkFixed a) = (show i) ++ (withDot (showIntegerZe
     -- enough digits to be unambiguous
     digits = ceiling (logBase 10 (fromInteger res) :: Double)
     maxnum = 10 ^ digits
-    fracNum = div (d * maxnum) res
+    -- read floors, so show must ceil for `read . show = id` to hold. See #9240
+    fracNum = divCeil (d * maxnum) res
+    divCeil x y = (x + y - 1) `div` y
 
 instance (HasResolution a) => Show (Fixed a) where
     show = showFixed False
