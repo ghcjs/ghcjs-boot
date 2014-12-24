@@ -1,7 +1,7 @@
-diff --git a/GHC/Conc.hs b/GHC/Conc.hs
+diff --git a/boot/base/GHC/Conc.hs b/boot/base/GHC/Conc.hs
 index 68182a1..80dff2a 100644
---- a/GHC/Conc.hs
-+++ b/GHC/Conc.hs
+--- a/boot/base/GHC/Conc.hs
++++ b/boot/base/GHC/Conc.hs
 @@ -93,7 +93,7 @@ module GHC.Conc
          , asyncWriteBA
  #endif
@@ -19,10 +19,10 @@ index 68182a1..80dff2a 100644
 +#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
  import GHC.Conc.Signal
  #endif
-diff --git a/GHC/Conc/IO.hs b/GHC/Conc/IO.hs
+diff --git a/boot/base/GHC/Conc/IO.hs b/boot/base/GHC/Conc/IO.hs
 index 3a57c93..994921f 100644
---- a/GHC/Conc/IO.hs
-+++ b/GHC/Conc/IO.hs
+--- a/boot/base/GHC/Conc/IO.hs
++++ b/boot/base/GHC/Conc/IO.hs
 @@ -59,24 +59,26 @@ import GHC.Conc.Sync as Sync
  import GHC.Real ( fromIntegral )
  import System.Posix.Types
@@ -125,10 +125,10 @@ index 3a57c93..994921f 100644
    | threaded = Event.registerDelay usecs
  #endif
    | otherwise = error "registerDelay: requires -threaded"
-diff --git a/GHC/Conc/Windows.hs b/GHC/Conc/Windows.hs
+diff --git a/boot/base/GHC/Conc/Windows.hs b/boot/base/GHC/Conc/Windows.hs
 index 7935a8a..979ed6f 100644
---- a/GHC/Conc/Windows.hs
-+++ b/GHC/Conc/Windows.hs
+--- a/boot/base/GHC/Conc/Windows.hs
++++ b/boot/base/GHC/Conc/Windows.hs
 @@ -20,6 +20,9 @@
  
  -- #not-home
@@ -144,10 +144,10 @@ index 7935a8a..979ed6f 100644
     c_WaitForSingleObject :: HANDLE -> DWORD -> IO DWORD
  
 +#endif
-diff --git a/GHC/Event.hs b/GHC/Event.hs
+diff --git a/boot/base/GHC/Event.hs b/boot/base/GHC/Event.hs
 index 8c69d3c..be86d1b 100644
---- a/GHC/Event.hs
-+++ b/GHC/Event.hs
+--- a/boot/base/GHC/Event.hs
++++ b/boot/base/GHC/Event.hs
 @@ -1,5 +1,6 @@
  {-# LANGUAGE Trustworthy #-}
  {-# LANGUAGE NoImplicitPrelude #-}
@@ -170,10 +170,10 @@ index 8c69d3c..be86d1b 100644
  import GHC.Event.Thread (getSystemEventManager, getSystemTimerManager)
  
 +#endif
-diff --git a/GHC/Event/Manager.hs b/GHC/Event/Manager.hs
+diff --git a/boot/base/GHC/Event/Manager.hs b/boot/base/GHC/Event/Manager.hs
 index 29edd97..0f78b09 100644
---- a/GHC/Event/Manager.hs
-+++ b/GHC/Event/Manager.hs
+--- a/boot/base/GHC/Event/Manager.hs
++++ b/boot/base/GHC/Event/Manager.hs
 @@ -8,6 +8,9 @@
             , FlexibleInstances
    #-}
@@ -191,10 +191,10 @@ index 29edd97..0f78b09 100644
 +
 +#endif
 \ No newline at end of file
-diff --git a/GHC/Event/Thread.hs b/GHC/Event/Thread.hs
+diff --git a/boot/base/GHC/Event/Thread.hs b/boot/base/GHC/Event/Thread.hs
 index 14e0df0..e525a89 100644
---- a/GHC/Event/Thread.hs
-+++ b/GHC/Event/Thread.hs
+--- a/boot/base/GHC/Event/Thread.hs
++++ b/boot/base/GHC/Event/Thread.hs
 @@ -1,7 +1,11 @@
  {-# LANGUAGE Trustworthy #-}
  {-# LANGUAGE BangPatterns, NoImplicitPrelude #-}
@@ -214,10 +214,10 @@ index 14e0df0..e525a89 100644
 +
 +#endif
 +
-diff --git a/GHC/Event/TimerManager.hs b/GHC/Event/TimerManager.hs
+diff --git a/boot/base/GHC/Event/TimerManager.hs b/boot/base/GHC/Event/TimerManager.hs
 index c1ab64c..2184869 100644
---- a/GHC/Event/TimerManager.hs
-+++ b/GHC/Event/TimerManager.hs
+--- a/boot/base/GHC/Event/TimerManager.hs
++++ b/boot/base/GHC/Event/TimerManager.hs
 @@ -8,6 +8,9 @@
    #-}
  
@@ -233,10 +233,10 @@ index c1ab64c..2184869 100644
  editTimeouts mgr g = atomicModifyIORef' (emTimeouts mgr) $ \tq -> (g tq, ())
  
 +#endif
-diff --git a/GHC/IO/Encoding.hs b/GHC/IO/Encoding.hs
+diff --git a/boot/base/GHC/IO/Encoding.hs b/boot/base/GHC/IO/Encoding.hs
 index 31683b4..c730184 100644
---- a/GHC/IO/Encoding.hs
-+++ b/GHC/IO/Encoding.hs
+--- a/boot/base/GHC/IO/Encoding.hs
++++ b/boot/base/GHC/IO/Encoding.hs
 @@ -140,8 +140,11 @@ mkGlobal x = unsafePerformIO $ do
  
  -- | @since 4.5.0.0
@@ -251,10 +251,10 @@ index 31683b4..c730184 100644
  -- It is rather important that we don't just call Iconv.mkIconvEncoding here
  -- because some iconvs (in particular GNU iconv) will brokenly UTF-8 encode
  -- lone surrogates without complaint.
-diff --git a/GHC/IO/Encoding/CodePage/API.hs b/GHC/IO/Encoding/CodePage/API.hs
+diff --git a/boot/base/GHC/IO/Encoding/CodePage/API.hs b/boot/base/GHC/IO/Encoding/CodePage/API.hs
 index 966a690..84b2db6 100644
---- a/GHC/IO/Encoding/CodePage/API.hs
-+++ b/GHC/IO/Encoding/CodePage/API.hs
+--- a/boot/base/GHC/IO/Encoding/CodePage/API.hs
++++ b/boot/base/GHC/IO/Encoding/CodePage/API.hs
 @@ -29,6 +29,7 @@ import GHC.ForeignPtr (castForeignPtr)
  
  import System.Posix.Internals
@@ -272,10 +272,10 @@ index 966a690..84b2db6 100644
 +mkCodePageEncoding :: String
 +mkCodePageEncoding = ""
 +#endif
-diff --git a/GHC/IO/FD.hs b/GHC/IO/FD.hs
+diff --git a/boot/base/GHC/IO/FD.hs b/boot/base/GHC/IO/FD.hs
 index 610c9ea..15e8551 100644
---- a/GHC/IO/FD.hs
-+++ b/GHC/IO/FD.hs
+--- a/boot/base/GHC/IO/FD.hs
++++ b/boot/base/GHC/IO/FD.hs
 @@ -562,7 +562,11 @@ writeRawBufferPtrNoBlock loc !fd buf off len
      safe_write    = do_write (c_safe_write (fdFD fd) (buf `plusPtr` off) len)
  
@@ -288,10 +288,10 @@ index 610c9ea..15e8551 100644
  
  foreign import ccall unsafe "fdReady"
    unsafe_fdReady :: CInt -> CInt -> CInt -> CInt -> IO CInt
-diff --git a/GHC/Stack.hsc b/GHC/Stack.hsc
+diff --git a/boot/base/GHC/Stack.hsc b/boot/base/GHC/Stack.hsc
 index 0aa4d17..ee56621 100644
---- a/GHC/Stack.hsc
-+++ b/GHC/Stack.hsc
+--- a/boot/base/GHC/Stack.hsc
++++ b/boot/base/GHC/Stack.hsc
 @@ -15,7 +15,7 @@
  -- @since 4.5.0.0
  -----------------------------------------------------------------------------
@@ -332,10 +332,10 @@ index 0aa4d17..ee56621 100644
  
  -- | returns a '[String]' representing the current call stack.  This
  -- can be useful for debugging.
-diff --git a/GHC/Stats.hsc b/GHC/Stats.hsc
+diff --git a/boot/base/GHC/Stats.hsc b/boot/base/GHC/Stats.hsc
 index 7bcc221..378ca67 100644
---- a/GHC/Stats.hsc
-+++ b/GHC/Stats.hsc
+--- a/boot/base/GHC/Stats.hsc
++++ b/boot/base/GHC/Stats.hsc
 @@ -1,3 +1,4 @@
 +{-# LANGUAGE CPP #-}
  {-# LANGUAGE Trustworthy #-}
@@ -378,10 +378,10 @@ index 7bcc221..378ca67 100644
      return GCStats { .. }
  
  {-
-diff --git a/GHC/TopHandler.hs b/GHC/TopHandler.hs
+diff --git a/boot/base/GHC/TopHandler.hs b/boot/base/GHC/TopHandler.hs
 index d7c0038..9518de3 100644
---- a/GHC/TopHandler.hs
-+++ b/GHC/TopHandler.hs
+--- a/boot/base/GHC/TopHandler.hs
++++ b/boot/base/GHC/TopHandler.hs
 @@ -68,7 +68,9 @@ runMainIO main =
        topHandler
  
@@ -411,10 +411,10 @@ index d7c0038..9518de3 100644
    safeExit 252
  #else
    -- we must exit via the default action for SIGINT, so that the
-diff --git a/GHC/Windows.hs b/GHC/Windows.hs
+diff --git a/boot/base/GHC/Windows.hs b/boot/base/GHC/Windows.hs
 index 45032d5..7f1e83b 100644
---- a/GHC/Windows.hs
-+++ b/GHC/Windows.hs
+--- a/boot/base/GHC/Windows.hs
++++ b/boot/base/GHC/Windows.hs
 @@ -21,6 +21,10 @@
  -----------------------------------------------------------------------------
  
@@ -432,10 +432,10 @@ index 45032d5..7f1e83b 100644
      getLastError :: IO ErrCode
 +
 +#endif
-diff --git a/System/CPUTime.hsc b/System/CPUTime.hsc
+diff --git a/boot/base/System/CPUTime.hsc b/boot/base/System/CPUTime.hsc
 index e09439c..2640ac9 100644
---- a/System/CPUTime.hsc
-+++ b/System/CPUTime.hsc
+--- a/boot/base/System/CPUTime.hsc
++++ b/boot/base/System/CPUTime.hsc
 @@ -24,6 +24,14 @@ module System.CPUTime
           cpuTimePrecision  -- :: Integer
          ) where
@@ -456,10 +456,10 @@ index e09439c..2640ac9 100644
  clockTicks :: Int
  clockTicks = fromIntegral clk_tck
 +##endif
-diff --git a/System/Environment/ExecutablePath.hsc b/System/Environment/ExecutablePath.hsc
+diff --git a/boot/base/System/Environment/ExecutablePath.hsc b/boot/base/System/Environment/ExecutablePath.hsc
 index 410e3ac..34f0a2a 100644
---- a/System/Environment/ExecutablePath.hsc
-+++ b/System/Environment/ExecutablePath.hsc
+--- a/boot/base/System/Environment/ExecutablePath.hsc
++++ b/boot/base/System/Environment/ExecutablePath.hsc
 @@ -18,6 +18,13 @@
  
  module System.Environment.ExecutablePath ( getExecutablePath ) where
@@ -481,10 +481,10 @@ index 410e3ac..34f0a2a 100644
 +
 +##endif
 \ No newline at end of file
-diff --git a/System/Posix/Internals.hs b/System/Posix/Internals.hs
+diff --git a/boot/base/System/Posix/Internals.hs b/boot/base/System/Posix/Internals.hs
 index c49e613..f52326a 100644
---- a/System/Posix/Internals.hs
-+++ b/System/Posix/Internals.hs
+--- a/boot/base/System/Posix/Internals.hs
++++ b/boot/base/System/Posix/Internals.hs
 @@ -1,6 +1,9 @@
  {-# LANGUAGE Trustworthy #-}
  {-# LANGUAGE CPP, NoImplicitPrelude, CApiFFI #-}
@@ -671,10 +671,10 @@ index c49e613..f52326a 100644
  {-
  Note: CSsize
  
-diff --git a/System/Timeout.hs b/System/Timeout.hs
+diff --git a/boot/base/System/Timeout.hs b/boot/base/System/Timeout.hs
 index 73b5910..c4c5cdf 100644
---- a/System/Timeout.hs
-+++ b/System/Timeout.hs
+--- a/boot/base/System/Timeout.hs
++++ b/boot/base/System/Timeout.hs
 @@ -18,7 +18,7 @@
  
  module System.Timeout ( timeout ) where
@@ -693,10 +693,10 @@ index 73b5910..c4c5cdf 100644
      | rtsSupportsBoundThreads = do
          -- In the threaded RTS, we use the Timer Manager to delay the
          -- (fairly expensive) 'forkIO' call until the timeout has expired.
-diff --git a/base.cabal b/base.cabal
+diff --git a/boot/base/base.cabal b/boot/base/base.cabal
 index c5c4a15..1224f2c 100644
---- a/base.cabal
-+++ b/base.cabal
+--- a/boot/base/base.cabal
++++ b/boot/base/base.cabal
 @@ -50,7 +50,7 @@ Flag integer-simple
  Flag integer-gmp
      Description: Use integer-gmp
