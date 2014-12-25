@@ -1,5 +1,5 @@
 diff --git a/System/Process.hsc b/System/Process.hsc
-index 4fca71e..2948c63 100644
+index 4fca71e..0a60013 100644
 --- a/System/Process.hsc
 +++ b/System/Process.hsc
 @@ -8,6 +8,10 @@
@@ -26,9 +26,14 @@ index 4fca71e..2948c63 100644
  #else
  import System.Posix.Process (getProcessGroupIDOf)
  import qualified System.Posix.IO as Posix
-@@ -102,7 +108,9 @@ import GHC.IO.Exception ( ioException, IOErrorType(..), IOException(..) )
+@@ -99,10 +105,14 @@ import System.Posix.Types
+ #ifdef __GLASGOW_HASKELL__
+ import GHC.IO.Exception ( ioException, IOErrorType(..), IOException(..) )
+ # if defined(mingw32_HOST_OS)
++##if !defined(ghcjs_HOST_OS)
  import System.Win32.Console (generateConsoleCtrlEvent, cTRL_BREAK_EVENT)
  import System.Win32.Process (getProcessId)
++##endif
  # else
 +##if !defined(ghcjs_HOST_OS)
  import System.Posix.Signals
@@ -36,7 +41,7 @@ index 4fca71e..2948c63 100644
  # endif
  #endif
  
-@@ -658,7 +666,8 @@ interruptProcessGroupOf ph = do
+@@ -658,7 +668,8 @@ interruptProcessGroupOf ph = do
          case p_ of
              ClosedHandle _ -> return ()
              OpenHandle h -> do
@@ -46,7 +51,7 @@ index 4fca71e..2948c63 100644
                  pid <- getProcessId h
                  generateConsoleCtrlEvent cTRL_BREAK_EVENT pid
  -- We can't use an #elif here, because MIN_VERSION_unix isn't defined
-@@ -668,12 +677,30 @@ interruptProcessGroupOf ph = do
+@@ -668,12 +679,30 @@ interruptProcessGroupOf ph = do
                  pgid <- getProcessGroupIDOf h
                  signalProcessGroup sigINT pgid
  #endif
@@ -77,7 +82,7 @@ index 4fca71e..2948c63 100644
  foreign import ccall unsafe "terminateProcess"
    c_terminateProcess
          :: PHANDLE
-@@ -691,6 +718,7 @@ foreign import ccall interruptible "waitForProcess" -- NB. safe - can block
+@@ -691,6 +720,7 @@ foreign import ccall interruptible "waitForProcess" -- NB. safe - can block
          -> Ptr CInt
          -> IO CInt
  
@@ -85,6 +90,22 @@ index 4fca71e..2948c63 100644
  
  -- ----------------------------------------------------------------------------
  -- Old deprecated variants
+@@ -892,6 +922,9 @@ rawSystem cmd args = system (showCommandForUser cmd args)
+ --
+ -- /Since: 1.2.1.0/
+ createPipe :: IO (Handle, Handle)
++##if ghcjs_HOST_OS
++createPipe = error "System.Process.createPipe: not yet supported on GHCJS"
++##else
+ #if !mingw32_HOST_OS
+ createPipe = do
+     (readfd, writefd) <- Posix.createPipe
+@@ -918,3 +951,4 @@ foreign import ccall "io.h _pipe" c__pipe ::
+ foreign import ccall "io.h _close" c__close ::
+     CInt -> IO CInt
+ #endif
++##endif
+\ No newline at end of file
 diff --git a/System/Process/Internals.hs b/System/Process/Internals.hs
 index 90651d0..b8f2ac6 100644
 --- a/System/Process/Internals.hs
