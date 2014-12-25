@@ -694,7 +694,7 @@ index 73b5910..c4c5cdf 100644
          -- In the threaded RTS, we use the Timer Manager to delay the
          -- (fairly expensive) 'forkIO' call until the timeout has expired.
 diff --git a/boot/base/base.cabal b/boot/base/base.cabal
-index c5c4a15..1224f2c 100644
+index c5c4a15..7305936 100644
 --- a/boot/base/base.cabal
 +++ b/boot/base/base.cabal
 @@ -50,7 +50,7 @@ Flag integer-simple
@@ -706,6 +706,15 @@ index c5c4a15..1224f2c 100644
  
  Flag integer-gmp2
      Description: Use integer-gmp2
+@@ -324,7 +324,7 @@ Library
+         Typeable.h
+ 
+     -- OS Specific
+-    if os(windows)
++    if os(windows) && !impl(ghcjs)
+         extra-libraries: wsock32, user32, shell32
+         exposed-modules:
+             GHC.IO.Encoding.CodePage.API
 @@ -332,23 +332,24 @@ Library
              GHC.Conc.Windows
              GHC.Windows
