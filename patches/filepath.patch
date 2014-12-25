@@ -15,8 +15,9 @@ index 331ae81..0c75d25 100644
  import System.FilePath.Windows
  #else
 diff --git a/System/FilePath/Current.hs b/System/FilePath/Current.hs
-index e69de29..0355326 100644
---- a/System/FilePath/Current.hs 
+new file mode 100644
+index 0000000..0355326
+--- /dev/null
 +++ b/System/FilePath/Current.hs
 @@ -0,0 +1,4 @@
 +{-# LANGUAGE CPP #-}
@@ -24,7 +25,7 @@ index e69de29..0355326 100644
 +#define IS_CURRENT      1
 +#include "Internal.hs"
 diff --git a/System/FilePath/Internal.hs b/System/FilePath/Internal.hs
-index af20ad6..a698244 100644
+index f7b3469..dfaa3d7 100644
 --- a/System/FilePath/Internal.hs
 +++ b/System/FilePath/Internal.hs
 @@ -1,4 +1,6 @@
@@ -34,9 +35,9 @@ index af20ad6..a698244 100644
 +#elif __GLASGOW_HASKELL__ >= 704
  {-# LANGUAGE Safe #-}
  #endif
- 
-@@ -47,6 +49,8 @@
- 
+ {-# LANGUAGE PatternGuards #-}
+@@ -63,6 +65,8 @@
+ -- [1] <http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx Naming Files, Paths and Namespaces> (Microsoft MSDN)
  module System.FilePath.MODULE_NAME
      (
 +    isWindows, isPosix,
@@ -44,7 +45,7 @@ index af20ad6..a698244 100644
      -- * Separator predicates
      FilePath,
      pathSeparator, pathSeparators, isPathSeparator,
-@@ -108,8 +112,11 @@ isPosix = not isWindows
+@@ -124,8 +128,11 @@ isPosix = not isWindows
  
  -- | Is the operating system Windows like
  isWindows :: Bool
@@ -58,7 +59,7 @@ index af20ad6..a698244 100644
  ---------------------------------------------------------------------
  -- The basic functions
 diff --git a/filepath.cabal b/filepath.cabal
-index 1aaed72..497c650 100644
+index 87b1f4c..d21c742 100644
 --- a/filepath.cabal
 +++ b/filepath.cabal
 @@ -40,6 +40,9 @@ library
