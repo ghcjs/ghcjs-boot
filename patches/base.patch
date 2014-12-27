@@ -273,7 +273,7 @@ index 966a690..84b2db6 100644
 +mkCodePageEncoding = ""
 +#endif
 diff --git a/boot/base/GHC/IO/FD.hs b/boot/base/GHC/IO/FD.hs
-index 610c9ea..2afed00 100644
+index 610c9ea..774ac69 100644
 --- a/boot/base/GHC/IO/FD.hs
 +++ b/boot/base/GHC/IO/FD.hs
 @@ -500,6 +500,10 @@ indicates that there's no data, we call threadWaitRead.
@@ -322,7 +322,7 @@ index 610c9ea..2afed00 100644
    | isNonBlocking fd = unsafe_write -- unsafe is ok, it can't block
    | otherwise   = do r <- unsafe_fdReady (fdFD fd) 1 0 0
                       if r /= 0
-@@ -545,9 +563,14 @@ writeRawBufferPtr loc !fd buf off len
+@@ -545,9 +563,17 @@ writeRawBufferPtr loc !fd buf off len
      write         = if threaded then safe_write else unsafe_write
      unsafe_write  = do_write (c_write (fdFD fd) (buf `plusPtr` off) len)
      safe_write    = do_write (c_safe_write (fdFD fd) (buf `plusPtr` off) len)
@@ -331,13 +331,16 @@ index 610c9ea..2afed00 100644
  writeRawBufferPtrNoBlock :: String -> FD -> Ptr Word8 -> Int -> CSize -> IO CInt
  writeRawBufferPtrNoBlock loc !fd buf off len
 +#ifdef ghcjs_HOST_OS
-+  = fmap fromIntegral . uninterruptibleMask_ $
-+    throwErrnoIfMinus1 loc (c_write (fdFD fd) (buf `plusPtr` off) len)
++  = uninterruptibleMask_ $ do
++      r <- throwErrnoIfMinus1 loc (c_write (fdFD fd) (buf `plusPtr` off) len)
++      case r of
++        (-1) -> return 0
++        n    -> return (fromIntegral n)
 +#else
    | isNonBlocking fd = unsafe_write -- unsafe is ok, it can't block
    | otherwise   = do r <- unsafe_fdReady (fdFD fd) 1 0 0
                       if r /= 0 then write
-@@ -560,9 +583,14 @@ writeRawBufferPtrNoBlock loc !fd buf off len
+@@ -560,9 +586,14 @@ writeRawBufferPtrNoBlock loc !fd buf off len
      write         = if threaded then safe_write else unsafe_write
      unsafe_write  = do_write (c_write (fdFD fd) (buf `plusPtr` off) len)
      safe_write    = do_write (c_safe_write (fdFD fd) (buf `plusPtr` off) len)
@@ -352,7 +355,7 @@ index 610c9ea..2afed00 100644
  
  foreign import ccall unsafe "fdReady"
    unsafe_fdReady :: CInt -> CInt -> CInt -> CInt -> IO CInt
-@@ -646,7 +674,7 @@ foreign import ccall "rtsSupportsBoundThreads" threaded :: Bool
+@@ -646,7 +677,7 @@ foreign import ccall "rtsSupportsBoundThreads" threaded :: Bool
  -- -----------------------------------------------------------------------------
  -- utils
  
