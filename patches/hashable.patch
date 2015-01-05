@@ -1,5 +1,5 @@
 diff --git a/Data/Hashable/Class.hs b/Data/Hashable/Class.hs
-index 1ab9879..b809004 100644
+index da4ad90..2145974 100644
 --- a/Data/Hashable/Class.hs
 +++ b/Data/Hashable/Class.hs
 @@ -87,7 +87,7 @@ import qualified Data.ByteString.Lazy.Internal as BL  -- foldlChunks
@@ -10,13 +10,13 @@ index 1ab9879..b809004 100644
 +#if defined(VERSION_integer_gmp) && !defined(ghcjs_HOST_OS)
  import GHC.Exts (Int(..))
  import GHC.Integer.GMP.Internals (Integer(..))
+ # if MIN_VERSION_integer_gmp(1,0,0)
+@@ -278,7 +278,7 @@ instance Hashable Natural where
  #endif
-@@ -242,7 +242,7 @@ instance Hashable Char where
-     hashWithSalt = defaultHashWithSalt
  
  instance Hashable Integer where
 -#if defined(VERSION_integer_gmp)
 +#if defined(VERSION_integer_gmp) && !defined(ghcjs_HOST_OS)
-     hash (S# int) = I# int
-     hash n@(J# size# byteArray)
-         | n >= minInt && n <= maxInt = fromInteger n :: Int
+ # if MIN_VERSION_integer_gmp(1,0,0)
+     hash (S# n)   = (I# n)
+     hash (Jp# bn) = hash bn

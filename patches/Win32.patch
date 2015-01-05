@@ -621,7 +621,7 @@ index f25e32e..7423bab 100644
 +
 +##endif
 diff --git a/System/Win32/SimpleMAPI.hsc b/System/Win32/SimpleMAPI.hsc
-index 93ac39d..3d7e8ef 100644
+index faa8a9f..48a6090 100644
 --- a/System/Win32/SimpleMAPI.hsc
 +++ b/System/Win32/SimpleMAPI.hsc
 @@ -17,6 +17,8 @@
@@ -633,10 +633,10 @@ index 93ac39d..3d7e8ef 100644
  -- I am not sure why exactly, but with mingw64 mapi.h does not define
  -- some of the values we use, e.g. MAPI_LOGOFF_SHARED.
  -- mapix.h does define MAPI_LOGOFF_SHARED, but the various flags
-@@ -409,3 +411,5 @@ handleIOException :: (IOException -> IO a) -> IO a -> IO a
- handleIOException = handle
+@@ -413,3 +415,5 @@ mapiSendMail f ses hwnd msg flag = withMessage f ses msg $ \msg ->
  
- #endif
+ handleIOException :: (IOException -> IO a) -> IO a -> IO a
+ handleIOException = handle
 +
 +##endif
 diff --git a/System/Win32/Time.hsc b/System/Win32/Time.hsc
@@ -659,7 +659,9 @@ index a977975..9f29ece 100644
 +
 +##endif
 diff --git a/System/Win32/Types.hs b/System/Win32/Types.hs
-index 68a4ff1..9047212 100644
+old mode 100755
+new mode 100644
+index c09a22f..e935cb1
 --- a/System/Win32/Types.hs
 +++ b/System/Win32/Types.hs
 @@ -16,6 +16,9 @@
@@ -672,7 +674,7 @@ index 68a4ff1..9047212 100644
  	( module System.Win32.Types
  	, nullPtr
  	) where
-@@ -322,3 +325,5 @@ foreign import ccall unsafe "HsWin32.h prim_SUBLANGID"
+@@ -326,3 +329,5 @@ foreign import ccall unsafe "HsWin32.h prim_SUBLANGID"
  ----------------------------------------------------------------
  -- End
  ----------------------------------------------------------------
