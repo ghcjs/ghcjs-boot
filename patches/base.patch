@@ -145,7 +145,7 @@ index 7935a8a..979ed6f 100644
  
 +#endif
 diff --git a/boot/base/GHC/Event.hs b/boot/base/GHC/Event.hs
-index 8c69d3c..be86d1b 100644
+index 436914c..c41abfc 100644
 --- a/boot/base/GHC/Event.hs
 +++ b/boot/base/GHC/Event.hs
 @@ -1,5 +1,6 @@
@@ -165,18 +165,18 @@ index 8c69d3c..be86d1b 100644
      ( -- * Types
        EventManager
      , TimerManager
-@@ -44,3 +48,4 @@ import GHC.Event.TimerManager (TimeoutCallback, TimeoutKey, registerTimeout,
+@@ -43,3 +47,4 @@ import GHC.Event.TimerManager (TimeoutCallback, TimeoutKey, registerTimeout,
                                 updateTimeout, unregisterTimeout, TimerManager)
  import GHC.Event.Thread (getSystemEventManager, getSystemTimerManager)
  
 +#endif
 diff --git a/boot/base/GHC/Event/Manager.hs b/boot/base/GHC/Event/Manager.hs
-index 29edd97..0f78b09 100644
+index 11b01ad..4de059b 100644
 --- a/boot/base/GHC/Event/Manager.hs
 +++ b/boot/base/GHC/Event/Manager.hs
-@@ -8,6 +8,9 @@
-            , FlexibleInstances
-   #-}
+@@ -19,6 +19,9 @@
+ -- polling if available. Otherwise we use multi-shot polling.
+ 
  module GHC.Event.Manager
 +#ifdef ghcjs_HOST_OS
 +    () where
@@ -184,15 +184,15 @@ index 29edd97..0f78b09 100644
      ( -- * Types
        EventManager
  
-@@ -482,3 +485,5 @@ onFdEvent mgr fd evs =
- nullToNothing :: [a] -> Maybe [a]
- nullToNothing []       = Nothing
- nullToNothing xs@(_:_) = Just xs
+@@ -497,3 +500,6 @@ nullToNothing xs@(_:_) = Just xs
+ 
+ unless :: Monad m => Bool -> m () -> m ()
+ unless p = when (not p)
 +
 +#endif
-\ No newline at end of file
++
 diff --git a/boot/base/GHC/Event/Thread.hs b/boot/base/GHC/Event/Thread.hs
-index 14e0df0..e525a89 100644
+index d4b6792..5983d0e 100644
 --- a/boot/base/GHC/Event/Thread.hs
 +++ b/boot/base/GHC/Event/Thread.hs
 @@ -1,7 +1,11 @@
@@ -770,7 +770,7 @@ index 73b5910..c4c5cdf 100644
          -- In the threaded RTS, we use the Timer Manager to delay the
          -- (fairly expensive) 'forkIO' call until the timeout has expired.
 diff --git a/boot/base/base.cabal b/boot/base/base.cabal
-index c5c4a15..7305936 100644
+index 1172f2a..b949dc9 100644
 --- a/boot/base/base.cabal
 +++ b/boot/base/base.cabal
 @@ -50,7 +50,7 @@ Flag integer-simple
@@ -782,7 +782,7 @@ index c5c4a15..7305936 100644
  
  Flag integer-gmp2
      Description: Use integer-gmp2
-@@ -324,7 +324,7 @@ Library
+@@ -325,7 +325,7 @@ Library
          Typeable.h
  
      -- OS Specific
@@ -791,7 +791,7 @@ index c5c4a15..7305936 100644
          extra-libraries: wsock32, user32, shell32
          exposed-modules:
              GHC.IO.Encoding.CodePage.API
-@@ -332,23 +332,24 @@ Library
+@@ -333,23 +333,24 @@ Library
              GHC.Conc.Windows
              GHC.Windows
      else
