@@ -15,9 +15,8 @@ index 331ae81..0c75d25 100644
  import System.FilePath.Windows
  #else
 diff --git a/System/FilePath/Current.hs b/System/FilePath/Current.hs
-new file mode 100644
-index 0000000..0355326
---- /dev/null
+index e69de29..0355326 100644
+--- a/System/FilePath/Current.hs
 +++ b/System/FilePath/Current.hs
 @@ -0,0 +1,4 @@
 +{-# LANGUAGE CPP #-}
@@ -25,7 +24,7 @@ index 0000000..0355326
 +#define IS_CURRENT      1
 +#include "Internal.hs"
 diff --git a/System/FilePath/Internal.hs b/System/FilePath/Internal.hs
-index f7b3469..dfaa3d7 100644
+index 051e44c..6d7d61f 100644
 --- a/System/FilePath/Internal.hs
 +++ b/System/FilePath/Internal.hs
 @@ -1,4 +1,6 @@
@@ -59,7 +58,7 @@ index f7b3469..dfaa3d7 100644
  ---------------------------------------------------------------------
  -- The basic functions
 diff --git a/filepath.cabal b/filepath.cabal
-index 87b1f4c..d21c742 100644
+index 0841a0d..9c1295a 100644
 --- a/filepath.cabal
 +++ b/filepath.cabal
 @@ -40,6 +40,9 @@ library
