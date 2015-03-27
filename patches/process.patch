@@ -1,5 +1,5 @@
 diff --git a/System/Process.hsc b/System/Process.hsc
-index 4fca71e..0a60013 100644
+index 32ad6af..cd66d50 100644
 --- a/System/Process.hsc
 +++ b/System/Process.hsc
 @@ -8,6 +8,10 @@
@@ -13,7 +13,7 @@ index 4fca71e..0a60013 100644
  -----------------------------------------------------------------------------
  -- |
  -- Module      :  System.Process
-@@ -86,10 +90,12 @@ import System.IO
+@@ -88,10 +92,12 @@ import System.IO
  import System.IO.Error (mkIOError, ioeSetErrorString)
  
  #if defined(mingw32_HOST_OS)
@@ -26,7 +26,7 @@ index 4fca71e..0a60013 100644
  #else
  import System.Posix.Process (getProcessGroupIDOf)
  import qualified System.Posix.IO as Posix
-@@ -99,10 +105,14 @@ import System.Posix.Types
+@@ -101,10 +107,14 @@ import System.Posix.Types
  #ifdef __GLASGOW_HASKELL__
  import GHC.IO.Exception ( ioException, IOErrorType(..), IOException(..) )
  # if defined(mingw32_HOST_OS)
@@ -41,7 +41,7 @@ index 4fca71e..0a60013 100644
  # endif
  #endif
  
-@@ -658,7 +668,8 @@ interruptProcessGroupOf ph = do
+@@ -697,7 +707,8 @@ interruptProcessGroupOf ph = do
          case p_ of
              ClosedHandle _ -> return ()
              OpenHandle h -> do
@@ -51,7 +51,7 @@ index 4fca71e..0a60013 100644
                  pid <- getProcessId h
                  generateConsoleCtrlEvent cTRL_BREAK_EVENT pid
  -- We can't use an #elif here, because MIN_VERSION_unix isn't defined
-@@ -668,12 +679,30 @@ interruptProcessGroupOf ph = do
+@@ -707,12 +718,30 @@ interruptProcessGroupOf ph = do
                  pgid <- getProcessGroupIDOf h
                  signalProcessGroup sigINT pgid
  #endif
@@ -82,7 +82,7 @@ index 4fca71e..0a60013 100644
  foreign import ccall unsafe "terminateProcess"
    c_terminateProcess
          :: PHANDLE
-@@ -691,6 +720,7 @@ foreign import ccall interruptible "waitForProcess" -- NB. safe - can block
+@@ -730,6 +759,7 @@ foreign import ccall interruptible "waitForProcess" -- NB. safe - can block
          -> Ptr CInt
          -> IO CInt
  
@@ -90,7 +90,7 @@ index 4fca71e..0a60013 100644
  
  -- ----------------------------------------------------------------------------
  -- Old deprecated variants
-@@ -892,6 +922,9 @@ rawSystem cmd args = system (showCommandForUser cmd args)
+@@ -931,6 +961,9 @@ rawSystem cmd args = system (showCommandForUser cmd args)
  --
  -- /Since: 1.2.1.0/
  createPipe :: IO (Handle, Handle)
@@ -100,14 +100,14 @@ index 4fca71e..0a60013 100644
  #if !mingw32_HOST_OS
  createPipe = do
      (readfd, writefd) <- Posix.createPipe
-@@ -918,3 +951,4 @@ foreign import ccall "io.h _pipe" c__pipe ::
+@@ -957,3 +990,4 @@ foreign import ccall "io.h _pipe" c__pipe ::
  foreign import ccall "io.h _close" c__close ::
      CInt -> IO CInt
  #endif
 +##endif
 \ No newline at end of file
 diff --git a/System/Process/Internals.hs b/System/Process/Internals.hs
-index 90651d0..b8f2ac6 100644
+index 9d2be0a..726a4ee 100644
 --- a/System/Process/Internals.hs
 +++ b/System/Process/Internals.hs
 @@ -5,6 +5,10 @@
@@ -121,16 +121,16 @@ index 90651d0..b8f2ac6 100644
  -----------------------------------------------------------------------------
  -- |
  -- Module      :  System.Process.Internals
-@@ -33,7 +37,7 @@ module System.Process.Internals (
- #endif
+@@ -34,7 +38,7 @@ module System.Process.Internals (
      startDelegateControlC,
      endDelegateControlC,
+     stopDelegateControlC,
 -#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
 +#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__) && !defined(ghcjs_HOST_OS)
      pPrPr_disableITimers, c_execvpe,
      ignoreSignal, defaultSignal,
  #endif
-@@ -52,7 +56,7 @@ import Foreign.Ptr
+@@ -53,7 +57,7 @@ import Foreign.Ptr
  import Foreign.Storable
  import System.IO.Unsafe
  
@@ -139,7 +139,7 @@ index 90651d0..b8f2ac6 100644
  import Control.Monad
  import Data.Char
  import System.IO
-@@ -71,10 +75,12 @@ import GHC.IO.Handle.Internals
+@@ -72,10 +76,12 @@ import GHC.IO.Handle.Internals
  import GHC.IO.Handle.Types hiding (ClosedHandle)
  import System.IO.Error
  import Data.Typeable
@@ -154,7 +154,7 @@ index 90651d0..b8f2ac6 100644
  import System.Posix.Signals as Sig
  # endif
  #endif
-@@ -85,6 +91,11 @@ import System.Environment       ( getEnv )
+@@ -86,6 +92,11 @@ import System.Environment       ( getEnv )
  import System.FilePath
  #endif
  
@@ -166,7 +166,7 @@ index 90651d0..b8f2ac6 100644
  #include "HsProcessConfig.h"
  #include "processFlags.h"
  
-@@ -98,6 +109,46 @@ import System.FilePath
+@@ -99,6 +110,46 @@ import System.FilePath
  # endif
  #endif
  
@@ -213,7 +213,7 @@ index 90651d0..b8f2ac6 100644
  -- ----------------------------------------------------------------------------
  -- ProcessHandle type
  
-@@ -123,7 +174,19 @@ withProcessHandle
+@@ -124,7 +175,19 @@ withProcessHandle
          -> IO a
  withProcessHandle (ProcessHandle m _) io = withMVar m io
  
@@ -234,7 +234,7 @@ index 90651d0..b8f2ac6 100644
  
  type PHANDLE = CPid
  
-@@ -242,7 +305,50 @@ createProcess_
+@@ -243,7 +306,50 @@ createProcess_
    -> CreateProcess
    -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
  
@@ -286,7 +286,7 @@ index 90651d0..b8f2ac6 100644
  
  #ifdef __GLASGOW_HASKELL__
  
-@@ -488,6 +594,31 @@ fd_stdin  = 0
+@@ -500,6 +606,31 @@ fd_stdin  = 0
  fd_stdout = 1
  fd_stderr = 2
  
@@ -318,7 +318,7 @@ index 90651d0..b8f2ac6 100644
  mbFd :: String -> FD -> StdStream -> IO FD
  mbFd _   _std CreatePipe      = return (-1)
  mbFd _fun std Inherit         = return std
-@@ -504,6 +635,7 @@ mbFd fun _std (UseHandle hdl) =
+@@ -516,6 +647,7 @@ mbFd fun _std (UseHandle hdl) =
                        "createProcess" (Just hdl) Nothing
                     `ioeSetErrorString` "handle is not a file descriptor")
  
@@ -326,7 +326,7 @@ index 90651d0..b8f2ac6 100644
  mbPipe :: StdStream -> Ptr FD -> IOMode -> IO (Maybe Handle)
  mbPipe CreatePipe pfd  mode = fmap Just (pfdToHandle pfd mode)
  mbPipe _std      _pfd _mode = return Nothing
-@@ -524,6 +656,9 @@ pfdToHandle pfd mode = do
+@@ -536,6 +668,9 @@ pfdToHandle pfd mode = do
  #endif
    mkHandleFromFD fD' fd_type filepath mode False {-is_socket-} (Just enc)
  
@@ -336,7 +336,7 @@ index 90651d0..b8f2ac6 100644
  -- ----------------------------------------------------------------------------
  -- commandToProcess
  
-@@ -541,7 +676,21 @@ pfdToHandle pfd mode = do
+@@ -553,7 +688,21 @@ pfdToHandle pfd mode = do
     Windows isn't required (or desirable) here.
  -}
  
@@ -359,7 +359,7 @@ index 90651d0..b8f2ac6 100644
  
  commandToProcess :: CmdSpec -> (FilePath, [String])
  commandToProcess (ShellCommand string) = ("/bin/sh", ["-c", string])
-@@ -660,7 +809,9 @@ use lpCommandLine alone, which CreateProcess supports.
+@@ -672,7 +821,9 @@ use lpCommandLine alone, which CreateProcess supports.
  -}
  
  translate :: String -> String
@@ -370,7 +370,7 @@ index 90651d0..b8f2ac6 100644
  translate xs = '"' : snd (foldr escape (True,"\"") xs)
    where escape '"'  (_,     str) = (True,  '\\' : '"'  : str)
          escape '\\' (True,  str) = (True,  '\\' : '\\' : str)
-@@ -717,7 +868,7 @@ runGenProcess_
+@@ -729,7 +880,7 @@ runGenProcess_
   -> Maybe CLong                -- ^ handler for SIGINT
   -> Maybe CLong                -- ^ handler for SIGQUIT
   -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
@@ -380,12 +380,12 @@ index 90651d0..b8f2ac6 100644
                           = createProcess_ fun c { delegate_ctlc = True }
  runGenProcess_ fun c _ _ = createProcess_ fun c
 diff --git a/process.cabal b/process.cabal
-index a50146f..308583b 100644
+index 9898648..0a7b029 100644
 --- a/process.cabal
 +++ b/process.cabal
 @@ -63,6 +63,8 @@ library
                     directory >= 1.1 && < 1.3,
-                    filepath  >= 1.2 && < 1.4,
+                    filepath  >= 1.2 && < 1.5,
                     deepseq   >= 1.1 && < 1.5
 +    if impl(ghcjs)
 +      build-depends: ghcjs-prim
