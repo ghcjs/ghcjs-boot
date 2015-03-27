@@ -78,7 +78,7 @@
 	url = https://github.com/bos/text
 [submodule "boot/cabal"]
 	path = boot/cabal
-	url = https://github.com/ghcjs/cabal.git
+	url = https://github.com/haskell/cabal.git
 [submodule "boot/hashable"]
 	path = boot/hashable
 	url = https://github.com/tibbe/hashable.git
