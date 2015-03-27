@@ -107,7 +107,7 @@ index 32ad6af..cd66d50 100644
 +##endif
 \ No newline at end of file
 diff --git a/System/Process/Internals.hs b/System/Process/Internals.hs
-index 9d2be0a..726a4ee 100644
+index 9d2be0a..b5194bb 100644
 --- a/System/Process/Internals.hs
 +++ b/System/Process/Internals.hs
 @@ -5,6 +5,10 @@
@@ -234,7 +234,7 @@ index 9d2be0a..726a4ee 100644
  
  type PHANDLE = CPid
  
-@@ -243,7 +306,50 @@ createProcess_
+@@ -243,7 +306,52 @@ createProcess_
    -> CreateProcess
    -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
  
@@ -278,15 +278,17 @@ index 9d2be0a..726a4ee 100644
 +startDelegateControlC :: IO ()
 +startDelegateControlC = return ()
 +
++stopDelegateControlC :: IO ()
++stopDelegateControlC = return ()
++
 +endDelegateControlC :: ExitCode -> IO ()
 +endDelegateControlC _ = return ()
-+
 +
 +#elif !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
  
  #ifdef __GLASGOW_HASKELL__
  
-@@ -500,6 +606,31 @@ fd_stdin  = 0
+@@ -500,6 +608,31 @@ fd_stdin  = 0
  fd_stdout = 1
  fd_stderr = 2
  
@@ -318,7 +320,7 @@ index 9d2be0a..726a4ee 100644
  mbFd :: String -> FD -> StdStream -> IO FD
  mbFd _   _std CreatePipe      = return (-1)
  mbFd _fun std Inherit         = return std
-@@ -516,6 +647,7 @@ mbFd fun _std (UseHandle hdl) =
+@@ -516,6 +649,7 @@ mbFd fun _std (UseHandle hdl) =
                        "createProcess" (Just hdl) Nothing
                     `ioeSetErrorString` "handle is not a file descriptor")
  
@@ -326,7 +328,7 @@ index 9d2be0a..726a4ee 100644
  mbPipe :: StdStream -> Ptr FD -> IOMode -> IO (Maybe Handle)
  mbPipe CreatePipe pfd  mode = fmap Just (pfdToHandle pfd mode)
  mbPipe _std      _pfd _mode = return Nothing
-@@ -536,6 +668,9 @@ pfdToHandle pfd mode = do
+@@ -536,6 +670,9 @@ pfdToHandle pfd mode = do
  #endif
    mkHandleFromFD fD' fd_type filepath mode False {-is_socket-} (Just enc)
  
@@ -336,7 +338,7 @@ index 9d2be0a..726a4ee 100644
  -- ----------------------------------------------------------------------------
  -- commandToProcess
  
-@@ -553,7 +688,21 @@ pfdToHandle pfd mode = do
+@@ -553,7 +690,21 @@ pfdToHandle pfd mode = do
     Windows isn't required (or desirable) here.
  -}
  
@@ -359,7 +361,7 @@ index 9d2be0a..726a4ee 100644
  
  commandToProcess :: CmdSpec -> (FilePath, [String])
  commandToProcess (ShellCommand string) = ("/bin/sh", ["-c", string])
-@@ -672,7 +821,9 @@ use lpCommandLine alone, which CreateProcess supports.
+@@ -672,7 +823,9 @@ use lpCommandLine alone, which CreateProcess supports.
  -}
  
  translate :: String -> String
@@ -370,7 +372,7 @@ index 9d2be0a..726a4ee 100644
  translate xs = '"' : snd (foldr escape (True,"\"") xs)
    where escape '"'  (_,     str) = (True,  '\\' : '"'  : str)
          escape '\\' (True,  str) = (True,  '\\' : '\\' : str)
-@@ -729,7 +880,7 @@ runGenProcess_
+@@ -729,7 +882,7 @@ runGenProcess_
   -> Maybe CLong                -- ^ handler for SIGINT
   -> Maybe CLong                -- ^ handler for SIGQUIT
   -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
