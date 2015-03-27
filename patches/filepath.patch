@@ -15,8 +15,9 @@ index 331ae81..0c75d25 100644
  import System.FilePath.Windows
  #else
 diff --git a/System/FilePath/Current.hs b/System/FilePath/Current.hs
-index e69de29..0355326 100644
---- a/System/FilePath/Current.hs
+new file mode 100644
+index 0000000..0355326
+--- /dev/null
 +++ b/System/FilePath/Current.hs
 @@ -0,0 +1,4 @@
 +{-# LANGUAGE CPP #-}
