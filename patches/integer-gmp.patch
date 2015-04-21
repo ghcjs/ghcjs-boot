@@ -310,7 +310,7 @@ index 0f408ff..3ea0a97 100644
  
  
 diff --git a/boot/integer-gmp/integer-gmp.cabal b/boot/integer-gmp/integer-gmp.cabal
-index 376139f..2ec503a 100644
+index 493da28..dd06102 100644
 --- a/integer-gmp.cabal
 +++ b/integer-gmp.cabal
 @@ -71,6 +71,7 @@ Library
@@ -320,4 +320,4 @@ index 376139f..2ec503a 100644
 +               cbits/gmp-wrappers.cmm
      include-dirs: include
  
-     build-depends: ghc-prim >= 0.3.1 && < 0.4
+     build-depends: ghc-prim == 0.4.*
