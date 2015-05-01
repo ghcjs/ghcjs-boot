@@ -1,7 +1,7 @@
 diff --git a/boot/ghc-prim/Setup.hs b/boot/ghc-prim/Setup.hs
 index 5bb17e2..549aaad 100644
---- a/boot/ghc-prim/Setup.hs
-+++ b/boot/ghc-prim/Setup.hs
+--- a/Setup.hs
++++ b/Setup.hs
 @@ -6,11 +6,15 @@ module Main (main) where
  import Control.Monad
  import Data.List
@@ -86,8 +86,8 @@ index 5bb17e2..549aaad 100644
 +
 diff --git a/boot/ghc-prim/ghc-prim.cabal b/boot/ghc-prim/ghc-prim.cabal
 index c87f336..57bb2e0 100644
---- a/boot/ghc-prim/ghc-prim.cabal
-+++ b/boot/ghc-prim/ghc-prim.cabal
+--- a/ghc-prim.cabal
++++ b/ghc-prim.cabal
 @@ -23,17 +23,19 @@ flag include-ghc-prim
  
  Library

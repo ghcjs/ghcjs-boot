@@ -12,7 +12,7 @@
 	url = https://github.com/ghc/packages-containers.git
 [submodule "ghcjs/ghcjs-prim"]
 	path = ghcjs/ghcjs-prim
-	url = https://github.com/ghcjs/ghcjs-prim.git
+	url = https://github.com/ryantrinkle/ghcjs-prim.git
 [submodule "ghcjs/ghcjs-base"]
 	path = ghcjs/ghcjs-base
 	url = https://github.com/ghcjs/ghcjs-base.git

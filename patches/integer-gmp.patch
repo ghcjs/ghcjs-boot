@@ -1,7 +1,7 @@
 diff --git a/boot/integer-gmp/GHC/Integer/GMP/Internals.hs b/boot/integer-gmp/GHC/Integer/GMP/Internals.hs
 index 0a212f7..600c764 100644
---- a/boot/integer-gmp/GHC/Integer/GMP/Internals.hs
-+++ b/boot/integer-gmp/GHC/Integer/GMP/Internals.hs
+--- a/GHC/Integer/GMP/Internals.hs
++++ b/GHC/Integer/GMP/Internals.hs
 @@ -1,4 +1,4 @@
 -{-# LANGUAGE NoImplicitPrelude #-}
 +{-# LANGUAGE NoImplicitPrelude, MagicHash, CPP #-}
@@ -22,8 +22,8 @@ index 0a212f7..600c764 100644
      , gcdInt
 diff --git a/boot/integer-gmp/GHC/Integer/GMP/Prim.hs b/boot/integer-gmp/GHC/Integer/GMP/Prim.hs
 index 4137dd5..407dd4f 100644
---- a/boot/integer-gmp/GHC/Integer/GMP/Prim.hs
-+++ b/boot/integer-gmp/GHC/Integer/GMP/Prim.hs
+--- a/GHC/Integer/GMP/Prim.hs
++++ b/GHC/Integer/GMP/Prim.hs
 @@ -118,7 +118,11 @@ default ()
  -- @MP_INT_1LIMB_RETURN()@ macro in @gmp-wrappers.cmm@ which
  -- constructs 'MPZ#' values in the first place for implementation
@@ -57,8 +57,8 @@ index 4137dd5..407dd4f 100644
  integer2Word# s d = int2Word# (integer2Int# s d)
 diff --git a/boot/integer-gmp/GHC/Integer/Logarithms/Internals.hs b/boot/integer-gmp/GHC/Integer/Logarithms/Internals.hs
 index 59c800a..551c76d 100644
---- a/boot/integer-gmp/GHC/Integer/Logarithms/Internals.hs
-+++ b/boot/integer-gmp/GHC/Integer/Logarithms/Internals.hs
+--- a/GHC/Integer/Logarithms/Internals.hs
++++ b/GHC/Integer/Logarithms/Internals.hs
 @@ -1,5 +1,8 @@
  {-# LANGUAGE CPP, MagicHash, UnboxedTuples, NoImplicitPrelude #-}
  {-# OPTIONS_HADDOCK hide #-}
@@ -127,8 +127,8 @@ index 59c800a..551c76d 100644
  
 diff --git a/boot/integer-gmp/GHC/Integer/Type.lhs b/boot/integer-gmp/GHC/Integer/Type.lhs
 index 0f408ff..3ea0a97 100644
---- a/boot/integer-gmp/GHC/Integer/Type.lhs
-+++ b/boot/integer-gmp/GHC/Integer/Type.lhs
+--- a/GHC/Integer/Type.lhs
++++ b/GHC/Integer/Type.lhs
 @@ -1,5 +1,8 @@
  \begin{code}
  {-# LANGUAGE BangPatterns, CPP, UnboxedTuples, UnliftedFFITypes, MagicHash, NoImplicitPrelude #-}
@@ -311,8 +311,8 @@ index 0f408ff..3ea0a97 100644
  
 diff --git a/boot/integer-gmp/integer-gmp.cabal b/boot/integer-gmp/integer-gmp.cabal
 index 493da28..dd06102 100644
---- a/boot/integer-gmp/integer-gmp.cabal
-+++ b/boot/integer-gmp/integer-gmp.cabal
+--- a/integer-gmp.cabal
++++ b/integer-gmp.cabal
 @@ -71,6 +71,7 @@ Library
          GHC.Integer.Type
  
