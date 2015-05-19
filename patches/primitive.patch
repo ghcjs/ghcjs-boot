@@ -1,13 +1,13 @@
 diff --git a/primitive.cabal b/primitive.cabal
-index 388b166..8ff332e 100644
+index 4932fc0..2db883c 100644
 --- a/primitive.cabal
 +++ b/primitive.cabal
-@@ -37,7 +37,7 @@ Library
+@@ -36,7 +36,7 @@ Library
+         Data.Primitive.Internal.Compat
          Data.Primitive.Internal.Operations
  
-   Build-Depends: base >= 4.3 && < 4.9
--               , ghc-prim >= 0.2 && < 0.4
-+               , ghc-prim >= 0.2 && < 0.5
-                , transformers >= 0.2 && < 0.5
+-  Build-Depends: base >= 4.3 && < 4.9, ghc-prim >= 0.2 && < 0.4
++  Build-Depends: base >= 4.3 && < 4.9, ghc-prim >= 0.2 && < 0.5
  
    Ghc-Options: -O2 -Wall
+ 
