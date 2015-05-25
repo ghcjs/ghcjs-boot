@@ -19,9 +19,18 @@ module ParserM (
 
 import Data.Word (Word8)
 import Data.Char (ord)
+import Control.Applicative (Applicative(..), liftA)
+import Control.Monad (ap)
 
 -- Parser Monad
 newtype ParserM a = ParserM (AlexInput -> St -> Either String (AlexInput, St, a))
+
+instance Functor ParserM where
+    fmap = liftA
+
+instance Applicative ParserM where
+    pure = return
+    (<*>) = ap
 
 instance Monad ParserM where
     ParserM m >>= k = ParserM $ \i s -> case m i s of
