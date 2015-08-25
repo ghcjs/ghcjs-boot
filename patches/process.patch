@@ -181,7 +181,7 @@ index c4f8797..1970eaa 100644
  
  type PHANDLE = CPid
  
-@@ -201,7 +264,50 @@ createProcess_
+@@ -201,7 +264,51 @@ createProcess_
    -> CreateProcess
    -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
  
@@ -205,9 +205,10 @@ index c4f8797..1970eaa 100644
 +     fderr <- mbFd fun fd_stderr mb_stderr
 +     env'  <- maybe (return jsNull) (toJSStrings . concatMap (\(x,y) -> [x,y])) mb_env
 +     let cwd' = maybe jsNull toJSString mb_cwd
-+     (c1,c2) <- case cmdsp of
-+       ShellCommand xs    -> return (toJSString xs, jsNull)
-+       RawCommand xs args -> (,) (toJSString xs) <$> toJSStrings args
++     let c1 = toJSString cmd
++     c2 <- case args of
++               [] -> return jsNull
++               _  -> toJSStrings args
 +
 +     r <- js_runInteractiveProcess c1 c2 cwd' env' fdin fdout fderr
 +         mb_close_fds mb_create_group mb_delegate_ctlc
@@ -233,7 +234,7 @@ index c4f8797..1970eaa 100644
  
  #ifdef __GLASGOW_HASKELL__
  
-@@ -447,6 +553,31 @@ fd_stdin  = 0
+@@ -447,6 +554,31 @@ fd_stdin  = 0
  fd_stdout = 1
  fd_stderr = 2
  
@@ -265,7 +266,7 @@ index c4f8797..1970eaa 100644
  mbFd :: String -> FD -> StdStream -> IO FD
  mbFd _   _std CreatePipe      = return (-1)
  mbFd _fun std Inherit         = return std
-@@ -463,6 +594,7 @@ mbFd fun _std (UseHandle hdl) =
+@@ -463,6 +595,7 @@ mbFd fun _std (UseHandle hdl) =
                        "createProcess" (Just hdl) Nothing
                     `ioeSetErrorString` "handle is not a file descriptor")
  
@@ -273,7 +274,7 @@ index c4f8797..1970eaa 100644
  mbPipe :: StdStream -> Ptr FD -> IOMode -> IO (Maybe Handle)
  mbPipe CreatePipe pfd  mode = fmap Just (pfdToHandle pfd mode)
  mbPipe _std      _pfd _mode = return Nothing
-@@ -483,6 +615,9 @@ pfdToHandle pfd mode = do
+@@ -483,6 +616,9 @@ pfdToHandle pfd mode = do
  #endif
    mkHandleFromFD fD' fd_type filepath mode False {-is_socket-} (Just enc)
  
@@ -283,7 +284,7 @@ index c4f8797..1970eaa 100644
  -- ----------------------------------------------------------------------------
  -- commandToProcess
  
-@@ -500,7 +635,21 @@ pfdToHandle pfd mode = do
+@@ -500,7 +636,21 @@ pfdToHandle pfd mode = do
     Windows isn't required (or desirable) here.
  -}
  
@@ -306,7 +307,7 @@ index c4f8797..1970eaa 100644
  
  commandToProcess :: CmdSpec -> (FilePath, [String])
  commandToProcess (ShellCommand string) = ("/bin/sh", ["-c", string])
-@@ -619,7 +768,9 @@ use lpCommandLine alone, which CreateProcess supports.
+@@ -619,7 +769,9 @@ use lpCommandLine alone, which CreateProcess supports.
  -}
  
  translate :: String -> String
@@ -317,7 +318,7 @@ index c4f8797..1970eaa 100644
  translate xs = '"' : snd (foldr escape (True,"\"") xs)
    where escape '"'  (_,     str) = (True,  '\\' : '"'  : str)
          escape '\\' (True,  str) = (True,  '\\' : '\\' : str)
-@@ -676,7 +827,7 @@ runGenProcess_
+@@ -676,7 +828,7 @@ runGenProcess_
   -> Maybe CLong                -- ^ handler for SIGINT
   -> Maybe CLong                -- ^ handler for SIGQUIT
   -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
