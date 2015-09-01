@@ -1,5 +1,5 @@
 diff --git a/System/Directory.hs b/System/Directory.hs
-index be8379d..29e0145 100644
+index be8379d..e27ff17 100644
 --- a/System/Directory.hs
 +++ b/System/Directory.hs
 @@ -2,6 +2,9 @@
@@ -29,11 +29,11 @@ index be8379d..29e0145 100644
  
 +#ifdef ghcjs_HOST_OS
 +
-+type JSObject = JSRef ()
-+type JSString = JSRef ()
-+type JSArray  = JSRef ()
++type JSObject = JSRef
++type JSString = JSRef
++type JSArray  = JSRef
 +
-+throwErrnoIfJSNull :: String -> IO (JSRef a) -> IO (JSRef a)
++throwErrnoIfJSNull :: String -> IO JSRef -> IO JSRef
 +throwErrnoIfJSNull msg m = do
 +  r <- m
 +  if isNull r then throwErrno msg

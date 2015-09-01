@@ -107,7 +107,7 @@ index 32ad6af..cd66d50 100644
 +##endif
 \ No newline at end of file
 diff --git a/System/Process/Internals.hs b/System/Process/Internals.hs
-index 9d2be0a..b5194bb 100644
+index 9d2be0a..7e2a96f 100644
 --- a/System/Process/Internals.hs
 +++ b/System/Process/Internals.hs
 @@ -5,6 +5,10 @@
@@ -172,20 +172,20 @@ index 9d2be0a..b5194bb 100644
  
 +#if defined(ghcjs_HOST_OS)
 +
-+type JSArray  = JSRef ()
-+type JSObject = JSRef ()
-+type JSString = JSRef ()
++type JSArray  = JSRef
++type JSObject = JSRef
++type JSString = JSRef
 +
-+fromJSStrings :: JSRef a -> IO [String]
++fromJSStrings :: JSRef -> IO [String]
 +fromJSStrings x = fmap (map fromJSString) (fromJSArray x)
 +
-+fromJSInts :: JSRef a -> IO [Int]
++fromJSInts :: JSRef -> IO [Int]
 +fromJSInts x = map fromJSInt <$> fromJSArray x
 +
-+toJSStrings :: [String] -> IO (JSRef a)
++toJSStrings :: [String] -> IO JSRef
 +toJSStrings xs = toJSArray (map toJSString xs)
 +
-+throwErrnoIfJSNull :: String -> IO (JSRef a) -> IO (JSRef a)
++throwErrnoIfJSNull :: String -> IO JSRef -> IO JSRef
 +throwErrnoIfJSNull msg m = do
 +  r <- m
 +  if isNull r then throwErrno msg
@@ -203,7 +203,7 @@ index 9d2be0a..b5194bb 100644
 +                           -> Bool         -- ^ $8 close handles
 +                           -> Bool         -- ^ $9
 +                           -> Bool         -- ^ $10 delegate ctrl-c
-+                           -> IO (JSRef a) -- ^ process handle
++                           -> IO JSRef     -- ^ process handle
 +
 +foreign import javascript safe
 +  "h$process_commandToProcess($1,$2)"
