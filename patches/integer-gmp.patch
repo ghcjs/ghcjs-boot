@@ -126,7 +126,7 @@ index 59c800a..551c76d 100644
  default ()
  
 diff --git a/boot/integer-gmp/GHC/Integer/Type.lhs b/boot/integer-gmp/GHC/Integer/Type.lhs
-index 0f408ff..3ea0a97 100644
+index 0f408ff..57086c9 100644
 --- a/boot/integer-gmp/GHC/Integer/Type.lhs
 +++ b/boot/integer-gmp/GHC/Integer/Type.lhs
 @@ -1,5 +1,8 @@
@@ -138,21 +138,30 @@ index 0f408ff..3ea0a97 100644
  {-# OPTIONS_HADDOCK hide #-}
  
  -- Commentary of Integer library is located on the wiki:
-@@ -204,6 +207,13 @@ toSmall (J# s# mb#) = smartJ# s# mb#
+@@ -92,6 +95,8 @@ import GHC.IntWord64 (
+ import GHC.Classes
+ import GHC.Types
+ 
++import qualified GHC.Prim as Prim
++
+ default ()
+ \end{code}
+ 
+@@ -204,6 +209,13 @@ toSmall (J# s# mb#) = smartJ# s# mb#
  
  -- | Smart 'J#' constructor which tries to construct 'S#' if possible
  smartJ# :: Int# -> ByteArray# -> Integer
 +#ifdef ghcjs_HOST_OS
-+smartJ# _  ba = case js_smartJ ba of (# i #) -> i
++smartJ# _  ba = Prim.unsafeCoerce# (js_smartJ ba)
 +
 +foreign import javascript unsafe
 +  "h$integer_smartJ($1)"
-+  js_smartJ :: ByteArray# -> (# Integer #)
++  js_smartJ :: ByteArray# -> Prim.Any -- Integer
 +#else
  smartJ# 0# _ = S# 0#
  smartJ# 1# mb#  | isTrue# (v ># 0#) = S# v
      where
-@@ -212,6 +222,7 @@ smartJ# (-1#) mb# | isTrue# (v <# 0#) = S# v
+@@ -212,6 +224,7 @@ smartJ# (-1#) mb# | isTrue# (v <# 0#) = S# v
      where
        v = negateInt# (indexIntArray# mb# 0#)
  smartJ# s# mb# = J# s# mb#
@@ -160,22 +169,22 @@ index 0f408ff..3ea0a97 100644
  
  -- |Construct 'Integer' out of a 'MPZ#' as returned by GMP wrapper primops
  --
-@@ -221,6 +232,14 @@ smartJ# s# mb# = J# s# mb#
+@@ -221,6 +234,14 @@ smartJ# s# mb# = J# s# mb#
  -- See notes at definition site of 'MPZ#' in "GHC.Integer.GMP.Prim"
  -- for more details.
  mpzToInteger :: MPZ# -> Integer
 +#ifdef ghcjs_HOST_OS
 +mpzToInteger b =
-+  case js_mpzToInteger b of (# i #) -> i
++  Prim.unsafeCoerce# (js_mpzToInteger b)
 +
 +foreign import javascript unsafe
 +  "h$integer_mpzToInteger($1)"
-+  js_mpzToInteger :: MPZ# -> (# Integer #)
++  js_mpzToInteger :: MPZ# -> Prim.Any -- Integer
 +#else
  mpzToInteger (# 0#, _, _ #) = S# 0#
  mpzToInteger (# 1#, _, w# #) | isTrue# (v# >=# 0#) = S# v#
                               | True = case word2Integer# w# of (# _, d #) -> J# 1# d
-@@ -231,6 +250,7 @@ mpzToInteger (# -1#, _, w# #) | isTrue# (v# <=# 0#) = S# v#
+@@ -231,6 +252,7 @@ mpzToInteger (# -1#, _, w# #) | isTrue# (v# <=# 0#) = S# v#
      where
        v# = negateInt# (word2Int# w#)
  mpzToInteger (# s#, mb#, _ #) = J# s# mb#
@@ -183,7 +192,7 @@ index 0f408ff..3ea0a97 100644
  
  -- | Variant of 'mpzToInteger' for pairs of 'Integer's
  mpzToInteger2 :: (# MPZ#, MPZ# #) -> (# Integer, Integer #)
-@@ -241,7 +261,15 @@ mpzToInteger2 (# mpz1, mpz2 #) = (# i1, i2 #)
+@@ -241,7 +263,15 @@ mpzToInteger2 (# mpz1, mpz2 #) = (# i1, i2 #)
  
  -- |Negate MPZ#
  mpzNeg :: MPZ# -> MPZ#
@@ -199,7 +208,7 @@ index 0f408ff..3ea0a97 100644
  
  \end{code}
  
-@@ -321,7 +349,7 @@ divModInteger (S# i) (S# j) = (# S# d, S# m #)
+@@ -321,7 +351,7 @@ divModInteger (S# i) (S# j) = (# S# d, S# m #)
        -- evaluated strictly.
        !d = i `divInt#` j
        !m = i `modInt#` j
@@ -208,7 +217,7 @@ index 0f408ff..3ea0a97 100644
  divModInteger (J# s1 d1) (S# b) | isTrue# (b <# 0#)
    = case divModIntegerWord# (negateInt# s1) d1 (int2Word# (negateInt# b)) of
            (# q, r #) -> let !q' = mpzToInteger q
-@@ -386,7 +414,7 @@ modInteger :: Integer -> Integer -> Integer
+@@ -386,7 +416,7 @@ modInteger :: Integer -> Integer -> Integer
  modInteger (S# INT_MINBOUND) b = modInteger minIntAsBig b
  modInteger (S# a) (S# b) = S# (modInt# a b)
  modInteger ia@(S# _) ib@(J# _ _) = modInteger (toBig ia) ib
@@ -217,7 +226,7 @@ index 0f408ff..3ea0a97 100644
  modInteger (J# sa a) (S# b) | isTrue# (b <# 0#)
    = mpzToInteger (mpzNeg (modIntegerWord# (negateInt# sa) a (int2Word# (negateInt# b))))
  modInteger (J# sa a) (S# b)
-@@ -404,7 +432,11 @@ divInteger (S# a) (S# b) = S# (divInt# a b)
+@@ -404,7 +434,11 @@ divInteger (S# a) (S# b) = S# (divInt# a b)
  divInteger ia@(S# _) ib@(J# _ _) = divInteger (toBig ia) ib
  #if SIZEOF_HSWORD == SIZEOF_LONG
  divInteger (J# sa a) (S# b) | isTrue# (b <# 0#)
@@ -229,7 +238,7 @@ index 0f408ff..3ea0a97 100644
  divInteger (J# sa a) (S# b)
    = mpzToInteger (divIntegerWord# sa a (int2Word# b))
  #else
-@@ -424,12 +456,19 @@ gcdInteger :: Integer -> Integer -> Integer
+@@ -424,12 +458,19 @@ gcdInteger :: Integer -> Integer -> Integer
  gcdInteger (S# INT_MINBOUND) b = gcdInteger minIntAsBig b
  gcdInteger a (S# INT_MINBOUND) = gcdInteger a minIntAsBig
  gcdInteger (S# a) (S# b) = S# (gcdInt a b)
@@ -249,7 +258,7 @@ index 0f408ff..3ea0a97 100644
  gcdInteger ia@(J# _ _) ib@(S# _) = gcdInteger ib ia
  gcdInteger (J# sa a) (J# sb b)   = mpzToInteger (gcdInteger# sa a sb b)
  
-@@ -469,7 +508,7 @@ divExact (S# INT_MINBOUND) b = divExact minIntAsBig b
+@@ -469,7 +510,7 @@ divExact (S# INT_MINBOUND) b = divExact minIntAsBig b
  divExact (S# a) (S# b) = S# (quotInt# a b)
  divExact (S# a) (J# sb b)
    = S# (quotInt# a (integer2Int# sb b))
@@ -258,7 +267,7 @@ index 0f408ff..3ea0a97 100644
  divExact (J# sa a) (S# b) | isTrue# (b <# 0#)
    = mpzToInteger (divExactIntegerWord# (negateInt# sa) a (int2Word# (negateInt# b)))
  divExact (J# sa a) (S# b) = mpzToInteger (divExactIntegerWord# sa a (int2Word# b))
-@@ -600,7 +639,15 @@ instance Ord Integer where
+@@ -600,7 +641,15 @@ instance Ord Integer where
  absInteger :: Integer -> Integer
  absInteger (S# INT_MINBOUND) = NEG_INT_MINBOUND
  absInteger n@(S# i)   = if isTrue# (i >=# 0#) then n else S# (negateInt# i)
@@ -274,7 +283,7 @@ index 0f408ff..3ea0a97 100644
  
  {-# NOINLINE signumInteger #-}
  signumInteger :: Integer -> Integer
-@@ -648,10 +695,18 @@ minusInteger (S# i)      (S# j)    = case subIntC# i j of
+@@ -648,10 +697,18 @@ minusInteger (S# i)      (S# j)    = case subIntC# i j of
                                           else minusInteger (toBig (S# i)) (toBig (S# j))
  #endif
  minusInteger i1@(J# _ _) (S# 0#)   = i1
@@ -293,7 +302,7 @@ index 0f408ff..3ea0a97 100644
  #else
  minusInteger i1@(J# _ _) i2@(S# _) = minusInteger i1 (toBig i2)
  minusInteger i1@(S# _) i2@(J# _ _) = minusInteger (toBig i1) i2
-@@ -683,7 +738,15 @@ timesInteger (J# s1 d1) (J# s2 d2) = mpzToInteger (timesInteger# s1 d1 s2 d2)
+@@ -683,7 +740,15 @@ timesInteger (J# s1 d1) (J# s2 d2) = mpzToInteger (timesInteger# s1 d1 s2 d2)
  negateInteger :: Integer -> Integer
  negateInteger (S# INT_MINBOUND) = NEG_INT_MINBOUND
  negateInteger (S# i)            = S# (negateInt# i)
