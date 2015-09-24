@@ -126,7 +126,7 @@ index 59c800a..551c76d 100644
  default ()
  
 diff --git a/boot/integer-gmp/GHC/Integer/Type.lhs b/boot/integer-gmp/GHC/Integer/Type.lhs
-index 0f408ff..57086c9 100644
+index 0f408ff..0979bd8 100644
 --- a/boot/integer-gmp/GHC/Integer/Type.lhs
 +++ b/boot/integer-gmp/GHC/Integer/Type.lhs
 @@ -1,5 +1,8 @@
@@ -226,12 +226,14 @@ index 0f408ff..57086c9 100644
  modInteger (J# sa a) (S# b) | isTrue# (b <# 0#)
    = mpzToInteger (mpzNeg (modIntegerWord# (negateInt# sa) a (int2Word# (negateInt# b))))
  modInteger (J# sa a) (S# b)
-@@ -404,7 +434,11 @@ divInteger (S# a) (S# b) = S# (divInt# a b)
+@@ -403,8 +433,12 @@ divInteger (S# INT_MINBOUND) b = divInteger minIntAsBig b
+ divInteger (S# a) (S# b) = S# (divInt# a b)
  divInteger ia@(S# _) ib@(J# _ _) = divInteger (toBig ia) ib
  #if SIZEOF_HSWORD == SIZEOF_LONG
- divInteger (J# sa a) (S# b) | isTrue# (b <# 0#)
+-divInteger (J# sa a) (S# b) | isTrue# (b <# 0#)
++divInteger ia@(J# sa a) ib@(S# b) | isTrue# (b <# 0#)
 +#ifdef ghcjs_HOST_OS
-+  = mpzToInteger (mpzNeg (divIntegerWord# sa a (int2Word# (negateInt# b))))
++  = divInteger ia (toBig ib)
 +#else
    = mpzToInteger (divIntegerWord# (negateInt# sa) a (int2Word# (negateInt# b)))
 +#endif
