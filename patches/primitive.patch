@@ -1,0 +1,59 @@
+diff --git a/Data/Primitive/Internal/Operations.hs b/Data/Primitive/Internal/Operations.hs
+index 84912f4..93431c9 100644
+--- a/Data/Primitive/Internal/Operations.hs
++++ b/Data/Primitive/Internal/Operations.hs
+@@ -1,4 +1,4 @@
+-{-# LANGUAGE MagicHash, UnliftedFFITypes #-}
++{-# LANGUAGE MagicHash, UnliftedFFITypes, CPP #-}
+ 
+ -- |
+ -- Module      : Data.Primitive.Internal.Operations
+@@ -29,6 +29,39 @@ module Data.Primitive.Internal.Operations (
+ import Data.Primitive.MachDeps (Word64_#, Int64_#)
+ import GHC.Prim
+ 
++#ifdef ghcjs_HOST_OS
++
++foreign import ccall unsafe "primitive-memops.h hsprimitive_memsetba_Word8"
++  setWord8Array# :: MutableByteArray# s -> Int# -> Int# -> Word# -> IO ()
++foreign import ccall unsafe "primitive-memops.h hsprimitive_memsetba_Word16"
++  setWord16Array# :: MutableByteArray# s -> Int# -> Int# -> Word# -> IO ()
++foreign import ccall unsafe "primitive-memops.h hsprimitive_memsetba_Word32"
++  setWord32Array# :: MutableByteArray# s -> Int# -> Int# -> Word# -> IO ()
++foreign import ccall unsafe "primitive-memops.h hsprimitive_memsetba_Word64"
++  setWord64Array# :: MutableByteArray# s -> Int# -> Int# -> Word64_# -> IO ()
++foreign import ccall unsafe "primitive-memops.h hsprimitive_memsetba_Word"
++  setWordArray# :: MutableByteArray# s -> Int# -> Int# -> Word# -> IO ()
++foreign import ccall unsafe "primitive-memops.h hsprimitive_memsetba_Word8"
++  setInt8Array# :: MutableByteArray# s -> Int# -> Int# -> Int# -> IO ()
++foreign import ccall unsafe "primitive-memops.h hsprimitive_memsetba_Word16"
++  setInt16Array# :: MutableByteArray# s -> Int# -> Int# -> Int# -> IO ()
++foreign import ccall unsafe "primitive-memops.h hsprimitive_memsetba_Word32"
++  setInt32Array# :: MutableByteArray# s -> Int# -> Int# -> Int# -> IO ()
++foreign import ccall unsafe "primitive-memops.h hsprimitive_memsetba_Word64"
++  setInt64Array# :: MutableByteArray# s -> Int# -> Int# -> Int64_# -> IO ()
++foreign import ccall unsafe "primitive-memops.h hsprimitive_memsetba_Word"
++  setIntArray# :: MutableByteArray# s -> Int# -> Int# -> Int# -> IO ()
++foreign import ccall unsafe "primitive-memops.h hsprimitive_memsetba_Ptr"
++  setAddrArray# :: MutableByteArray# s -> Int# -> Int# -> Addr# -> IO ()
++foreign import ccall unsafe "primitive-memops.h hsprimitive_memsetba_Float"
++  setFloatArray# :: MutableByteArray# s -> Int# -> Int# -> Float# -> IO ()
++foreign import ccall unsafe "primitive-memops.h hsprimitive_memsetba_Double"
++  setDoubleArray# :: MutableByteArray# s -> Int# -> Int# -> Double# -> IO ()
++foreign import ccall unsafe "primitive-memops.h hsprimitive_memsetba_Char"
++  setWideCharArray# :: MutableByteArray# s -> Int# -> Int# -> Char# -> IO ()
++
++#else
++
+ foreign import ccall unsafe "primitive-memops.h hsprimitive_memset_Word8"
+   setWord8Array# :: MutableByteArray# s -> Int# -> Int# -> Word# -> IO ()
+ foreign import ccall unsafe "primitive-memops.h hsprimitive_memset_Word16"
+@@ -58,6 +91,8 @@ foreign import ccall unsafe "primitive-memops.h hsprimitive_memset_Double"
+ foreign import ccall unsafe "primitive-memops.h hsprimitive_memset_Char"
+   setWideCharArray# :: MutableByteArray# s -> Int# -> Int# -> Char# -> IO ()
+ 
++#endif
++
+ foreign import ccall unsafe "primitive-memops.h hsprimitive_memset_Word8"
+   setWord8OffAddr# :: Addr# -> Int# -> Int# -> Word# -> IO ()
+ foreign import ccall unsafe "primitive-memops.h hsprimitive_memset_Word16"
