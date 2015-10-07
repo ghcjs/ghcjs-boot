@@ -24,7 +24,7 @@
       possible values:
         'v'       : void  (only for return value)
         'p'       : general pointer
-        'r'       : JSRef pointer
+        'r'       : JSVal pointer
         'i' / 'I' : HsInt   / HsWord
         'l' / 'L' : HsInt32 / HsWord32
         'm' / 'M' : HsInt64 / HsWord64

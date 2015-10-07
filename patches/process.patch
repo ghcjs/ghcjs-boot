@@ -172,20 +172,20 @@ index 9d2be0a..7e2a96f 100644
  
 +#if defined(ghcjs_HOST_OS)
 +
-+type JSArray  = JSRef
-+type JSObject = JSRef
-+type JSString = JSRef
++type JSArray  = JSVal
++type JSObject = JSVal
++type JSString = JSVal
 +
-+fromJSStrings :: JSRef -> IO [String]
++fromJSStrings :: JSVal -> IO [String]
 +fromJSStrings x = fmap (map fromJSString) (fromJSArray x)
 +
-+fromJSInts :: JSRef -> IO [Int]
++fromJSInts :: JSVal -> IO [Int]
 +fromJSInts x = map fromJSInt <$> fromJSArray x
 +
-+toJSStrings :: [String] -> IO JSRef
++toJSStrings :: [String] -> IO JSVal
 +toJSStrings xs = toJSArray (map toJSString xs)
 +
-+throwErrnoIfJSNull :: String -> IO JSRef -> IO JSRef
++throwErrnoIfJSNull :: String -> IO JSVal -> IO JSVal
 +throwErrnoIfJSNull msg m = do
 +  r <- m
 +  if isNull r then throwErrno msg
@@ -203,7 +203,7 @@ index 9d2be0a..7e2a96f 100644
 +                           -> Bool         -- ^ $8 close handles
 +                           -> Bool         -- ^ $9
 +                           -> Bool         -- ^ $10 delegate ctrl-c
-+                           -> IO JSRef     -- ^ process handle
++                           -> IO JSVal     -- ^ process handle
 +
 +foreign import javascript safe
 +  "h$process_commandToProcess($1,$2)"
