@@ -29,11 +29,11 @@ index be8379d..e27ff17 100644
  
 +#ifdef ghcjs_HOST_OS
 +
-+type JSObject = JSRef
-+type JSString = JSRef
-+type JSArray  = JSRef
++type JSObject = JSVal
++type JSString = JSVal
++type JSArray  = JSVal
 +
-+throwErrnoIfJSNull :: String -> IO JSRef -> IO JSRef
++throwErrnoIfJSNull :: String -> IO JSVal -> IO JSVal
 +throwErrnoIfJSNull msg m = do
 +  r <- m
 +  if isNull r then throwErrno msg
