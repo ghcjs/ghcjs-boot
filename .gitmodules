@@ -15,22 +15,22 @@
 	url = https://github.com/ghcjs/ghcjs-base.git
 [submodule "boot/directory"]
 	path = boot/directory
-	url = http://git.haskell.org/packages/directory.git/
+	url = https://github.com/forked-upstream-packages-for-ghcjs/directory.git
 [submodule "boot/unix"]
 	path = boot/unix
-	url = https://github.com/ghc/packages-unix.git
+	url = https://github.com/forked-upstream-packages-for-ghcjs/unix.git
 [submodule "boot/Win32"]
 	path = boot/Win32
-	url = https://github.com/ghc/packages-Win32.git
+	url = https://github.com/forked-upstream-packages-for-ghcjs/win32.git
 [submodule "boot/time"]
 	path = boot/time
 	url = https://github.com/ghc/packages-time.git
 [submodule "boot/process"]
 	path = boot/process
-	url = https://github.com/ghc/packages-process.git
+	url = https://github.com/forked-upstream-packages-for-ghcjs/process.git
 [submodule "boot/bytestring"]
 	path = boot/bytestring
-	url = https://github.com/haskell/bytestring.git
+	url = https://github.com/forked-upstream-packages-for-ghcjs/bytestring.git
 [submodule "boot/dlist"]
 	path = boot/dlist
 	url = https://github.com/spl/dlist.git
@@ -39,13 +39,13 @@
 	url = https://github.com/ekmett/mtl.git
 [submodule "boot/filepath"]
 	path = boot/filepath
-	url = http://git.haskell.org/packages/filepath.git
+	url = https://github.com/forked-upstream-packages-for-ghcjs/filepath.git
 [submodule "boot/old-locale"]
 	path = boot/old-locale
-	url = http://git.haskell.org/packages/old-locale.git
+	url = https://git.haskell.org/packages/old-locale.git
 [submodule "boot/primitive"]
 	path = boot/primitive
-	url = https://github.com/haskell/primitive
+	url = https://github.com/forked-upstream-packages-for-ghcjs/primitive.git
 [submodule "boot/scientific"]
 	path = boot/scientific
 	url = https://github.com/basvandijk/scientific.git
@@ -66,10 +66,10 @@
 	url = https://github.com/bos/aeson.git
 [submodule "boot/old-time"]
 	path = boot/old-time
-	url = https://git.haskell.org/packages/old-time.git
+	url = https://github.com/forked-upstream-packages-for-ghcjs/old-time.git
 [submodule "boot/random"]
 	path = boot/random
-	url = http://git.haskell.org/packages/random.git
+	url = https://git.haskell.org/packages/random.git
 [submodule "boot/text"]
 	path = boot/text
 	url = https://github.com/bos/text
@@ -78,22 +78,22 @@
 	url = https://github.com/haskell/cabal.git
 [submodule "boot/hashable"]
 	path = boot/hashable
-	url = https://github.com/tibbe/hashable.git
+	url = https://github.com/forked-upstream-packages-for-ghcjs/hashable.git
 [submodule "boot/extensible-exceptions"]
 	path = boot/extensible-exceptions
-	url = http://git.haskell.org/packages/extensible-exceptions.git
+	url = https://git.haskell.org/packages/extensible-exceptions.git
 [submodule "boot/transformers"]
 	path = boot/transformers
-	url = http://git.haskell.org/darcs-mirrors/transformers.git
+	url = https://git.haskell.org/darcs-mirrors/transformers.git
 [submodule "boot/async"]
 	path = boot/async
 	url = https://github.com/simonmar/async.git
 [submodule "boot/parallel"]
 	path = boot/parallel
-	url = http://git.haskell.org/packages/parallel.git
+	url = https://git.haskell.org/packages/parallel.git
 [submodule "boot/stm"]
 	path = boot/stm
-	url = http://git.haskell.org/packages/stm.git
+	url = https://git.haskell.org/packages/stm.git
 [submodule "boot/case-insensitive"]
 	path = boot/case-insensitive
 	url = https://github.com/basvandijk/case-insensitive.git

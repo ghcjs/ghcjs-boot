@@ -21,31 +21,54 @@ removes any existing version.
 
 ## Developing the libraries
 
-All libraries are included as git submodules. Most of them directly refer
-to the upstream repository, since maintaining our own fork is rather
-heavyweight and most packages can be used unchanged or almost unchanged.
+All libraries are included as git submodules. The submodules either point to a
+fork of ours or the upstream repository if the library can be used as-is. Our
+forks have branches that share names with the the GHCJS branch name that uses
+them. The forks' branches should never be forced-pushed, even if upstream's
+branches are forced-pushed, so that older GHCJS's submodules still work.
 
-`ghcjs-boot` applies the patches under
-`/patches` after initializing the submodules when the repository is first
-cloned. After that, you're on your own, `ghcjs-boot` does not try to
-re-apply updated patches.
+### Fork cheatsheet
 
-to update a patched submodule:
+See `docs/git-demo.png` for a valid (hypothetical) fork of ours with these
+guidelines in action.
 
-    $ git reset --hard
-    $ git checkout branch
-    $ git pull
-    $ patch -p1 < ../../patches/package.patch
+ - **Add upstream remote**:
+   ```sh
+   $ git remote add upstream <URL>
+   ```
+   Unfortunately the submodule can not be made to keep track of this extra
+   remote.
 
-    now fix any issues with the patch. to quickly get a new patch without
-    making a commit, add all untracked files using `git add -N`, and then:
+ - **Use newer version of upstream**:
+   ```sh
+   $ git merge <upstream-tagged-release>
+   ```
+   If upstream doesn't tag their releases, shame on them! Try comparing the
+   Hackage release tarball with their repo to find the right commit.
 
-    $ git diff > ../../patches/package.patch
+ - **Change patch (nothing to do with upstream)**:
+   ```sh
+   # make changes
+   $ git commit
+   ```
+   Just like normal.
 
-    and add the changes to the commit (from the root of the repository):
+ - **Tag for GHCJS release**:
+   ```sh
+   $ git tag ghcjs-<version>
+   ```
+   Local tags and tags from remotes all live in the same namespace, hence we use
+   the `ghcjs-` prefix to distinugish our releases from upstream's.
 
-    $ git add patches/package.patch
-    $ git add boot/package
+
+ - **Clean up history for PR**:
+   ```sh
+   $ git checkout -b pull-request-for-upstream
+   $ git rebase -i upstream/master
+   ```
+   Do this only in the case that our merge history makes for an unreadable diff.
+   Merge with upstream after PR is merged just like one was merging an upstream
+   release.
 
 ## Preparing a release
 
