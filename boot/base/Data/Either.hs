@@ -1,6 +1,6 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE AutoDeriveTypeable, StandaloneDeriving #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE PolyKinds, DataKinds, TypeFamilies, TypeOperators, UndecidableInstances #-}
 
 -----------------------------------------------------------------------------
@@ -8,7 +8,7 @@
 -- Module      :  Data.Either
 -- Copyright   :  (c) The University of Glasgow 2001
 -- License     :  BSD-style (see the file libraries/base/LICENSE)
--- 
+--
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  experimental
 -- Portability :  portable
@@ -31,7 +31,6 @@ import GHC.Base
 import GHC.Show
 import GHC.Read
 
-import Data.Typeable
 import Data.Type.Equality
 
 -- $setup
@@ -123,7 +122,7 @@ Left "parse error"
 
 -}
 data  Either a b  =  Left a | Right b
-  deriving (Eq, Ord, Read, Show, Typeable)
+  deriving (Eq, Ord, Read, Show)
 
 instance Functor (Either a) where
     fmap _ (Left x) = Left x
@@ -135,7 +134,6 @@ instance Applicative (Either e) where
     Right f <*> r = fmap f r
 
 instance Monad (Either e) where
-    return = Right
     Left  l >>= _ = Left l
     Right r >>= k = k r
 
@@ -283,7 +281,7 @@ isRight (Right _) = True
 type family EqEither a b where
   EqEither ('Left x)  ('Left y)  = x == y
   EqEither ('Right x) ('Right y) = x == y
-  EqEither a         b           = 'False
+  EqEither a          b          = 'False
 type instance a == b = EqEither a b
 
 {-

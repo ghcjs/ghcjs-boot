@@ -1,6 +1,6 @@
 {-# LANGUAGE Trustworthy #-}
-{-# LANGUAGE NoImplicitPrelude, AutoDeriveTypeable, MagicHash,
-             ExistentialQuantification #-}
+{-# LANGUAGE DeriveGeneric, NoImplicitPrelude, MagicHash,
+             ExistentialQuantification, ImplicitParams #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 {-# OPTIONS_HADDOCK hide #-}
 
@@ -44,15 +44,18 @@ module GHC.IO.Exception (
  ) where
 
 import GHC.Base
+import GHC.Generics
 import GHC.List
 import GHC.IO
 import GHC.Show
 import GHC.Read
 import GHC.Exception
 import GHC.IO.Handle.Types
+import GHC.OldList ( intercalate )
+import {-# SOURCE #-} GHC.Stack.CCS
 import Foreign.C.Types
 
-import Data.Typeable     ( Typeable, cast )
+import Data.Typeable ( cast )
 
 -- ------------------------------------------------------------------------
 -- Exception datatypes and operations
@@ -60,7 +63,6 @@ import Data.Typeable     ( Typeable, cast )
 -- |The thread is blocked on an @MVar@, but there are no other references
 -- to the @MVar@ so it can't ever continue.
 data BlockedIndefinitelyOnMVar = BlockedIndefinitelyOnMVar
-    deriving Typeable
 
 instance Exception BlockedIndefinitelyOnMVar
 
@@ -75,7 +77,6 @@ blockedIndefinitelyOnMVar = toException BlockedIndefinitelyOnMVar
 -- |The thread is waiting to retry an STM transaction, but there are no
 -- other references to any @TVar@s involved, so it can't ever continue.
 data BlockedIndefinitelyOnSTM = BlockedIndefinitelyOnSTM
-    deriving Typeable
 
 instance Exception BlockedIndefinitelyOnSTM
 
@@ -90,7 +91,6 @@ blockedIndefinitelyOnSTM = toException BlockedIndefinitelyOnSTM
 -- |There are no runnable threads, so the program is deadlocked.
 -- The @Deadlock@ exception is raised in the main thread only.
 data Deadlock = Deadlock
-    deriving Typeable
 
 instance Exception Deadlock
 
@@ -100,12 +100,11 @@ instance Show Deadlock where
 -----
 
 -- |This thread has exceeded its allocation limit.  See
--- 'GHC.Conc.setAllocationCounter' and
--- 'GHC.Conc.enableAllocationLimit'.
+-- 'System.Mem.setAllocationCounter' and
+-- 'System.Mem.enableAllocationLimit'.
 --
 -- @since 4.8.0.0
 data AllocationLimitExceeded = AllocationLimitExceeded
-    deriving Typeable
 
 instance Exception AllocationLimitExceeded where
   toException = asyncExceptionToException
@@ -121,8 +120,7 @@ allocationLimitExceeded = toException AllocationLimitExceeded
 -----
 
 -- |'assert' was applied to 'False'.
-data AssertionFailed = AssertionFailed String
-    deriving Typeable
+newtype AssertionFailed = AssertionFailed String
 
 instance Exception AssertionFailed
 
@@ -135,7 +133,6 @@ instance Show AssertionFailed where
 --
 -- @since 4.7.0.0
 data SomeAsyncException = forall e . Exception e => SomeAsyncException e
-  deriving Typeable
 
 instance Show SomeAsyncException where
     show (SomeAsyncException e) = show e
@@ -178,7 +175,7 @@ data AsyncException
         -- ^This exception is raised by default in the main thread of
         -- the program when the user requests to terminate the program
         -- via the usual mechanism(s) (e.g. Control-C in the console).
-  deriving (Eq, Ord, Typeable)
+  deriving (Eq, Ord)
 
 instance Exception AsyncException where
   toException = asyncExceptionToException
@@ -192,7 +189,7 @@ data ArrayException
   | UndefinedElement    String
         -- ^An attempt was made to evaluate an element of an
         -- array that had not been initialized.
-  deriving (Eq, Ord, Typeable)
+  deriving (Eq, Ord)
 
 instance Exception ArrayException
 
@@ -231,7 +228,7 @@ data ExitCode
                 -- The exact interpretation of the code is
                 -- operating-system dependent.  In particular, some values
                 -- may be prohibited (e.g. 0 on a POSIX-compliant system).
-  deriving (Eq, Ord, Read, Show, Typeable)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 instance Exception ExitCode
 
@@ -248,7 +245,7 @@ ioError         =  ioException
 -- | The Haskell 2010 type for exceptions in the 'IO' monad.
 -- Any I\/O operation may raise an 'IOError' instead of returning a result.
 -- For a more general type of exception, including also those that arise
--- in pure code, see "Control.Exception.Exception".
+-- in pure code, see 'Control.Exception.Exception'.
 --
 -- In Haskell 2010, this is an opaque type.
 type IOError = IOException
@@ -267,7 +264,6 @@ data IOException
      ioe_errno    :: Maybe CInt,     -- errno leading to this error, if any.
      ioe_filename :: Maybe FilePath  -- filename the error is related to.
    }
-    deriving Typeable
 
 instance Exception IOException
 
@@ -323,7 +319,7 @@ instance Show IOErrorType where
       ResourceVanished  -> "resource vanished"
       SystemError       -> "system error"
       TimeExpired       -> "timeout"
-      UnsatisfiedConstraints -> "unsatisified constraints" -- ultra-precise!
+      UnsatisfiedConstraints -> "unsatisfied constraints" -- ultra-precise!
       UnsupportedOperation -> "unsupported operation"
 
 -- | Construct an 'IOError' value with a string describing the error.
@@ -358,10 +354,16 @@ instance Show IOException where
 -- Note the use of "lazy". This means that
 --     assert False (throw e)
 -- will throw the assertion failure rather than e. See trac #5561.
-assertError :: Addr# -> Bool -> a -> a
-assertError str predicate v
+assertError :: (?callStack :: CallStack) => Bool -> a -> a
+assertError predicate v
   | predicate = lazy v
-  | otherwise = throw (AssertionFailed (untangle str "Assertion failed"))
+  | otherwise = unsafeDupablePerformIO $ do
+    ccsStack <- currentCallStack
+    let
+      implicitParamCallStack = prettyCallStackLines ?callStack
+      ccsCallStack = showCCSStack ccsStack
+      stack = intercalate "\n" $ implicitParamCallStack ++ ccsCallStack
+    throwIO (AssertionFailed ("Assertion failed\n" ++ stack))
 
 unsupportedOperation :: IOError
 unsupportedOperation =

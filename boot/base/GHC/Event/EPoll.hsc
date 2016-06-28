@@ -29,7 +29,7 @@ import qualified GHC.Event.Internal as E
 import GHC.Base
 
 new :: IO E.Backend
-new = error "EPoll back end not implemented for this platform"
+new = errorWithoutStackTrace "EPoll back end not implemented for this platform"
 
 available :: Bool
 available = False
@@ -115,7 +115,7 @@ poll ep mtimeout f = do
   let events = epollEvents ep
       fd = epollFd ep
 
-  -- Will return zero if the system call was interupted, in which case
+  -- Will return zero if the system call was interrupted, in which case
   -- we just return (and try again later.)
   n <- A.unsafeLoad events $ \es cap -> case mtimeout of
     Just timeout -> epollWait fd es cap $ fromTimeout timeout

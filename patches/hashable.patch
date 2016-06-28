@@ -1,8 +1,8 @@
 diff --git a/Data/Hashable/Class.hs b/Data/Hashable/Class.hs
-index f290f6f..367c1e5 100644
+index 9223d16..0918845 100644
 --- a/Data/Hashable/Class.hs
 +++ b/Data/Hashable/Class.hs
-@@ -89,7 +89,7 @@ import qualified Data.ByteString.Lazy.Internal as BL  -- foldlChunks
+@@ -105,7 +105,7 @@ import qualified Data.ByteString.Lazy.Internal as BL  -- foldlChunks
  import qualified Data.ByteString.Short.Internal as BSI
  #endif
  
@@ -11,7 +11,7 @@ index f290f6f..367c1e5 100644
  
  # if MIN_VERSION_integer_gmp(1,0,0)
  #  define MIN_VERSION_integer_gmp_1_0_0
-@@ -258,7 +258,7 @@ instance Hashable Char where
+@@ -287,7 +287,7 @@ instance Hashable Char where
      hash = fromEnum
      hashWithSalt = defaultHashWithSalt
  
@@ -20,8 +20,12 @@ index f290f6f..367c1e5 100644
  instance Hashable BigNat where
      hashWithSalt salt (BN# ba) = hashByteArrayWithSalt ba 0 numBytes salt
                                   `hashWithSalt` size
-@@ -269,7 +269,7 @@ instance Hashable BigNat where
+@@ -296,9 +296,11 @@ instance Hashable BigNat where
+         numBytes = I# (sizeofByteArray# ba)
+ #endif
  
++-- fixme enable again for ghcjs
++#if !defined(ghcjs_HOST_OS)
  #if MIN_VERSION_base(4,8,0)
  instance Hashable Natural where
 -# if defined(MIN_VERSION_integer_gmp_1_0_0)
@@ -29,8 +33,11 @@ index f290f6f..367c1e5 100644
      hash (NatS# n)   = hash (W# n)
      hash (NatJ# bn)  = hash bn
  
-@@ -283,7 +283,7 @@ instance Hashable Natural where
+@@ -310,9 +312,10 @@ instance Hashable Natural where
+     hashWithSalt salt (Natural n) = hashWithSalt salt n
+ # endif
  #endif
++#endif
  
  instance Hashable Integer where
 -#if defined(VERSION_integer_gmp)

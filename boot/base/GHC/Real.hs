@@ -1,6 +1,6 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE CPP, NoImplicitPrelude, MagicHash, UnboxedTuples, BangPatterns #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_HADDOCK hide #-}
 
 -----------------------------------------------------------------------------
@@ -91,12 +91,12 @@ notANumber = 0 :% 0
 -- | Extract the numerator of the ratio in reduced form:
 -- the numerator and denominator have no common factor and the denominator
 -- is positive.
-numerator       :: (Integral a) => Ratio a -> a
+numerator       :: Ratio a -> a
 
 -- | Extract the denominator of the ratio in reduced form:
 -- the numerator and denominator have no common factor and the denominator
 -- is positive.
-denominator     :: (Integral a) => Ratio a -> a
+denominator     :: Ratio a -> a
 
 
 -- | 'reduce' is a subsidiary function used only in this module.
@@ -205,7 +205,7 @@ class  (Real a, Fractional a) => RealFrac a  where
                                 -1 -> n
                                 0  -> if even n then n else m
                                 1  -> m
-                                _  -> error "round default defn: Bad value"
+                                _  -> errorWithoutStackTrace "round default defn: Bad value"
 
     ceiling x           =  if r > 0 then n + 1 else n
                            where (n,r) = properFraction x
@@ -398,7 +398,7 @@ instance  (Integral a)  => RealFrac (Ratio a)  where
     properFraction (x:%y) = (fromInteger (toInteger q), r:%y)
                           where (q,r) = quotRem x y
 
-instance  (Integral a, Show a)  => Show (Ratio a)  where
+instance  (Show a)  => Show (Ratio a)  where
     {-# SPECIALIZE instance Show Rational #-}
     showsPrec p (x:%y)  =  showParen (p > ratioPrec) $
                            showsPrec ratioPrec1 x .
@@ -463,10 +463,8 @@ showSigned showPos p x
 even, odd       :: (Integral a) => a -> Bool
 even n          =  n `rem` 2 == 0
 odd             =  not . even
-{-# SPECIALISE even :: Int -> Bool #-}
-{-# SPECIALISE odd  :: Int -> Bool #-}
-{-# SPECIALISE even :: Integer -> Bool #-}
-{-# SPECIALISE odd  :: Integer -> Bool #-}
+{-# INLINEABLE even #-}
+{-# INLINEABLE odd  #-}
 
 -------------------------------------------------------
 -- | raise a number to a non-negative integral power
@@ -476,7 +474,7 @@ odd             =  not . even
         Int -> Int -> Int #-}
 {-# INLINABLE [1] (^) #-}    -- See Note [Inlining (^)]
 (^) :: (Num a, Integral b) => a -> b -> a
-x0 ^ y0 | y0 < 0    = error "Negative exponent"
+x0 ^ y0 | y0 < 0    = errorWithoutStackTrace "Negative exponent"
         | y0 == 0   = 1
         | otherwise = f x0 y0
     where -- f : x0 ^ y0 = x ^ y
@@ -585,7 +583,7 @@ x ^^ n          =  if n >= 0 then x^n else recip (x^(negate n))
 {-# RULES "(^)/Rational"    (^) = (^%^) #-}
 (^%^)           :: Integral a => Rational -> a -> Rational
 (n :% d) ^%^ e
-    | e < 0     = error "Negative exponent"
+    | e < 0     = errorWithoutStackTrace "Negative exponent"
     | e == 0    = 1 :% 1
     | otherwise = (n ^ e) :% (d ^ e)
 

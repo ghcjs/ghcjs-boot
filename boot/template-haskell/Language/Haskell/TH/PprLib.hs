@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP, FlexibleInstances #-}
 
 -- | Monadic front-end to Text.PrettyPrint
 
@@ -10,7 +10,7 @@ module Language.Haskell.TH.PprLib (
 
         -- * Primitive Documents
         empty,
-        semi, comma, colon, space, equals, arrow,
+        semi, comma, colon, dcolon, space, equals, arrow,
         lparen, rparen, lbrack, rbrack, lbrace, rbrace,
 
         -- * Converting values into documents
@@ -21,13 +21,13 @@ module Language.Haskell.TH.PprLib (
         parens, brackets, braces, quotes, doubleQuotes,
 
         -- * Combining documents
-        (<>), (<+>), hcat, hsep, 
-        ($$), ($+$), vcat, 
-        sep, cat, 
-        fsep, fcat, 
+        (<>), (<+>), hcat, hsep,
+        ($$), ($+$), vcat,
+        sep, cat,
+        fsep, fcat,
         nest,
         hang, punctuate,
-        
+
         -- * Predicates on documents
         isEmpty,
 
@@ -41,6 +41,9 @@ import qualified Text.PrettyPrint as HPJ
 import Control.Monad (liftM, liftM2, ap)
 import Language.Haskell.TH.Lib.Map ( Map )
 import qualified Language.Haskell.TH.Lib.Map as Map ( lookup, insert, empty )
+#if __GLASGOW_HASKELL__ < 709
+import Control.Applicative( Applicative(..) )
+#endif
 
 infixl 6 <> 
 infixl 6 <+>
@@ -60,6 +63,7 @@ empty   :: Doc;                 -- ^ An empty document
 semi    :: Doc;                 -- ^ A ';' character
 comma   :: Doc;                 -- ^ A ',' character
 colon   :: Doc;                 -- ^ A ':' character
+dcolon  :: Doc;                 -- ^ A "::" string
 space   :: Doc;                 -- ^ A space character
 equals  :: Doc;                 -- ^ A '=' character
 arrow   :: Doc;                 -- ^ A "->" string
@@ -94,8 +98,8 @@ hcat   :: [Doc] -> Doc;          -- ^List version of '<>'
 hsep   :: [Doc] -> Doc;          -- ^List version of '<+>'
 
 ($$)   :: Doc -> Doc -> Doc;     -- ^Above; if there is no
-                                -- overlap it \"dovetails\" the two
-($+$)   :: Doc -> Doc -> Doc;    -- ^Above, without dovetailing.
+                                 -- overlap it \"dovetails\" the two
+($+$)  :: Doc -> Doc -> Doc;     -- ^Above, without dovetailing.
 vcat   :: [Doc] -> Doc;          -- ^List version of '$$'
 
 cat    :: [Doc] -> Doc;          -- ^ Either hcat or vcat
@@ -108,9 +112,9 @@ nest   :: Int -> Doc -> Doc;     -- ^ Nested
 
 -- GHC-specific ones.
 
-hang :: Doc -> Int -> Doc -> Doc;       -- ^ @hang d1 n d2 = sep [d1, nest n d2]@
-punctuate :: Doc -> [Doc] -> [Doc];      -- ^ @punctuate p [d1, ... dn] = [d1 \<> p, d2 \<> p, ... dn-1 \<> p, dn]@
-
+hang :: Doc -> Int -> Doc -> Doc;      -- ^ @hang d1 n d2 = sep [d1, nest n d2]@
+punctuate :: Doc -> [Doc] -> [Doc]
+   -- ^ @punctuate p [d1, ... dn] = [d1 \<> p, d2 \<> p, ... dn-1 \<> p, dn]@
 
 -- ---------------------------------------------------------------------------
 -- The "implementation"
@@ -150,11 +154,11 @@ instance Functor PprM where
       fmap = liftM
 
 instance Applicative PprM where
-      pure = return
+      pure x = PprM $ \s -> (x, s)
       (<*>) = ap
 
 instance Monad PprM where
-    return x = PprM $ \s -> (x, s)
+    return = pure
     m >>= k  = PprM $ \s -> let (x, s') = runPprM m s
                             in runPprM (k x) s'
 
@@ -168,6 +172,7 @@ empty = return HPJ.empty
 semi = return HPJ.semi
 comma = return HPJ.comma
 colon = return HPJ.colon
+dcolon = return $ HPJ.text "::"
 space = return HPJ.space
 equals = return HPJ.equals
 arrow = return $ HPJ.text "->"
@@ -222,4 +227,3 @@ punctuate p (d:ds) = go d ds
                    where
                      go d' [] = [d']
                      go d' (e:es) = (d' <> p) : go e es
-

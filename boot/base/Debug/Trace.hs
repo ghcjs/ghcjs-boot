@@ -149,9 +149,15 @@ traceShowId :: (Show a) => a -> a
 traceShowId a = trace (show a) a
 
 {-|
-Like 'trace' but returning unit in an arbitrary monad. Allows for convenient
-use in do-notation. Note that the application of 'trace' is not an action in the
-monad, as 'traceIO' is in the 'IO' monad.
+Like 'trace' but returning unit in an arbitrary 'Applicative' context. Allows
+for convenient use in do-notation.
+
+Note that the application of 'traceM' is not an action in the 'Applicative'
+context, as 'traceIO' is in the 'IO' type. While the fresh bindings in the
+following example will force the 'traceM' expressions to be reduced every time
+the @do@-block is executed, @traceM "not crashed"@ would only be reduced once,
+and the message would only be printed once.  If your monad is in 'MonadIO',
+@liftIO . traceIO@ may be a better option.
 
 > ... = do
 >   x <- ...
@@ -161,28 +167,28 @@ monad, as 'traceIO' is in the 'IO' monad.
 
 @since 4.7.0.0
 -}
-traceM :: (Monad m) => String -> m ()
-traceM string = trace string $ return ()
+traceM :: (Applicative f) => String -> f ()
+traceM string = trace string $ pure ()
 
 {-|
 Like 'traceM', but uses 'show' on the argument to convert it to a 'String'.
 
 > ... = do
 >   x <- ...
->   traceMShow $ x
+>   traceShowM $ x
 >   y <- ...
->   traceMShow $ x + y
+>   traceShowM $ x + y
 
 @since 4.7.0.0
 -}
-traceShowM :: (Show a, Monad m) => a -> m ()
+traceShowM :: (Show a, Applicative f) => a -> f ()
 traceShowM = traceM . show
 
 -- | like 'trace', but additionally prints a call stack if one is
 -- available.
 --
 -- In the current GHC implementation, the call stack is only
--- availble if the program was compiled with @-prof@; otherwise
+-- available if the program was compiled with @-prof@; otherwise
 -- 'traceStack' behaves exactly like 'trace'.  Entries in the call
 -- stack correspond to @SCC@ annotations, so it is a good idea to use
 -- @-fprof-auto@ or @-fprof-auto-calls@ to add SCC annotations automatically.

@@ -1,5 +1,5 @@
 {-# LANGUAGE MagicHash, NoImplicitPrelude, TypeFamilies, UnboxedTuples,
-             RoleAnnotations #-}
+             MultiParamTypeClasses, RoleAnnotations, CPP, TypeOperators #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  GHC.Types
@@ -17,22 +17,93 @@
 -----------------------------------------------------------------------------
 
 module GHC.Types (
+        -- Data types that are built-in syntax
+        -- They are defined here, but not explicitly exported
+        --
+        --    Lists:          []( [], (:) )
+        --    Type equality:  (~)( Eq# )
+
         Bool(..), Char(..), Int(..), Word(..),
         Float(..), Double(..),
         Ordering(..), IO(..),
         isTrue#,
         SPEC(..),
-        Coercible,
+        Nat, Symbol,
+        type (~~), Coercible,
+        TYPE, RuntimeRep(..), Type, type (*), type (★), Constraint,
+          -- The historical type * should ideally be written as
+          -- `type *`, without the parentheses. But that's a true
+          -- pain to parse, and for little gain.
+        VecCount(..), VecElem(..),
+
+        -- * Runtime type representation
+        Module(..), TrName(..), TyCon(..)
     ) where
 
 import GHC.Prim
 
-
 infixr 5 :
+
+-- Take note: All types defined here must have associated type representations
+-- defined in Data.Typeable.Internal.
+-- See Note [Representation of types defined in GHC.Types] below.
+
+{- *********************************************************************
+*                                                                      *
+                  Kinds
+*                                                                      *
+********************************************************************* -}
+
+-- | The kind of constraints, like @Show a@
+data Constraint
+
+-- | The kind of types with values. For example @Int :: Type@.
+type Type = TYPE 'PtrRepLifted
+
+-- | A backward-compatible (pre-GHC 8.0) synonym for 'Type'
+type * = TYPE 'PtrRepLifted
+
+-- | A unicode backward-compatible (pre-GHC 8.0) synonym for 'Type'
+type ★ = TYPE 'PtrRepLifted
+
+{- *********************************************************************
+*                                                                      *
+                  Nat and Symbol
+*                                                                      *
+********************************************************************* -}
+
+-- | (Kind) This is the kind of type-level natural numbers.
+data Nat
+
+-- | (Kind) This is the kind of type-level symbols.
+-- Declared here because class IP needs it
+data Symbol
+
+{- *********************************************************************
+*                                                                      *
+                  Lists
+
+   NB: lists are built-in syntax, and hence not explicitly exported
+*                                                                      *
+********************************************************************* -}
 
 data [] a = [] | a : [a]
 
-data {-# CTYPE "HsBool" #-} Bool = False | True
+
+{- *********************************************************************
+*                                                                      *
+                  Ordering
+*                                                                      *
+********************************************************************* -}
+
+data Ordering = LT | EQ | GT
+
+
+{- *********************************************************************
+*                                                                      *
+                  Int, Char, Word, Float, Double
+*                                                                      *
+********************************************************************* -}
 
 {- | The character type 'Char' is an enumeration whose values represent
 Unicode (or equivalently ISO\/IEC 10646) characters (see
@@ -65,7 +136,12 @@ data {-# CTYPE "HsFloat" #-} Float = F# Float#
 -- to the IEEE double-precision type.
 data {-# CTYPE "HsDouble" #-} Double = D# Double#
 
-data Ordering = LT | EQ | GT
+
+{- *********************************************************************
+*                                                                      *
+                    IO
+*                                                                      *
+********************************************************************* -}
 
 {- |
 A value of type @'IO' a@ is a computation which, when performed,
@@ -82,12 +158,21 @@ or the '>>' and '>>=' operations from the 'Monad' class.
 -}
 newtype IO a = IO (State# RealWorld -> (# State# RealWorld, a #))
 type role IO representational
-{-
-The above role annotation is redundant but is included because this role
-is significant in the normalisation of FFI types. Specifically, if this
-role were to become nominal (which would be very strange, indeed!), changes
-elsewhere in GHC would be necessary. See [FFI type roles] in TcForeign.
--}
+
+{- The 'type role' role annotation for IO is redundant but is included
+because this role is significant in the normalisation of FFI
+types. Specifically, if this role were to become nominal (which would
+be very strange, indeed!), changes elsewhere in GHC would be
+necessary. See [FFI type roles] in TcForeign.  -}
+
+
+{- *********************************************************************
+*                                                                      *
+                    (~) and Coercible
+
+   NB: (~) is built-in syntax, and hence not explicitly exported
+*                                                                      *
+********************************************************************* -}
 
 {-
 Note [Kind-changing of (~) and Coercible]
@@ -106,14 +191,17 @@ inside GHC, to change the kind and type.
 -}
 
 
--- | A data constructor used to box up all unlifted equalities
---
--- The type constructor is special in that GHC pretends that it
--- has kind (? -> ? -> Fact) rather than (* -> * -> *)
-data (~) a b = Eq# ((~#) a b)
+-- | Lifted, heterogeneous equality. By lifted, we mean that it
+-- can be bogus (deferred type error). By heterogeneous, the two
+-- types @a@ and @b@ might have different kinds. Because @~~@ can
+-- appear unexpectedly in error messages to users who do not care
+-- about the difference between heterogeneous equality @~~@ and
+-- homogeneous equality @~@, this is printed as @~@ unless
+-- @-fprint-equality-relations@ is set.
+class a ~~ b
+  -- See also Note [The equality types story] in TysPrim
 
-
--- | This two-parameter class has instances for types @a@ and @b@ if
+-- | @Coercible@ is a two-parameter class that has instances for types @a@ and @b@ if
 --      the compiler can infer that they have the same representation. This class
 --      does not have regular instances; instead they are created on-the-fly during
 --      type-checking. Trying to manually declare an instance of @Coercible@
@@ -160,74 +248,83 @@ data (~) a b = Eq# ((~#) a b)
 --      by Joachim Breitner, Richard A. Eisenberg, Simon Peyton Jones and Stephanie Weirich.
 --
 --      @since 4.7.0.0
-data Coercible a b = MkCoercible ((~#) a b)
--- It's really ~R# (representational equality), not ~#,
--- but  * we don't yet have syntax for ~R#,
---      * the compiled code is the same either way
---      * TysWiredIn has the truthful types
--- Also see Note [Kind-changing of (~) and Coercible]
+class Coercible a b
+  -- See also Note [The equality types story] in TysPrim
 
--- | Alias for 'tagToEnum#'. Returns True if its parameter is 1# and False
---   if it is 0#.
+{- *********************************************************************
+*                                                                      *
+                   Bool, and isTrue#
+*                                                                      *
+********************************************************************* -}
+
+data {-# CTYPE "HsBool" #-} Bool = False | True
 
 {-# INLINE isTrue# #-}
+-- | Alias for 'tagToEnum#'. Returns True if its parameter is 1# and False
+--   if it is 0#.
 isTrue# :: Int# -> Bool   -- See Note [Optimizing isTrue#]
 isTrue# x = tagToEnum# x
 
--- Note [Optimizing isTrue#]
--- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
---
--- Current definition of isTrue# is a temporary workaround. We would like to
--- have functions isTrue# and isFalse# defined like this:
---
---     isTrue# :: Int# -> Bool
---     isTrue# 1# = True
---     isTrue# _  = False
---
---     isFalse# :: Int# -> Bool
---     isFalse# 0# = True
---     isFalse# _  = False
---
--- These functions would allow us to safely check if a tag can represent True
--- or False. Using isTrue# and isFalse# as defined above will not introduce
--- additional case into the code. When we scrutinize return value of isTrue#
--- or isFalse#, either explicitly in a case expression or implicitly in a guard,
--- the result will always be a single case expression (given that optimizations
--- are turned on). This results from case-of-case transformation. Consider this
--- code (this is both valid Haskell and Core):
---
--- case isTrue# (a ># b) of
---     True  -> e1
---     False -> e2
---
--- Inlining isTrue# gives:
---
--- case (case (a ># b) of { 1# -> True; _ -> False } ) of
---     True  -> e1
---     False -> e2
---
--- Case-of-case transforms that to:
---
--- case (a ># b) of
---   1# -> case True of
---           True  -> e1
---           False -> e2
---   _  -> case False of
---           True  -> e1
---           False -> e2
---
--- Which is then simplified by case-of-known-constructor:
---
--- case (a ># b) of
---   1# -> e1
---   _  -> e2
---
--- While we get good Core here, the code generator will generate very bad Cmm
--- if e1 or e2 do allocation. It will push heap checks into case alternatives
--- which results in about 2.5% increase in code size. Until this is improved we
--- just make isTrue# an alias to tagToEnum#. This is a temporary solution (if
--- you're reading this in 2023 then things went wrong). See #8326.
---
+{- Note [Optimizing isTrue#]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Current definition of isTrue# is a temporary workaround. We would like to
+have functions isTrue# and isFalse# defined like this:
+
+    isTrue# :: Int# -> Bool
+    isTrue# 1# = True
+    isTrue# _  = False
+
+    isFalse# :: Int# -> Bool
+    isFalse# 0# = True
+    isFalse# _  = False
+
+These functions would allow us to safely check if a tag can represent True
+or False. Using isTrue# and isFalse# as defined above will not introduce
+additional case into the code. When we scrutinize return value of isTrue#
+or isFalse#, either explicitly in a case expression or implicitly in a guard,
+the result will always be a single case expression (given that optimizations
+are turned on). This results from case-of-case transformation. Consider this
+code (this is both valid Haskell and Core):
+
+case isTrue# (a ># b) of
+    True  -> e1
+    False -> e2
+
+Inlining isTrue# gives:
+
+case (case (a ># b) of { 1# -> True; _ -> False } ) of
+    True  -> e1
+    False -> e2
+
+Case-of-case transforms that to:
+
+case (a ># b) of
+  1# -> case True of
+          True  -> e1
+          False -> e2
+  _  -> case False of
+          True  -> e1
+          False -> e2
+
+Which is then simplified by case-of-known-constructor:
+
+case (a ># b) of
+  1# -> e1
+  _  -> e2
+
+While we get good Core here, the code generator will generate very bad Cmm
+if e1 or e2 do allocation. It will push heap checks into case alternatives
+which results in about 2.5% increase in code size. Until this is improved we
+just make isTrue# an alias to tagToEnum#. This is a temporary solution (if
+you're reading this in 2023 then things went wrong). See #8326.
+-}
+
+
+{- *********************************************************************
+*                                                                      *
+                    SPEC
+*                                                                      *
+********************************************************************* -}
 
 -- | 'SPEC' is used by GHC in the @SpecConstr@ pass in order to inform
 -- the compiler when to be particularly aggressive. In particular, it
@@ -237,3 +334,102 @@ isTrue# x = tagToEnum# x
 -- Libraries can specify this by using 'SPEC' data type to inform which
 -- loops should be aggressively specialized.
 data SPEC = SPEC | SPEC2
+
+
+{- *********************************************************************
+*                                                                      *
+                    RuntimeRep
+*                                                                      *
+********************************************************************* -}
+
+
+-- | GHC maintains a property that the kind of all inhabited types
+-- (as distinct from type constructors or type-level data) tells us
+-- the runtime representation of values of that type. This datatype
+-- encodes the choice of runtime value.
+-- Note that 'TYPE' is parameterised by 'RuntimeRep'; this is precisely
+-- what we mean by the fact that a type's kind encodes the runtime
+-- representation.
+--
+-- For boxed values (that is, values that are represented by a pointer),
+-- a further distinction is made, between lifted types (that contain ⊥),
+-- and unlifted ones (that don't).
+data RuntimeRep = VecRep VecCount VecElem   -- ^ a SIMD vector type
+                | PtrRepLifted    -- ^ lifted; represented by a pointer
+                | PtrRepUnlifted  -- ^ unlifted; represented by a pointer
+                | VoidRep         -- ^ erased entirely
+                | IntRep          -- ^ signed, word-sized value
+                | WordRep         -- ^ unsigned, word-sized value
+                | Int64Rep        -- ^ signed, 64-bit value (on 32-bit only)
+                | Word64Rep       -- ^ unsigned, 64-bit value (on 32-bit only)
+                | AddrRep         -- ^ A pointer, but /not/ to a Haskell value
+                | FloatRep        -- ^ a 32-bit floating point number
+                | DoubleRep       -- ^ a 64-bit floating point number
+                | UnboxedTupleRep -- ^ An unboxed tuple; this doesn't specify a concrete rep
+
+-- See also Note [Wiring in RuntimeRep] in TysWiredIn
+
+-- | Length of a SIMD vector type
+data VecCount = Vec2
+              | Vec4
+              | Vec8
+              | Vec16
+              | Vec32
+              | Vec64
+
+-- | Element of a SIMD vector type
+data VecElem = Int8ElemRep
+             | Int16ElemRep
+             | Int32ElemRep
+             | Int64ElemRep
+             | Word8ElemRep
+             | Word16ElemRep
+             | Word32ElemRep
+             | Word64ElemRep
+             | FloatElemRep
+             | DoubleElemRep
+
+{- *********************************************************************
+*                                                                      *
+             Runtime representation of TyCon
+*                                                                      *
+********************************************************************* -}
+
+{- Note [Runtime representation of modules and tycons]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+We generate a binding for M.$modName and M.$tcT for every module M and
+data type T.  Things to think about
+
+  - We want them to be economical on space; ideally pure data with no thunks.
+
+  - We do this for every module (except this module GHC.Types), so we can't
+    depend on anything else (eg string unpacking code)
+
+That's why we have these terribly low-level repesentations.  The TrName
+type lets us use the TrNameS constructor when allocating static data;
+but we also need TrNameD for the case where we are deserialising a TyCon
+or Module (for example when deserialising a TypeRep), in which case we
+can't conveniently come up with an Addr#.
+-}
+
+#include "MachDeps.h"
+
+data Module = Module
+                TrName   -- Package name
+                TrName   -- Module name
+
+data TrName
+  = TrNameS Addr#  -- Static
+  | TrNameD [Char] -- Dynamic
+
+#if WORD_SIZE_IN_BITS < 64
+data TyCon = TyCon
+                Word64#  Word64#   -- Fingerprint
+                Module             -- Module in which this is defined
+                TrName              -- Type constructor name
+#else
+data TyCon = TyCon
+                Word#    Word#
+                Module
+                TrName
+#endif

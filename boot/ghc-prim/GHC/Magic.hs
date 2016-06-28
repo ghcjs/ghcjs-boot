@@ -1,5 +1,9 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  GHC.Magic
@@ -17,7 +21,10 @@
 --
 -----------------------------------------------------------------------------
 
-module GHC.Magic ( inline, lazy, oneShot ) where
+module GHC.Magic ( inline, lazy, oneShot, runRW# ) where
+
+import GHC.Prim
+import GHC.CString ()
 
 -- | The call @inline f@ arranges that 'f' is inlined, regardless of
 -- its size. More precisely, the call @inline f@ rewrites to the
@@ -69,7 +76,26 @@ lazy x = x
 -- argument will be called at most once, which may (or may not) enable certain
 -- optimizations. It can be useful to improve the performance of code in continuation
 -- passing style.
+--
+-- If 'oneShot' is used wrongly, then it may be that computations whose result
+-- that would otherwise be shared are re-evaluated every time they are used. Otherwise,
+-- the use of `oneShot` is safe.
+--
+-- 'oneShot' is open kinded, i.e. the type variables can refer to unlifted
+-- types as well.
 oneShot :: (a -> b) -> (a -> b)
 oneShot f = f
 -- Implementation note: This is wired in in MkId.lhs, so the code here is
 -- mostly there to have a place for the documentation.
+
+-- | Apply a function to a 'RealWorld' token.
+runRW# :: (State# RealWorld -> (# State# RealWorld, o #))
+       -> (# State# RealWorld, o #)
+-- See Note [runRW magic] in MkId
+#if !defined(__HADDOCK_VERSION__)
+runRW# m = m realWorld#
+#else
+runRW# = runRW#   -- The realWorld# is too much for haddock
+#endif
+{-# NOINLINE runRW# #-}
+-- This is inlined manually in CorePrep

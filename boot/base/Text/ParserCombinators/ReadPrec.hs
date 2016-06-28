@@ -64,6 +64,8 @@ import qualified Text.ParserCombinators.ReadP as ReadP
 import GHC.Num( Num(..) )
 import GHC.Base
 
+import qualified Control.Monad.Fail as MonadFail
+
 -- ---------------------------------------------------------------------------
 -- The readPrec type
 
@@ -75,13 +77,15 @@ instance Functor ReadPrec where
   fmap h (P f) = P (\n -> fmap h (f n))
 
 instance Applicative ReadPrec where
-    pure = return
+    pure x  = P (\_ -> pure x)
     (<*>) = ap
 
 instance Monad ReadPrec where
-  return x  = P (\_ -> return x)
   fail s    = P (\_ -> fail s)
   P f >>= k = P (\n -> do a <- f n; let P f' = k a in f' n)
+
+instance MonadFail.MonadFail ReadPrec where
+  fail s    = P (\_ -> fail s)
 
 instance MonadPlus ReadPrec where
   mzero = pfail

@@ -84,8 +84,15 @@ last [x]                =  x
 last (_:xs)             =  last xs
 last []                 =  errorEmptyList "last"
 #else
--- use foldl to allow fusion
-last = foldl (\_ x -> x) (errorEmptyList "last")
+-- Use foldl to make last a good consumer.
+-- This will compile to good code for the actual GHC.List.last.
+-- (At least as long it is eta-expaned, otherwise it does not, #10260.)
+last xs = foldl (\_ x -> x) lastError xs
+{-# INLINE last #-}
+-- The inline pragma is required to make GHC remember the implementation via
+-- foldl.
+lastError :: a
+lastError = errorEmptyList "last"
 #endif
 
 -- | Return all the elements of a list except the last one.
@@ -348,9 +355,11 @@ match on everything past the :, which is just the tail of scanl.
 -- and thus must be applied to non-empty lists.
 
 foldr1                  :: (a -> a -> a) -> [a] -> a
-foldr1 _ [x]            =  x
-foldr1 f (x:xs)         =  f x (foldr1 f xs)
-foldr1 _ []             =  errorEmptyList "foldr1"
+foldr1 f = go
+  where go [x]            =  x
+        go (x:xs)         =  f x (go xs)
+        go []             =  errorEmptyList "foldr1"
+{-# INLINE [0] foldr1 #-}
 
 -- | 'scanr' is the right-to-left dual of 'scanl'.
 -- Note that
@@ -391,39 +400,27 @@ scanr1 f (x:xs)         =  f x q : qs
 -- It is a special case of 'Data.List.maximumBy', which allows the
 -- programmer to supply their own comparison function.
 maximum                 :: (Ord a) => [a] -> a
-{-# INLINE [1] maximum #-}
+{-# INLINEABLE maximum #-}
 maximum []              =  errorEmptyList "maximum"
 maximum xs              =  foldl1 max xs
 
-{-# RULES
-  "maximumInt"     maximum = (strictMaximum :: [Int]     -> Int);
-  "maximumInteger" maximum = (strictMaximum :: [Integer] -> Integer)
- #-}
-
--- We can't make the overloaded version of maximum strict without
--- changing its semantics (max might not be strict), but we can for
--- the version specialised to 'Int'.
-strictMaximum           :: (Ord a) => [a] -> a
-strictMaximum []        =  errorEmptyList "maximum"
-strictMaximum xs        =  foldl1' max xs
+-- We want this to be specialized so that with a strict max function, GHC
+-- produces good code. Note that to see if this is happending, one has to
+-- look at -ddump-prep, not -ddump-core!
+{-# SPECIALIZE  maximum :: [Int] -> Int #-}
+{-# SPECIALIZE  maximum :: [Integer] -> Integer #-}
 
 -- | 'minimum' returns the minimum value from a list,
 -- which must be non-empty, finite, and of an ordered type.
 -- It is a special case of 'Data.List.minimumBy', which allows the
 -- programmer to supply their own comparison function.
 minimum                 :: (Ord a) => [a] -> a
-{-# INLINE [1] minimum #-}
+{-# INLINEABLE minimum #-}
 minimum []              =  errorEmptyList "minimum"
 minimum xs              =  foldl1 min xs
 
-{-# RULES
-  "minimumInt"     minimum = (strictMinimum :: [Int]     -> Int);
-  "minimumInteger" minimum = (strictMinimum :: [Integer] -> Integer)
- #-}
-
-strictMinimum           :: (Ord a) => [a] -> a
-strictMinimum []        =  errorEmptyList "minimum"
-strictMinimum xs        =  foldl1' min xs
+{-# SPECIALIZE  minimum :: [Int] -> Int #-}
+{-# SPECIALIZE  minimum :: [Integer] -> Integer #-}
 
 
 -- | 'iterate' @f x@ returns an infinite list of repeated applications
@@ -844,8 +841,8 @@ concat = foldr (++) []
 -- which takes an index of any integral type.
 (!!)                    :: [a] -> Int -> a
 #ifdef USE_REPORT_PRELUDE
-xs     !! n | n < 0 =  error "Prelude.!!: negative index"
-[]     !! _         =  error "Prelude.!!: index too large"
+xs     !! n | n < 0 =  errorWithoutStackTrace "Prelude.!!: negative index"
+[]     !! _         =  errorWithoutStackTrace "Prelude.!!: index too large"
 (x:_)  !! 0         =  x
 (_:xs) !! n         =  xs !! (n-1)
 #else
@@ -855,10 +852,10 @@ xs     !! n | n < 0 =  error "Prelude.!!: negative index"
 -- if so we should be careful not to trip up known-bottom
 -- optimizations.
 tooLarge :: Int -> a
-tooLarge _ = error (prel_list_str ++ "!!: index too large")
+tooLarge _ = errorWithoutStackTrace (prel_list_str ++ "!!: index too large")
 
 negIndex :: a
-negIndex = error $ prel_list_str ++ "!!: negative index"
+negIndex = errorWithoutStackTrace $ prel_list_str ++ "!!: negative index"
 
 {-# INLINABLE (!!) #-}
 xs !! n
@@ -999,7 +996,7 @@ unzip3   =  foldr (\(a,b,c) ~(as,bs,cs) -> (a:as,b:bs,c:cs))
 
 errorEmptyList :: String -> a
 errorEmptyList fun =
-  error (prel_list_str ++ fun ++ ": empty list")
+  errorWithoutStackTrace (prel_list_str ++ fun ++ ": empty list")
 
 prel_list_str :: String
 prel_list_str = "Prelude."

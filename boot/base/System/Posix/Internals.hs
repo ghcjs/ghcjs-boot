@@ -62,18 +62,18 @@ puts s = withCAStringLen (s ++ "\n") $ \(p, len) -> do
 -- ---------------------------------------------------------------------------
 -- Types
 
-type CFLock     = ()
+data {-# CTYPE "struct flock" #-} CFLock
 data {-# CTYPE "struct group" #-} CGroup
-type CLconv     = ()
-type CPasswd    = ()
-type CSigaction = ()
+data {-# CTYPE "struct lconv" #-} CLconv
+data {-# CTYPE "struct passwd" #-} CPasswd
+data {-# CTYPE "struct sigaction" #-} CSigaction
 data {-# CTYPE "sigset_t" #-} CSigset
-type CStat      = ()
-type CTermios   = ()
-type CTm        = ()
-type CTms       = ()
-type CUtimbuf   = ()
-type CUtsname   = ()
+data {-# CTYPE "struct stat" #-}  CStat
+data {-# CTYPE "struct termios" #-} CTermios
+data {-# CTYPE "struct tm" #-} CTm
+data {-# CTYPE "struct tms" #-} CTms
+data {-# CTYPE "struct utimbuf" #-} CUtimbuf
+data {-# CTYPE "struct utsname" #-} CUtsname
 
 type FD = CInt
 
@@ -134,7 +134,7 @@ ioe_unknownfiletype = IOError Nothing UnsupportedOperation "fdType"
                         Nothing
 
 fdGetMode :: FD -> IO IOMode
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+#if defined(mingw32_HOST_OS)
 fdGetMode _ = do
     -- We don't have a way of finding out which flags are set on FDs
     -- on Windows, so make a handle that thinks that anything goes.
@@ -314,7 +314,7 @@ foreign import ccall unsafe "consUtils.h is_console__"
 -- Turning on non-blocking for a file descriptor
 
 setNonBlockingFD :: FD -> Bool -> IO ()
-#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
+#if !defined(mingw32_HOST_OS)
 setNonBlockingFD fd set = do
   flags <- throwErrnoIfMinus1Retry "setNonBlockingFD"
                  (c_fcntl_read fd const_f_getfl)
@@ -336,7 +336,7 @@ setNonBlockingFD _ _ = return ()
 -- -----------------------------------------------------------------------------
 -- Set close-on-exec for a file descriptor
 
-#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
+#if !defined(mingw32_HOST_OS)
 setCloseOnExec :: FD -> IO ()
 setCloseOnExec fd = do
   throwErrnoIfMinus1_ "setCloseOnExec" $
@@ -346,11 +346,100 @@ setCloseOnExec fd = do
 -- -----------------------------------------------------------------------------
 -- foreign imports
 
-#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
+#if !defined(mingw32_HOST_OS)
 type CFilePath = CString
 #else
 type CFilePath = CWString
 #endif
+
+foreign import ccall unsafe "HsBase.h __hscore_open"
+   c_open :: CFilePath -> CInt -> CMode -> IO CInt
+
+foreign import ccall safe "HsBase.h __hscore_open"
+   c_safe_open :: CFilePath -> CInt -> CMode -> IO CInt
+
+foreign import ccall unsafe "HsBase.h __hscore_fstat"
+   c_fstat :: CInt -> Ptr CStat -> IO CInt
+
+foreign import ccall unsafe "HsBase.h __hscore_lstat"
+   lstat :: CFilePath -> Ptr CStat -> IO CInt
+
+{- Note: Win32 POSIX functions
+Functions that are not part of the POSIX standards were
+at some point deprecated by Microsoft. This deprecation
+was performed by renaming the functions according to the
+C++ ABI Section 17.6.4.3.2b. This was done to free up the
+namespace of normal Windows programs since Windows isn't
+POSIX compliant anyway.
+
+These were working before since the RTS was re-exporting
+these symbols under the undeprecated names. This is no longer
+being done. See #11223
+
+See https://msdn.microsoft.com/en-us/library/ms235384.aspx
+for more.
+-}
+#if defined(mingw32_HOST_OS)
+foreign import ccall unsafe "io.h _lseeki64"
+   c_lseek :: CInt -> Int64 -> CInt -> IO Int64
+
+foreign import ccall unsafe "HsBase.h _access"
+   c_access :: CString -> CInt -> IO CInt
+
+foreign import ccall unsafe "HsBase.h _chmod"
+   c_chmod :: CString -> CMode -> IO CInt
+
+foreign import ccall unsafe "HsBase.h _close"
+   c_close :: CInt -> IO CInt
+
+foreign import ccall unsafe "HsBase.h _creat"
+   c_creat :: CString -> CMode -> IO CInt
+
+foreign import ccall unsafe "HsBase.h _dup"
+   c_dup :: CInt -> IO CInt
+
+foreign import ccall unsafe "HsBase.h _dup2"
+   c_dup2 :: CInt -> CInt -> IO CInt
+
+foreign import ccall unsafe "HsBase.h _isatty"
+   c_isatty :: CInt -> IO CInt
+
+-- See Note: CSsize
+foreign import capi unsafe "HsBase.h _read"
+   c_read :: CInt -> Ptr Word8 -> CSize -> IO CSsize
+
+-- See Note: CSsize
+foreign import capi safe "HsBase.h _read"
+   c_safe_read :: CInt -> Ptr Word8 -> CSize -> IO CSsize
+
+foreign import ccall unsafe "HsBase.h _umask"
+   c_umask :: CMode -> IO CMode
+
+-- See Note: CSsize
+foreign import capi unsafe "HsBase.h _write"
+   c_write :: CInt -> Ptr Word8 -> CSize -> IO CSsize
+
+-- See Note: CSsize
+foreign import capi safe "HsBase.h _write"
+   c_safe_write :: CInt -> Ptr Word8 -> CSize -> IO CSsize
+
+foreign import ccall unsafe "HsBase.h _unlink"
+   c_unlink :: CString -> IO CInt
+
+foreign import ccall unsafe "HsBase.h _pipe"
+   c_pipe :: Ptr CInt -> IO CInt
+
+foreign import capi unsafe "HsBase.h _utime"
+   c_utime :: CString -> Ptr CUtimbuf -> IO CInt
+
+foreign import ccall unsafe "HsBase.h _getpid"
+   c_getpid :: IO CPid
+#else
+-- We use CAPI as on some OSs (eg. Linux) this is wrapped by a macro
+-- which redirects to the 64-bit-off_t versions when large file
+-- support is enabled.
+foreign import capi unsafe "unistd.h lseek"
+   c_lseek :: CInt -> COff -> CInt -> IO COff
 
 foreign import ccall unsafe "HsBase.h access"
    c_access :: CString -> CInt -> IO CInt
@@ -370,31 +459,8 @@ foreign import ccall unsafe "HsBase.h dup"
 foreign import ccall unsafe "HsBase.h dup2"
    c_dup2 :: CInt -> CInt -> IO CInt
 
-foreign import ccall unsafe "HsBase.h __hscore_fstat"
-   c_fstat :: CInt -> Ptr CStat -> IO CInt
-
 foreign import ccall unsafe "HsBase.h isatty"
    c_isatty :: CInt -> IO CInt
-
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-foreign import ccall unsafe "io.h _lseeki64"
-   c_lseek :: CInt -> Int64 -> CInt -> IO Int64
-#else
--- We use CAPI as on some OSs (eg. Linux) this is wrapped by a macro
--- which redirects to the 64-bit-off_t versions when large file
--- support is enabled.
-foreign import capi unsafe "unistd.h lseek"
-   c_lseek :: CInt -> COff -> CInt -> IO COff
-#endif
-
-foreign import ccall unsafe "HsBase.h __hscore_lstat"
-   lstat :: CFilePath -> Ptr CStat -> IO CInt
-
-foreign import ccall unsafe "HsBase.h __hscore_open"
-   c_open :: CFilePath -> CInt -> CMode -> IO CInt
-
-foreign import ccall safe "HsBase.h __hscore_open"
-   c_safe_open :: CFilePath -> CInt -> CMode -> IO CInt
 
 -- See Note: CSsize
 foreign import capi unsafe "HsBase.h read"
@@ -403,9 +469,6 @@ foreign import capi unsafe "HsBase.h read"
 -- See Note: CSsize
 foreign import capi safe "HsBase.h read"
    c_safe_read :: CInt -> Ptr Word8 -> CSize -> IO CSsize
-
-foreign import ccall unsafe "HsBase.h __hscore_stat"
-   c_stat :: CFilePath -> Ptr CStat -> IO CInt
 
 foreign import ccall unsafe "HsBase.h umask"
    c_umask :: CMode -> IO CMode
@@ -418,16 +481,26 @@ foreign import capi unsafe "HsBase.h write"
 foreign import capi safe "HsBase.h write"
    c_safe_write :: CInt -> Ptr Word8 -> CSize -> IO CSsize
 
-foreign import ccall unsafe "HsBase.h __hscore_ftruncate"
-   c_ftruncate :: CInt -> COff -> IO CInt
-
 foreign import ccall unsafe "HsBase.h unlink"
    c_unlink :: CString -> IO CInt
 
+foreign import ccall unsafe "HsBase.h pipe"
+   c_pipe :: Ptr CInt -> IO CInt
+
+foreign import capi unsafe "HsBase.h utime"
+   c_utime :: CString -> Ptr CUtimbuf -> IO CInt
+
 foreign import ccall unsafe "HsBase.h getpid"
    c_getpid :: IO CPid
+#endif
 
-#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
+foreign import ccall unsafe "HsBase.h __hscore_stat"
+   c_stat :: CFilePath -> Ptr CStat -> IO CInt
+
+foreign import ccall unsafe "HsBase.h __hscore_ftruncate"
+   c_ftruncate :: CInt -> COff -> IO CInt
+
+#if !defined(mingw32_HOST_OS)
 foreign import capi unsafe "HsBase.h fcntl"
    c_fcntl_read  :: CInt -> CInt -> IO CInt
 
@@ -447,9 +520,6 @@ foreign import ccall unsafe "HsBase.h link"
 foreign import capi unsafe "HsBase.h mkfifo"
    c_mkfifo :: CString -> CMode -> IO CInt
 
-foreign import ccall unsafe "HsBase.h pipe"
-   c_pipe :: Ptr CInt -> IO CInt
-
 foreign import capi unsafe "signal.h sigemptyset"
    c_sigemptyset :: Ptr CSigset -> IO CInt
 
@@ -466,9 +536,6 @@ foreign import capi unsafe "HsBase.h tcgetattr"
 -- capi is required at least on Android
 foreign import capi unsafe "HsBase.h tcsetattr"
    c_tcsetattr :: CInt -> CInt -> Ptr CTermios -> IO CInt
-
-foreign import capi unsafe "HsBase.h utime"
-   c_utime :: CString -> Ptr CUtimbuf -> IO CInt
 
 foreign import ccall unsafe "HsBase.h waitpid"
    c_waitpid :: CPid -> Ptr CInt -> CInt -> IO CPid
@@ -539,7 +606,7 @@ foreign import ccall unsafe "HsBase.h __hscore_ptr_c_cc" ptr_c_cc  :: Ptr CTermi
 #endif
 
 s_issock :: CMode -> Bool
-#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
+#if !defined(mingw32_HOST_OS)
 s_issock cmode = c_s_issock cmode /= 0
 foreign import capi unsafe "sys/stat.h S_ISSOCK" c_s_issock :: CMode -> CInt
 #else

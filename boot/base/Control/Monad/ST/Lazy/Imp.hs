@@ -71,14 +71,12 @@ instance Functor (ST s) where
       (f r,new_s)
 
 instance Applicative (ST s) where
-    pure = return
+    pure a = ST $ \ s -> (a,s)
     (<*>) = ap
 
 instance Monad (ST s) where
 
-        return a = ST $ \ s -> (a,s)
-        m >> k   =  m >>= \ _ -> k
-        fail s   = error s
+        fail s   = errorWithoutStackTrace s
 
         (ST m) >>= k
          = ST $ \ s ->

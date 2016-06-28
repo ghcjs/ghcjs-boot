@@ -1,7 +1,9 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE RankNTypes, ScopedTypeVariables, PolyKinds, StandaloneDeriving,
-             AutoDeriveTypeable, TypeOperators, GADTs, FlexibleInstances #-}
+             TypeOperators, GADTs, FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE BangPatterns #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -109,10 +111,11 @@ module Data.Data (
 import Data.Either
 import Data.Eq
 import Data.Maybe
+import Data.Monoid
 import Data.Ord
 import Data.Typeable
 import Data.Version( Version(..) )
-import GHC.Base
+import GHC.Base hiding (Any, IntRep, FloatRep)
 import GHC.List
 import GHC.Num
 import GHC.Read
@@ -131,7 +134,9 @@ import GHC.ForeignPtr        -- So we can give Data instance for ForeignPtr
 --import GHC.ST                -- So we can give Data instance for ST
 --import GHC.Conc              -- So we can give Data instance for MVar & Co.
 import GHC.Arr               -- So we can give Data instance for Array
-
+import qualified GHC.Generics as Generics (Fixity(..))
+import GHC.Generics hiding (Fixity(..))
+                             -- So we can give Data instance for U1, V1, ...
 
 ------------------------------------------------------------------------------
 --
@@ -442,7 +447,7 @@ newtype Mp m x = Mp { unMp :: m (x, Bool) }
 
 -- | Build a term skeleton
 fromConstr :: Data a => Constr -> a
-fromConstr = fromConstrB (error "Data.Data.fromConstr")
+fromConstr = fromConstrB (errorWithoutStackTrace "Data.Data.fromConstr")
 
 
 -- | Build a term and use a generic function for subterms
@@ -580,7 +585,7 @@ repConstr dt cr =
         (IntRep,    IntConstr i)      -> mkIntegralConstr dt i
         (FloatRep,  FloatConstr f)    -> mkRealConstr dt f
         (CharRep,   CharConstr c)     -> mkCharConstr dt c
-        _ -> error "Data.Data.repConstr: The given ConstrRep does not fit to the given DataType."
+        _ -> errorWithoutStackTrace "Data.Data.repConstr: The given ConstrRep does not fit to the given DataType."
 
 
 
@@ -618,7 +623,7 @@ mkConstr dt str fields fix =
 dataTypeConstrs :: DataType -> [Constr]
 dataTypeConstrs dt = case datarep dt of
                         (AlgRep cons) -> cons
-                        _ -> error $ "Data.Data.dataTypeConstrs is not supported for "
+                        _ -> errorWithoutStackTrace $ "Data.Data.dataTypeConstrs is not supported for "
                                     ++ dataTypeName dt ++
                                     ", as it is not an algebraic data type."
 
@@ -693,7 +698,7 @@ isAlgType dt = case datarep dt of
 indexConstr :: DataType -> ConIndex -> Constr
 indexConstr dt idx = case datarep dt of
                         (AlgRep cs) -> cs !! (idx-1)
-                        _           -> error $ "Data.Data.indexConstr is not supported for "
+                        _           -> errorWithoutStackTrace $ "Data.Data.indexConstr is not supported for "
                                                ++ dataTypeName dt ++
                                                ", as it is not an algebraic data type."
 
@@ -702,7 +707,7 @@ indexConstr dt idx = case datarep dt of
 constrIndex :: Constr -> ConIndex
 constrIndex con = case constrRep con of
                     (AlgConstr idx) -> idx
-                    _ -> error $ "Data.Data.constrIndex is not supported for "
+                    _ -> errorWithoutStackTrace $ "Data.Data.constrIndex is not supported for "
                                  ++ dataTypeName (constrType con) ++
                                  ", as it is not an algebraic data type."
 
@@ -711,7 +716,7 @@ constrIndex con = case constrRep con of
 maxConstrIndex :: DataType -> ConIndex
 maxConstrIndex dt = case dataTypeRep dt of
                         AlgRep cs -> length cs
-                        _            -> error $ "Data.Data.maxConstrIndex is not supported for "
+                        _            -> errorWithoutStackTrace $ "Data.Data.maxConstrIndex is not supported for "
                                                  ++ dataTypeName dt ++
                                                  ", as it is not an algebraic data type."
 
@@ -753,21 +758,21 @@ mkPrimCon dt str cr = Constr
                         { datatype  = dt
                         , conrep    = cr
                         , constring = str
-                        , confields = error "Data.Data.confields"
-                        , confixity = error "Data.Data.confixity"
+                        , confields = errorWithoutStackTrace "Data.Data.confields"
+                        , confixity = errorWithoutStackTrace "Data.Data.confixity"
                         }
 
 mkIntegralConstr :: (Integral a, Show a) => DataType -> a -> Constr
 mkIntegralConstr dt i = case datarep dt of
                   IntRep -> mkPrimCon dt (show i) (IntConstr (toInteger  i))
-                  _ -> error $ "Data.Data.mkIntegralConstr is not supported for "
+                  _ -> errorWithoutStackTrace $ "Data.Data.mkIntegralConstr is not supported for "
                                ++ dataTypeName dt ++
                                ", as it is not an Integral data type."
 
 mkRealConstr :: (Real a, Show a) => DataType -> a -> Constr
 mkRealConstr dt f = case datarep dt of
                     FloatRep -> mkPrimCon dt (show f) (FloatConstr (toRational f))
-                    _ -> error $ "Data.Data.mkRealConstr is not supported for "
+                    _ -> errorWithoutStackTrace $ "Data.Data.mkRealConstr is not supported for "
                                  ++ dataTypeName dt ++
                                  ", as it is not an Real data type."
 
@@ -775,7 +780,7 @@ mkRealConstr dt f = case datarep dt of
 mkCharConstr :: DataType -> Char -> Constr
 mkCharConstr dt c = case datarep dt of
                    CharRep -> mkPrimCon dt (show c) (CharConstr c)
-                   _ -> error $ "Data.Data.mkCharConstr is not supported for "
+                   _ -> errorWithoutStackTrace $ "Data.Data.mkCharConstr is not supported for "
                                 ++ dataTypeName dt ++
                                 ", as it is not an Char data type."
 
@@ -854,7 +859,7 @@ instance Data Bool where
   gunfold _ z c  = case constrIndex c of
                      1 -> z False
                      2 -> z True
-                     _ -> error $ "Data.Data.gunfold: Constructor "
+                     _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor "
                                   ++ show c
                                   ++ " is not of type Bool."
   dataTypeOf _ = boolDataType
@@ -869,7 +874,7 @@ instance Data Char where
   toConstr x = mkCharConstr charType x
   gunfold _ z c = case constrRep c of
                     (CharConstr x) -> z x
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Char."
   dataTypeOf _ = charType
 
@@ -883,7 +888,7 @@ instance Data Float where
   toConstr = mkRealConstr floatType
   gunfold _ z c = case constrRep c of
                     (FloatConstr x) -> z (realToFrac x)
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Float."
   dataTypeOf _ = floatType
 
@@ -897,7 +902,7 @@ instance Data Double where
   toConstr = mkRealConstr doubleType
   gunfold _ z c = case constrRep c of
                     (FloatConstr x) -> z (realToFrac x)
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Double."
   dataTypeOf _ = doubleType
 
@@ -911,7 +916,7 @@ instance Data Int where
   toConstr x = mkIntegralConstr intType x
   gunfold _ z c = case constrRep c of
                     (IntConstr x) -> z (fromIntegral x)
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Int."
   dataTypeOf _ = intType
 
@@ -925,7 +930,7 @@ instance Data Integer where
   toConstr = mkIntegralConstr integerType
   gunfold _ z c = case constrRep c of
                     (IntConstr x) -> z x
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Integer."
   dataTypeOf _ = integerType
 
@@ -939,7 +944,7 @@ instance Data Int8 where
   toConstr x = mkIntegralConstr int8Type x
   gunfold _ z c = case constrRep c of
                     (IntConstr x) -> z (fromIntegral x)
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Int8."
   dataTypeOf _ = int8Type
 
@@ -953,7 +958,7 @@ instance Data Int16 where
   toConstr x = mkIntegralConstr int16Type x
   gunfold _ z c = case constrRep c of
                     (IntConstr x) -> z (fromIntegral x)
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Int16."
   dataTypeOf _ = int16Type
 
@@ -967,7 +972,7 @@ instance Data Int32 where
   toConstr x = mkIntegralConstr int32Type x
   gunfold _ z c = case constrRep c of
                     (IntConstr x) -> z (fromIntegral x)
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Int32."
   dataTypeOf _ = int32Type
 
@@ -981,7 +986,7 @@ instance Data Int64 where
   toConstr x = mkIntegralConstr int64Type x
   gunfold _ z c = case constrRep c of
                     (IntConstr x) -> z (fromIntegral x)
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Int64."
   dataTypeOf _ = int64Type
 
@@ -995,7 +1000,7 @@ instance Data Word where
   toConstr x = mkIntegralConstr wordType x
   gunfold _ z c = case constrRep c of
                     (IntConstr x) -> z (fromIntegral x)
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Word"
   dataTypeOf _ = wordType
 
@@ -1009,7 +1014,7 @@ instance Data Word8 where
   toConstr x = mkIntegralConstr word8Type x
   gunfold _ z c = case constrRep c of
                     (IntConstr x) -> z (fromIntegral x)
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Word8."
   dataTypeOf _ = word8Type
 
@@ -1023,7 +1028,7 @@ instance Data Word16 where
   toConstr x = mkIntegralConstr word16Type x
   gunfold _ z c = case constrRep c of
                     (IntConstr x) -> z (fromIntegral x)
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Word16."
   dataTypeOf _ = word16Type
 
@@ -1037,7 +1042,7 @@ instance Data Word32 where
   toConstr x = mkIntegralConstr word32Type x
   gunfold _ z c = case constrRep c of
                     (IntConstr x) -> z (fromIntegral x)
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Word32."
   dataTypeOf _ = word32Type
 
@@ -1051,7 +1056,7 @@ instance Data Word64 where
   toConstr x = mkIntegralConstr word64Type x
   gunfold _ z c = case constrRep c of
                     (IntConstr x) -> z (fromIntegral x)
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Word64."
   dataTypeOf _ = word64Type
 
@@ -1068,7 +1073,7 @@ instance (Data a, Integral a) => Data (Ratio a) where
   gfoldl k z (a :% b) = z (%) `k` a `k` b
   toConstr _ = ratioConstr
   gunfold k z c | constrIndex c == 1 = k (k (z (%)))
-  gunfold _ _ _ = error "Data.Data.gunfold(Ratio)"
+  gunfold _ _ _ = errorWithoutStackTrace "Data.Data.gunfold(Ratio)"
   dataTypeOf _  = ratioDataType
 
 
@@ -1090,7 +1095,7 @@ instance Data a => Data [a] where
   gunfold k z c = case constrIndex c of
                     1 -> z []
                     2 -> k (k (z (:)))
-                    _ -> error "Data.Data.gunfold(List)"
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(List)"
   dataTypeOf _ = listDataType
   dataCast1 f  = gcast1 f
 
@@ -1124,7 +1129,7 @@ instance Data a => Data (Maybe a) where
   gunfold k z c = case constrIndex c of
                     1 -> z Nothing
                     2 -> k (z Just)
-                    _ -> error "Data.Data.gunfold(Maybe)"
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(Maybe)"
   dataTypeOf _ = maybeDataType
   dataCast1 f  = gcast1 f
 
@@ -1152,7 +1157,7 @@ instance Data Ordering where
                     1 -> z LT
                     2 -> z EQ
                     3 -> z GT
-                    _ -> error "Data.Data.gunfold(Ordering)"
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(Ordering)"
   dataTypeOf _ = orderingDataType
 
 
@@ -1175,7 +1180,7 @@ instance (Data a, Data b) => Data (Either a b) where
   gunfold k z c = case constrIndex c of
                     1 -> k (z Left)
                     2 -> k (z Right)
-                    _ -> error "Data.Data.gunfold(Either)"
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(Either)"
   dataTypeOf _ = eitherDataType
   dataCast2 f  = gcast2 f
 
@@ -1191,7 +1196,7 @@ tuple0DataType = mkDataType "Prelude.()" [tuple0Constr]
 instance Data () where
   toConstr ()   = tuple0Constr
   gunfold _ z c | constrIndex c == 1 = z ()
-  gunfold _ _ _ = error "Data.Data.gunfold(unit)"
+  gunfold _ _ _ = errorWithoutStackTrace "Data.Data.gunfold(unit)"
   dataTypeOf _  = tuple0DataType
 
 
@@ -1207,7 +1212,7 @@ instance (Data a, Data b) => Data (a,b) where
   gfoldl f z (a,b) = z (,) `f` a `f` b
   toConstr (_,_) = tuple2Constr
   gunfold k z c | constrIndex c == 1 = k (k (z (,)))
-  gunfold _ _ _ = error "Data.Data.gunfold(tup2)"
+  gunfold _ _ _ = errorWithoutStackTrace "Data.Data.gunfold(tup2)"
   dataTypeOf _  = tuple2DataType
   dataCast2 f   = gcast2 f
 
@@ -1224,7 +1229,7 @@ instance (Data a, Data b, Data c) => Data (a,b,c) where
   gfoldl f z (a,b,c) = z (,,) `f` a `f` b `f` c
   toConstr (_,_,_) = tuple3Constr
   gunfold k z c | constrIndex c == 1 = k (k (k (z (,,))))
-  gunfold _ _ _ = error "Data.Data.gunfold(tup3)"
+  gunfold _ _ _ = errorWithoutStackTrace "Data.Data.gunfold(tup3)"
   dataTypeOf _  = tuple3DataType
 
 
@@ -1242,7 +1247,7 @@ instance (Data a, Data b, Data c, Data d)
   toConstr (_,_,_,_) = tuple4Constr
   gunfold k z c = case constrIndex c of
                     1 -> k (k (k (k (z (,,,)))))
-                    _ -> error "Data.Data.gunfold(tup4)"
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(tup4)"
   dataTypeOf _ = tuple4DataType
 
 
@@ -1260,7 +1265,7 @@ instance (Data a, Data b, Data c, Data d, Data e)
   toConstr (_,_,_,_,_) = tuple5Constr
   gunfold k z c = case constrIndex c of
                     1 -> k (k (k (k (k (z (,,,,))))))
-                    _ -> error "Data.Data.gunfold(tup5)"
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(tup5)"
   dataTypeOf _ = tuple5DataType
 
 
@@ -1278,7 +1283,7 @@ instance (Data a, Data b, Data c, Data d, Data e, Data f)
   toConstr (_,_,_,_,_,_) = tuple6Constr
   gunfold k z c = case constrIndex c of
                     1 -> k (k (k (k (k (k (z (,,,,,)))))))
-                    _ -> error "Data.Data.gunfold(tup6)"
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(tup6)"
   dataTypeOf _ = tuple6DataType
 
 
@@ -1297,34 +1302,34 @@ instance (Data a, Data b, Data c, Data d, Data e, Data f, Data g)
   toConstr  (_,_,_,_,_,_,_) = tuple7Constr
   gunfold k z c = case constrIndex c of
                     1 -> k (k (k (k (k (k (k (z (,,,,,,))))))))
-                    _ -> error "Data.Data.gunfold(tup7)"
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(tup7)"
   dataTypeOf _ = tuple7DataType
 
 
 ------------------------------------------------------------------------------
 
-instance (Data a, Typeable a) => Data (Ptr a) where
-  toConstr _   = error "Data.Data.toConstr(Ptr)"
-  gunfold _ _  = error "Data.Data.gunfold(Ptr)"
+instance Data a => Data (Ptr a) where
+  toConstr _   = errorWithoutStackTrace "Data.Data.toConstr(Ptr)"
+  gunfold _ _  = errorWithoutStackTrace "Data.Data.gunfold(Ptr)"
   dataTypeOf _ = mkNoRepType "GHC.Ptr.Ptr"
   dataCast1 x  = gcast1 x
 
 ------------------------------------------------------------------------------
 
-instance (Data a, Typeable a) => Data (ForeignPtr a) where
-  toConstr _   = error "Data.Data.toConstr(ForeignPtr)"
-  gunfold _ _  = error "Data.Data.gunfold(ForeignPtr)"
+instance Data a => Data (ForeignPtr a) where
+  toConstr _   = errorWithoutStackTrace "Data.Data.toConstr(ForeignPtr)"
+  gunfold _ _  = errorWithoutStackTrace "Data.Data.gunfold(ForeignPtr)"
   dataTypeOf _ = mkNoRepType "GHC.ForeignPtr.ForeignPtr"
   dataCast1 x  = gcast1 x
 
 ------------------------------------------------------------------------------
 -- The Data instance for Array preserves data abstraction at the cost of
 -- inefficiency. We omit reflection services for the sake of data abstraction.
-instance (Typeable a, Data a, Data b, Ix a) => Data (Array a b)
+instance (Data a, Data b, Ix a) => Data (Array a b)
  where
   gfoldl f z a = z (listArray (bounds a)) `f` (elems a)
-  toConstr _   = error "Data.Data.toConstr(Array)"
-  gunfold _ _  = error "Data.Data.gunfold(Array)"
+  toConstr _   = errorWithoutStackTrace "Data.Data.toConstr(Array)"
+  gunfold _ _  = errorWithoutStackTrace "Data.Data.gunfold(Array)"
   dataTypeOf _ = mkNoRepType "Data.Array.Array"
   dataCast2 x  = gcast2 x
 
@@ -1342,7 +1347,7 @@ instance (Data t) => Data (Proxy t) where
   toConstr Proxy  = proxyConstr
   gunfold _ z c = case constrIndex c of
                     1 -> z Proxy
-                    _ -> error "Data.Data.gunfold(Proxy)"
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(Proxy)"
   dataTypeOf _ = proxyDataType
   dataCast1 f  = gcast1 f
 
@@ -1360,7 +1365,7 @@ instance (a ~ b, Data a) => Data (a :~: b) where
   toConstr Refl   = reflConstr
   gunfold _ z c   = case constrIndex c of
                       1 -> z Refl
-                      _ -> error "Data.Data.gunfold(:~:)"
+                      _ -> errorWithoutStackTrace "Data.Data.gunfold(:~:)"
   dataTypeOf _    = equalityDataType
   dataCast2 f     = gcast2 f
 
@@ -1378,7 +1383,7 @@ instance (Coercible a b, Data a, Data b) => Data (Coercion a b) where
   toConstr Coercion = coercionConstr
   gunfold _ z c   = case constrIndex c of
                       1 -> z Coercion
-                      _ -> error "Data.Data.gunfold(Coercion)"
+                      _ -> errorWithoutStackTrace "Data.Data.gunfold(Coercion)"
   dataTypeOf _    = coercionDataType
   dataCast2 f     = gcast2 f
 
@@ -1396,5 +1401,418 @@ instance Data Version where
   toConstr (Version _ _) = versionConstr
   gunfold k z c = case constrIndex c of
                     1 -> k (k (z Version))
-                    _ -> error "Data.Data.gunfold(Version)"
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(Version)"
   dataTypeOf _  = versionDataType
+
+-----------------------------------------------------------------------
+-- instances for Data.Monoid wrappers
+
+dualConstr :: Constr
+dualConstr = mkConstr dualDataType "Dual" ["getDual"] Prefix
+
+dualDataType :: DataType
+dualDataType = mkDataType "Data.Monoid.Dual" [dualConstr]
+
+instance Data a => Data (Dual a) where
+  gfoldl f z (Dual x) = z Dual `f` x
+  gunfold k z _ = k (z Dual)
+  toConstr (Dual _) = dualConstr
+  dataTypeOf _ = dualDataType
+  dataCast1 f = gcast1 f
+
+allConstr :: Constr
+allConstr = mkConstr allDataType "All" ["getAll"] Prefix
+
+allDataType :: DataType
+allDataType = mkDataType "All" [allConstr]
+
+instance Data All where
+  gfoldl f z (All x) = (z All `f` x)
+  gunfold k z _ = k (z All)
+  toConstr (All _) = allConstr
+  dataTypeOf _ = allDataType
+
+anyConstr :: Constr
+anyConstr = mkConstr anyDataType "Any" ["getAny"] Prefix
+
+anyDataType :: DataType
+anyDataType = mkDataType "Any" [anyConstr]
+
+instance Data Any where
+  gfoldl f z (Any x) = (z Any `f` x)
+  gunfold k z _ = k (z Any)
+  toConstr (Any _) = anyConstr
+  dataTypeOf _ = anyDataType
+
+
+sumConstr :: Constr
+sumConstr = mkConstr sumDataType "Sum" ["getSum"] Prefix
+
+sumDataType :: DataType
+sumDataType = mkDataType "Data.Monoid.Sum" [sumConstr]
+
+instance Data a => Data (Sum a) where
+  gfoldl f z (Sum x) = z Sum `f` x
+  gunfold k z _ = k (z Sum)
+  toConstr (Sum _) = sumConstr
+  dataTypeOf _ = sumDataType
+  dataCast1 f = gcast1 f
+
+
+productConstr :: Constr
+productConstr = mkConstr productDataType "Product" ["getProduct"] Prefix
+
+productDataType :: DataType
+productDataType = mkDataType "Data.Monoid.Product" [productConstr]
+
+instance Data a => Data (Product a) where
+  gfoldl f z (Product x) = z Product `f` x
+  gunfold k z _ = k (z Product)
+  toConstr (Product _) = productConstr
+  dataTypeOf _ = productDataType
+  dataCast1 f = gcast1 f
+
+
+firstConstr :: Constr
+firstConstr = mkConstr firstDataType "First" ["getFirst"] Prefix
+
+firstDataType :: DataType
+firstDataType = mkDataType "Data.Monoid.First" [firstConstr]
+
+instance Data a => Data (First a) where
+  gfoldl f z (First x) = (z First `f` x)
+  gunfold k z _ = k (z First)
+  toConstr (First _) = firstConstr
+  dataTypeOf _ = firstDataType
+  dataCast1 f = gcast1 f
+
+
+lastConstr :: Constr
+lastConstr = mkConstr lastDataType "Last" ["getLast"] Prefix
+
+lastDataType :: DataType
+lastDataType = mkDataType "Data.Monoid.Last" [lastConstr]
+
+instance Data a => Data (Last a) where
+  gfoldl f z (Last x) = (z Last `f` x)
+  gunfold k z _ = k (z Last)
+  toConstr (Last _) = lastConstr
+  dataTypeOf _ = lastDataType
+  dataCast1 f = gcast1 f
+
+
+altConstr :: Constr
+altConstr = mkConstr altDataType "Alt" ["getAlt"] Prefix
+
+altDataType :: DataType
+altDataType = mkDataType "Alt" [altConstr]
+
+instance (Data (f a), Data a, Typeable f) => Data (Alt f a) where
+  gfoldl f z (Alt x) = (z Alt `f` x)
+  gunfold k z _ = k (z Alt)
+  toConstr (Alt _) = altConstr
+  dataTypeOf _ = altDataType
+
+-----------------------------------------------------------------------
+-- instances for GHC.Generics
+
+u1Constr :: Constr
+u1Constr = mkConstr u1DataType "U1" [] Prefix
+
+u1DataType :: DataType
+u1DataType = mkDataType "GHC.Generics.U1" [u1Constr]
+
+instance Data p => Data (U1 p) where
+  gfoldl _ z U1 = z U1
+  toConstr U1 = u1Constr
+  gunfold _ z c = case constrIndex c of
+                    1 -> z U1
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(U1)"
+  dataTypeOf _  = u1DataType
+  dataCast1 f = gcast1 f
+
+-----------------------------------------------------------------------
+
+par1Constr :: Constr
+par1Constr = mkConstr par1DataType "Par1" [] Prefix
+
+par1DataType :: DataType
+par1DataType = mkDataType "GHC.Generics.Par1" [par1Constr]
+
+instance Data p => Data (Par1 p) where
+  gfoldl k z (Par1 p) = z Par1 `k` p
+  toConstr (Par1 _) = par1Constr
+  gunfold k z c = case constrIndex c of
+                    1 -> k (z Par1)
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(Par1)"
+  dataTypeOf _  = par1DataType
+  dataCast1 f = gcast1 f
+
+-----------------------------------------------------------------------
+
+rec1Constr :: Constr
+rec1Constr = mkConstr rec1DataType "Rec1" [] Prefix
+
+rec1DataType :: DataType
+rec1DataType = mkDataType "GHC.Generics.Rec1" [rec1Constr]
+
+instance (Data (f p), Typeable f, Data p) => Data (Rec1 f p) where
+  gfoldl k z (Rec1 p) = z Rec1 `k` p
+  toConstr (Rec1 _) = rec1Constr
+  gunfold k z c = case constrIndex c of
+                    1 -> k (z Rec1)
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(Rec1)"
+  dataTypeOf _  = rec1DataType
+  dataCast1 f = gcast1 f
+
+-----------------------------------------------------------------------
+
+k1Constr :: Constr
+k1Constr = mkConstr k1DataType "K1" [] Prefix
+
+k1DataType :: DataType
+k1DataType = mkDataType "GHC.Generics.K1" [k1Constr]
+
+instance (Typeable i, Data p, Data c) => Data (K1 i c p) where
+  gfoldl k z (K1 p) = z K1 `k` p
+  toConstr (K1 _) = k1Constr
+  gunfold k z c = case constrIndex c of
+                    1 -> k (z K1)
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(K1)"
+  dataTypeOf _  = k1DataType
+  dataCast1 f = gcast1 f
+
+-----------------------------------------------------------------------
+
+m1Constr :: Constr
+m1Constr = mkConstr m1DataType "M1" [] Prefix
+
+m1DataType :: DataType
+m1DataType = mkDataType "GHC.Generics.M1" [m1Constr]
+
+instance (Data p, Data (f p), Typeable c, Typeable i, Typeable f)
+    => Data (M1 i c f p) where
+  gfoldl k z (M1 p) = z M1 `k` p
+  toConstr (M1 _) = m1Constr
+  gunfold k z c = case constrIndex c of
+                    1 -> k (z M1)
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(M1)"
+  dataTypeOf _  = m1DataType
+  dataCast1 f = gcast1 f
+
+-----------------------------------------------------------------------
+
+sum1DataType :: DataType
+sum1DataType = mkDataType "GHC.Generics.:+:" [l1Constr, r1Constr]
+
+l1Constr :: Constr
+l1Constr = mkConstr sum1DataType "L1" [] Prefix
+
+r1Constr :: Constr
+r1Constr = mkConstr sum1DataType "R1" [] Prefix
+
+instance (Typeable f, Typeable g, Data p, Data (f p), Data (g p))
+    => Data ((f :+: g) p) where
+  gfoldl k z (L1 a) = z L1 `k` a
+  gfoldl k z (R1 a) = z R1 `k` a
+  toConstr L1{} = l1Constr
+  toConstr R1{} = r1Constr
+  gunfold k z c = case constrIndex c of
+                    1 -> k (z L1)
+                    2 -> k (z R1)
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(:+:)"
+  dataTypeOf _ = sum1DataType
+  dataCast1 f = gcast1 f
+
+-----------------------------------------------------------------------
+
+comp1Constr :: Constr
+comp1Constr = mkConstr comp1DataType "Comp1" [] Prefix
+
+comp1DataType :: DataType
+comp1DataType = mkDataType "GHC.Generics.:.:" [comp1Constr]
+
+instance (Typeable f, Typeable g, Data p, Data (f (g p)))
+    => Data ((f :.: g) p) where
+  gfoldl k z (Comp1 c) = z Comp1 `k` c
+  toConstr (Comp1 _) = m1Constr
+  gunfold k z c = case constrIndex c of
+                    1 -> k (z Comp1)
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(:.:)"
+  dataTypeOf _ = comp1DataType
+  dataCast1 f = gcast1 f
+
+-----------------------------------------------------------------------
+
+v1DataType :: DataType
+v1DataType = mkDataType "GHC.Generics.V1" []
+
+instance Data p => Data (V1 p) where
+  gfoldl _ _ !_ = undefined
+  toConstr !_ = undefined
+  gunfold _ _ _ = errorWithoutStackTrace "Data.Data.gunfold(V1)"
+  dataTypeOf _ = v1DataType
+  dataCast1 f = gcast1 f
+
+-----------------------------------------------------------------------
+
+prod1DataType :: DataType
+prod1DataType = mkDataType "GHC.Generics.:*:" [prod1Constr]
+
+prod1Constr :: Constr
+prod1Constr = mkConstr prod1DataType "Prod1" [] Infix
+
+instance (Typeable f, Typeable g, Data p, Data (f p), Data (g p))
+    => Data ((f :*: g) p) where
+  gfoldl k z (l :*: r) = z (:*:) `k` l `k` r
+  toConstr _ = prod1Constr
+  gunfold k z c = case constrIndex c of
+                    1 -> k (k (z (:*:)))
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(:*:)"
+  dataCast1 f = gcast1 f
+  dataTypeOf _ = prod1DataType
+
+-----------------------------------------------------------------------
+
+prefixConstr :: Constr
+prefixConstr = mkConstr fixityDataType "Prefix" [] Prefix
+infixConstr  :: Constr
+infixConstr  = mkConstr fixityDataType "Infix"  [] Prefix
+
+fixityDataType :: DataType
+fixityDataType = mkDataType "GHC.Generics.Fixity" [prefixConstr,infixConstr]
+
+instance Data Generics.Fixity where
+  gfoldl _ z Generics.Prefix      = z Generics.Prefix
+  gfoldl f z (Generics.Infix a i) = z Generics.Infix `f` a `f` i
+  toConstr Generics.Prefix  = prefixConstr
+  toConstr Generics.Infix{} = infixConstr
+  gunfold k z c = case constrIndex c of
+                    1 -> z Generics.Prefix
+                    2 -> k (k (z Generics.Infix))
+                    _ -> errorWithoutStackTrace "Data.Data.gunfold(Fixity)"
+  dataTypeOf _ = fixityDataType
+
+-----------------------------------------------------------------------
+
+leftAssociativeConstr :: Constr
+leftAssociativeConstr
+  = mkConstr associativityDataType "LeftAssociative" [] Prefix
+rightAssociativeConstr :: Constr
+rightAssociativeConstr
+  = mkConstr associativityDataType "RightAssociative" [] Prefix
+notAssociativeConstr :: Constr
+notAssociativeConstr
+  = mkConstr associativityDataType "NotAssociative" [] Prefix
+
+associativityDataType :: DataType
+associativityDataType = mkDataType "GHC.Generics.Associativity"
+  [leftAssociativeConstr,rightAssociativeConstr,notAssociativeConstr]
+
+instance Data Associativity where
+  gfoldl _ z LeftAssociative  = z LeftAssociative
+  gfoldl _ z RightAssociative = z RightAssociative
+  gfoldl _ z NotAssociative   = z NotAssociative
+  toConstr LeftAssociative  = leftAssociativeConstr
+  toConstr RightAssociative = rightAssociativeConstr
+  toConstr NotAssociative   = notAssociativeConstr
+  gunfold _ z c = case constrIndex c of
+                    1 -> z LeftAssociative
+                    2 -> z RightAssociative
+                    3 -> z NotAssociative
+                    _ -> errorWithoutStackTrace
+                           "Data.Data.gunfold(Associativity)"
+  dataTypeOf _ = associativityDataType
+
+-----------------------------------------------------------------------
+
+noSourceUnpackednessConstr :: Constr
+noSourceUnpackednessConstr
+  = mkConstr sourceUnpackednessDataType "NoSourceUnpackedness" [] Prefix
+sourceNoUnpackConstr :: Constr
+sourceNoUnpackConstr
+  = mkConstr sourceUnpackednessDataType "SourceNoUnpack" [] Prefix
+sourceUnpackConstr :: Constr
+sourceUnpackConstr
+  = mkConstr sourceUnpackednessDataType "SourceUnpack" [] Prefix
+
+sourceUnpackednessDataType :: DataType
+sourceUnpackednessDataType = mkDataType "GHC.Generics.SourceUnpackedness"
+  [noSourceUnpackednessConstr,sourceNoUnpackConstr,sourceUnpackConstr]
+
+instance Data SourceUnpackedness where
+  gfoldl _ z NoSourceUnpackedness = z NoSourceUnpackedness
+  gfoldl _ z SourceNoUnpack       = z SourceNoUnpack
+  gfoldl _ z SourceUnpack         = z SourceUnpack
+  toConstr NoSourceUnpackedness = noSourceUnpackednessConstr
+  toConstr SourceNoUnpack       = sourceNoUnpackConstr
+  toConstr SourceUnpack         = sourceUnpackConstr
+  gunfold _ z c = case constrIndex c of
+                    1 -> z NoSourceUnpackedness
+                    2 -> z SourceNoUnpack
+                    3 -> z SourceUnpack
+                    _ -> errorWithoutStackTrace
+                           "Data.Data.gunfold(SourceUnpackedness)"
+  dataTypeOf _ = sourceUnpackednessDataType
+
+-----------------------------------------------------------------------
+
+noSourceStrictnessConstr :: Constr
+noSourceStrictnessConstr
+  = mkConstr sourceStrictnessDataType "NoSourceStrictness" [] Prefix
+sourceLazyConstr :: Constr
+sourceLazyConstr
+  = mkConstr sourceStrictnessDataType "SourceLazy" [] Prefix
+sourceStrictConstr :: Constr
+sourceStrictConstr
+  = mkConstr sourceStrictnessDataType "SourceStrict" [] Prefix
+
+sourceStrictnessDataType :: DataType
+sourceStrictnessDataType = mkDataType "GHC.Generics.SourceStrictness"
+  [noSourceStrictnessConstr,sourceLazyConstr,sourceStrictConstr]
+
+instance Data SourceStrictness where
+  gfoldl _ z NoSourceStrictness = z NoSourceStrictness
+  gfoldl _ z SourceLazy         = z SourceLazy
+  gfoldl _ z SourceStrict       = z SourceStrict
+  toConstr NoSourceStrictness = noSourceStrictnessConstr
+  toConstr SourceLazy         = sourceLazyConstr
+  toConstr SourceStrict       = sourceStrictConstr
+  gunfold _ z c = case constrIndex c of
+                    1 -> z NoSourceStrictness
+                    2 -> z SourceLazy
+                    3 -> z SourceStrict
+                    _ -> errorWithoutStackTrace
+                           "Data.Data.gunfold(SourceStrictness)"
+  dataTypeOf _ = sourceStrictnessDataType
+
+-----------------------------------------------------------------------
+
+decidedLazyConstr :: Constr
+decidedLazyConstr
+  = mkConstr decidedStrictnessDataType "DecidedLazy" [] Prefix
+decidedStrictConstr :: Constr
+decidedStrictConstr
+  = mkConstr decidedStrictnessDataType "DecidedStrict" [] Prefix
+decidedUnpackConstr :: Constr
+decidedUnpackConstr
+  = mkConstr decidedStrictnessDataType "DecidedUnpack" [] Prefix
+
+decidedStrictnessDataType :: DataType
+decidedStrictnessDataType = mkDataType "GHC.Generics.DecidedStrictness"
+  [decidedLazyConstr,decidedStrictConstr,decidedUnpackConstr]
+
+instance Data DecidedStrictness where
+  gfoldl _ z DecidedLazy   = z DecidedLazy
+  gfoldl _ z DecidedStrict = z DecidedStrict
+  gfoldl _ z DecidedUnpack = z DecidedUnpack
+  toConstr DecidedLazy   = decidedLazyConstr
+  toConstr DecidedStrict = decidedStrictConstr
+  toConstr DecidedUnpack = decidedUnpackConstr
+  gunfold _ z c = case constrIndex c of
+                    1 -> z DecidedLazy
+                    2 -> z DecidedStrict
+                    3 -> z DecidedUnpack
+                    _ -> errorWithoutStackTrace
+                           "Data.Data.gunfold(DecidedStrictness)"
+  dataTypeOf _ = decidedStrictnessDataType

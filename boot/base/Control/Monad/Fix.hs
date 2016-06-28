@@ -1,5 +1,6 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE TypeOperators #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -26,7 +27,10 @@ module Control.Monad.Fix (
 import Data.Either
 import Data.Function ( fix )
 import Data.Maybe
-import GHC.Base ( Monad, error, (.) )
+import Data.Monoid ( Dual(..), Sum(..), Product(..)
+                   , First(..), Last(..), Alt(..) )
+import GHC.Base ( Monad, errorWithoutStackTrace, (.) )
+import GHC.Generics
 import GHC.List ( head, tail )
 import GHC.ST
 import System.IO
@@ -61,7 +65,7 @@ class (Monad m) => MonadFix m where
 instance MonadFix Maybe where
     mfix f = let a = f (unJust a) in a
              where unJust (Just x) = x
-                   unJust Nothing  = error "mfix Maybe: Nothing"
+                   unJust Nothing  = errorWithoutStackTrace "mfix Maybe: Nothing"
 
 instance MonadFix [] where
     mfix f = case fix (f . head) of
@@ -77,7 +81,43 @@ instance MonadFix ((->) r) where
 instance MonadFix (Either e) where
     mfix f = let a = f (unRight a) in a
              where unRight (Right x) = x
-                   unRight (Left  _) = error "mfix Either: Left"
+                   unRight (Left  _) = errorWithoutStackTrace "mfix Either: Left"
 
 instance MonadFix (ST s) where
         mfix = fixST
+
+-- Instances of Data.Monoid wrappers
+
+instance MonadFix Dual where
+    mfix f   = Dual (fix (getDual . f))
+
+instance MonadFix Sum where
+    mfix f   = Sum (fix (getSum . f))
+
+instance MonadFix Product where
+    mfix f   = Product (fix (getProduct . f))
+
+instance MonadFix First where
+    mfix f   = First (mfix (getFirst . f))
+
+instance MonadFix Last where
+    mfix f   = Last (mfix (getLast . f))
+
+instance MonadFix f => MonadFix (Alt f) where
+    mfix f   = Alt (mfix (getAlt . f))
+
+-- Instances for GHC.Generics
+instance MonadFix Par1 where
+    mfix f = Par1 (fix (unPar1 . f))
+
+instance MonadFix f => MonadFix (Rec1 f) where
+    mfix f = Rec1 (mfix (unRec1 . f))
+
+instance MonadFix f => MonadFix (M1 i c f) where
+    mfix f = M1 (mfix (unM1. f))
+
+instance (MonadFix f, MonadFix g) => MonadFix (f :*: g) where
+    mfix f = (mfix (fstP . f)) :*: (mfix (sndP . f))
+      where
+        fstP (a :*: _) = a
+        sndP (_ :*: b) = b

@@ -1,7 +1,6 @@
 {-# LANGUAGE Trustworthy #-}
-{-# LANGUAGE CPP, NoImplicitPrelude, MagicHash, UnboxedTuples,
-             AutoDeriveTypeable #-}
-{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# LANGUAGE CPP, NoImplicitPrelude, MagicHash, UnboxedTuples #-}
+{-# OPTIONS_GHC -Wno-missing-signatures #-}
 {-# OPTIONS_HADDOCK not-home #-}
 
 -----------------------------------------------------------------------------
@@ -40,7 +39,6 @@ module GHC.Conc.Windows
        ) where
 
 import Data.Bits (shiftR)
-import Data.Typeable
 import GHC.Base
 import GHC.Conc.Sync
 import GHC.Enum (Enum)
@@ -125,7 +123,7 @@ threadDelay time
 registerDelay :: Int -> IO (TVar Bool)
 registerDelay usecs
   | threaded = waitForDelayEventSTM usecs
-  | otherwise = error "registerDelay: requires -threaded"
+  | otherwise = errorWithoutStackTrace "registerDelay: requires -threaded"
 
 foreign import ccall unsafe "rtsSupportsBoundThreads" threaded :: Bool
 
@@ -280,7 +278,7 @@ data ConsoleEvent
     -- these are sent to Services only.
  | Logoff
  | Shutdown
- deriving (Eq, Ord, Enum, Show, Read, Typeable)
+ deriving (Eq, Ord, Enum, Show, Read)
 
 start_console_handler :: Word32 -> IO ()
 start_console_handler r =
@@ -301,7 +299,7 @@ toWin32ConsoleEvent ev =
        _ -> Nothing
 
 win32ConsoleHandler :: MVar (ConsoleEvent -> IO ())
-win32ConsoleHandler = unsafePerformIO (newMVar (error "win32ConsoleHandler"))
+win32ConsoleHandler = unsafePerformIO (newMVar (errorWithoutStackTrace "win32ConsoleHandler"))
 
 wakeupIOManager :: IO ()
 wakeupIOManager = c_sendIOManagerEvent io_MANAGER_WAKEUP

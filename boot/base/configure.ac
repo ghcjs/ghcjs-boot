@@ -1,3 +1,4 @@
+AC_PREREQ([2.60])
 AC_INIT([Haskell base package], [1.0], [libraries@haskell.org], [base])
 
 # Safety check: Ensure that we are in the correct source directory.
@@ -9,10 +10,9 @@ AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 
-AC_ARG_WITH([cc],
-            [C compiler],
-            [CC=$withval])
-AC_PROG_CC()
+AC_PROG_CC
+dnl make extensions visible to allow feature-tests to detect them lateron
+AC_USE_SYSTEM_EXTENSIONS
 
 AC_MSG_CHECKING(for WINDOWS platform)
 case $host in
@@ -92,13 +92,13 @@ dnl--------------------------------------------------------------------
 AC_ARG_WITH([iconv-includes],
   [AC_HELP_STRING([--with-iconv-includes],
     [directory containing iconv.h])],
-    [ICONV_INCLUDE_DIRS=$withval; CPPFLAGS="-I$withval"],
+    [ICONV_INCLUDE_DIRS=$withval; CPPFLAGS="-I$withval $CPPFLAGS"],
     [ICONV_INCLUDE_DIRS=])
 
 AC_ARG_WITH([iconv-libraries],
   [AC_HELP_STRING([--with-iconv-libraries],
     [directory containing iconv library])],
-    [ICONV_LIB_DIRS=$withval; LDFLAGS="-L$withval"],
+    [ICONV_LIB_DIRS=$withval; LDFLAGS="-L$withval $LDFLAGS"],
     [ICONV_LIB_DIRS=])
 
 AC_SUBST(ICONV_INCLUDE_DIRS)
@@ -205,7 +205,10 @@ fi
 
 # Hack - md5.h needs HsFFI.h.  Is there a better way to do this?
 CFLAGS="-I../../includes $CFLAGS"
-AC_CHECK_SIZEOF([struct MD5Context], ,[#include "include/md5.h"])
+dnl Calling AC_CHECK_TYPE(T) makes AC_CHECK_SIZEOF(T) abort on failure
+dnl instead of considering sizeof(T) as 0.
+AC_CHECK_TYPE([struct MD5Context], [], [], [#include "include/md5.h"])
+AC_CHECK_SIZEOF([struct MD5Context], [], [#include "include/md5.h"])
 
 AC_SUBST(EXTRA_LIBS)
 AC_CONFIG_FILES([base.buildinfo])

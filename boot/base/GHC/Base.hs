@@ -1,4 +1,17 @@
 {-
+
+NOTA BENE: Do NOT use ($) anywhere in this module! The type of ($) is
+slightly magical (it can return unlifted types), and it is wired in.
+But, it is also *defined* in this module, with a non-magical type.
+GHC gets terribly confused (and *hangs*) if you try to use ($) in this
+module, because it has different types in different scenarios.
+
+This is not a problem in general, because the type ($), being wired in, is not
+written out to the interface file, so importing files don't get confused.
+The problem is only if ($) is used here. So don't!
+
+---------------------------------------------
+
 The overall structure of the GHC Prelude is a bit tricky.
 
   a) We want to avoid "orphan modules", i.e. ones with instance
@@ -71,9 +84,9 @@ Other Prelude modules are much easier with fewer complex dependencies.
            , ExistentialQuantification
            , RankNTypes
   #-}
--- -fno-warn-orphans is needed for things like:
+-- -Wno-orphans is needed for things like:
 -- Orphan rule: "x# -# x#" ALWAYS forall x# :: Int# -# x# x# = 0
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_HADDOCK hide #-}
 
 -----------------------------------------------------------------------------
@@ -111,7 +124,7 @@ import GHC.CString
 import GHC.Magic
 import GHC.Prim
 import GHC.Err
-import {-# SOURCE #-} GHC.IO (failIO)
+import {-# SOURCE #-} GHC.IO (failIO,mplusIO)
 
 import GHC.Tuple ()     -- Note [Depend on GHC.Tuple]
 import GHC.Integer ()   -- Note [Depend on GHC.Integer]
@@ -134,7 +147,7 @@ The Integer type is special because TidyPgm uses
 GHC.Integer.Type.mkInteger to construct Integer literal values
 Currently it reads the interface file whether or not the current
 module *has* any Integer literals, so it's important that
-GHC.Integer.Type (in patckage integer-gmp or integer-simple) is
+GHC.Integer.Type (in package integer-gmp or integer-simple) is
 compiled before any other module.  (There's a hack in GHC to disable
 this for packages ghc-prim, integer-gmp, integer-simple, which aren't
 allowed to contain any Integer literals.)
@@ -174,8 +187,8 @@ not True = False
 (&&) True True = True
 otherwise = True
 
-build = error "urk"
-foldr = error "urk"
+build = errorWithoutStackTrace "urk"
+foldr = errorWithoutStackTrace "urk"
 #endif
 
 -- | The 'Maybe' type encapsulates an optional value.  A value of type
@@ -308,6 +321,12 @@ instance Monoid a => Applicative ((,) a) where
     pure x = (mempty, x)
     (u, f) <*> (v, x) = (u `mappend` v, f x)
 
+instance Monoid a => Monad ((,) a) where
+    (u, a) >>= k = case k a of (v, b) -> (u `mappend` v, b)
+
+instance Monoid a => Monoid (IO a) where
+    mempty = pure mempty
+    mappend = liftA2 mappend
 
 {- | The 'Functor' class is used for types that can be mapped over.
 Instances of 'Functor' should satisfy the following laws:
@@ -473,8 +492,13 @@ class Applicative m => Monad m where
     -- | Fail with a message.  This operation is not part of the
     -- mathematical definition of a monad, but is invoked on pattern-match
     -- failure in a @do@ expression.
+    --
+    -- As part of the MonadFail proposal (MFP), this function is moved
+    -- to its own class 'MonadFail' (see "Control.Monad.Fail" for more
+    -- details). The definition here will be removed in a future
+    -- release.
     fail        :: String -> m a
-    fail s      = error s
+    fail s      = errorWithoutStackTrace s
 
 {- Note [Recursive bindings for Applicative/Monad]
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -619,7 +643,6 @@ instance Applicative ((->) a) where
     (<*>) f g x = f x (g x)
 
 instance Monad ((->) r) where
-    return = const
     f >>= k = \ r -> k (f r) r
 
 instance Functor ((,) a) where
@@ -645,7 +668,6 @@ instance  Monad Maybe  where
 
     (>>) = (*>)
 
-    return              = Just
     fail _              = Nothing
 
 -- -----------------------------------------------------------------------------
@@ -728,8 +750,6 @@ instance Monad []  where
     xs >>= f             = [y | x <- xs, y <- f x]
     {-# INLINE (>>) #-}
     (>>) = (*>)
-    {-# INLINE return #-}
-    return x            = [x]
     {-# INLINE fail #-}
     fail _              = []
 
@@ -846,9 +866,10 @@ augment g xs = g (:) xs
 -- > map f [x1, x2, ...] == [f x1, f x2, ...]
 
 map :: (a -> b) -> [a] -> [b]
-{-# NOINLINE [1] map #-}    -- We want the RULE to fire first.
-                            -- It's recursive, so won't inline anyway,
-                            -- but saying so is more explicit
+{-# NOINLINE [0] map #-}
+  -- We want the RULEs "map" and "map/coerce" to fire first.
+  -- map is recursive, so won't inline anyway,
+  -- but saying so is more explicit, and silences warnings
 map _ []     = []
 map f (x:xs) = f x : map f xs
 
@@ -1002,7 +1023,12 @@ breakpointCond _ r = r
 
 data Opaque = forall a. O a
 
--- | Constant function.
+-- | @const x@ is a unary function which evaluates to @x@ for all inputs.
+--
+-- For instance,
+--
+-- >>> map (const 42) [0..3]
+-- [42,42,42,42]
 const                   :: a -> b -> a
 const x _               =  x
 
@@ -1055,29 +1081,36 @@ asTypeOf                =  const
 ----------------------------------------------
 
 instance  Functor IO where
-   fmap f x = x >>= (return . f)
+   fmap f x = x >>= (pure . f)
 
 instance Applicative IO where
-    pure = return
-    (<*>) = ap
+    {-# INLINE pure #-}
+    {-# INLINE (*>) #-}
+    pure   = returnIO
+    m *> k = m >>= \ _ -> k
+    (<*>)  = ap
 
 instance  Monad IO  where
-    {-# INLINE return #-}
     {-# INLINE (>>)   #-}
     {-# INLINE (>>=)  #-}
-    m >> k    = m >>= \ _ -> k
-    return    = returnIO
+    (>>)      = (*>)
     (>>=)     = bindIO
     fail s    = failIO s
 
+instance Alternative IO where
+    empty = failIO "mzero"
+    (<|>) = mplusIO
+
+instance MonadPlus IO
+
 returnIO :: a -> IO a
-returnIO x = IO $ \ s -> (# s, x #)
+returnIO x = IO (\ s -> (# s, x #))
 
 bindIO :: IO a -> (a -> IO b) -> IO b
-bindIO (IO m) k = IO $ \ s -> case m s of (# new_s, a #) -> unIO (k a) new_s
+bindIO (IO m) k = IO (\ s -> case m s of (# new_s, a #) -> unIO (k a) new_s)
 
 thenIO :: IO a -> IO b -> IO b
-thenIO (IO m) k = IO $ \ s -> case m s of (# new_s, _ #) -> unIO k new_s
+thenIO (IO m) k = IO (\ s -> case m s of (# new_s, _ #) -> unIO k new_s)
 
 unIO :: IO a -> (State# RealWorld -> (# State# RealWorld, a #))
 unIO (IO a) = a
@@ -1189,11 +1222,3 @@ a `iShiftRL#` b | isTrue# (b >=# WORD_SIZE_IN_BITS#) = 0#
 --      unpackFoldr "foo" c (unpackFoldr "baz" c n)  =  unpackFoldr "foobaz" c n
 
   #-}
-
-
-#ifdef __HADDOCK__
--- | A special argument for the 'Control.Monad.ST.ST' type constructor,
--- indexing a state embedded in the 'Prelude.IO' monad by
--- 'Control.Monad.ST.stToIO'.
-data RealWorld
-#endif

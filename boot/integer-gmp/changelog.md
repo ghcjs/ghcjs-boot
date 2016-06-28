@@ -1,5 +1,22 @@
 # Changelog for [`integer-gmp` package](http://hackage.haskell.org/package/integer-gmp)
 
+## 1.0.0.1  *Feb 2016*
+
+  * Bundled with GHC 8.0.1
+
+  * Optimise `bitBigNat`/`bigInteger`
+
+  * Fix minor issue in `eqBigNatWord#`
+
+  * Various minor optimisations
+
+## 1.0.0.0  *Mar 2015*
+
+  * Bundled with GHC 7.10.1
+
+  * Complete rewrite of `integer-gmp`. For more details, see
+    https://ghc.haskell.org/trac/ghc/wiki/Design/IntegerGmp2
+
 ## 0.5.1.0  *Feb 2014*
 
   * Bundled with GHC 7.8.1

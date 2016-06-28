@@ -9,13 +9,19 @@
 -- @since 4.8.0.0
 --
 module GHC.RTS.Flags
-  ( RTSFlags (..)
+  ( RtsTime
+  , RtsNat
+  , RTSFlags (..)
+  , GiveGCStats (..)
   , GCFlags (..)
   , ConcFlags (..)
   , MiscFlags (..)
   , DebugFlags (..)
+  , DoCostCentres (..)
   , CCFlags (..)
+  , DoHeapProfile (..)
   , ProfFlags (..)
+  , DoTrace (..)
   , TraceFlags (..)
   , TickyFlags (..)
   , getRTSFlags
@@ -48,11 +54,19 @@ import GHC.Show
 import GHC.Word
 
 -- | @'Time'@ is defined as a @'StgWord64'@ in @stg/Types.h@
-type Time = Word64
+--
+-- @since 4.8.2.0
+type RtsTime = Word64
 
 -- | @'nat'@ defined in @rts/Types.h@
-type Nat = #{type unsigned int}
+--
+-- @since 4.8.2.0
+type RtsNat = #{type unsigned int}
 
+-- | Should we produce a summary of the garbage collector statistics after the
+-- program has exited?
+--
+-- @since 4.8.2.0
 data GiveGCStats
     = NoGCStats
     | CollectGCStats
@@ -73,24 +87,27 @@ instance Enum GiveGCStats where
     toEnum #{const ONELINE_GC_STATS} = OneLineGCStats
     toEnum #{const SUMMARY_GC_STATS} = SummaryGCStats
     toEnum #{const VERBOSE_GC_STATS} = VerboseGCStats
-    toEnum e = error ("invalid enum for GiveGCStats: " ++ show e)
+    toEnum e = errorWithoutStackTrace ("invalid enum for GiveGCStats: " ++ show e)
 
+-- | Parameters of the garbage collector.
+--
+-- @since 4.8.0.0
 data GCFlags = GCFlags
     { statsFile             :: Maybe FilePath
     , giveStats             :: GiveGCStats
-    , maxStkSize            :: Nat
-    , initialStkSize        :: Nat
-    , stkChunkSize          :: Nat
-    , stkChunkBufferSize    :: Nat
-    , maxHeapSize           :: Nat
-    , minAllocAreaSize      :: Nat
-    , minOldGenSize         :: Nat
-    , heapSizeSuggestion    :: Nat
+    , maxStkSize            :: RtsNat
+    , initialStkSize        :: RtsNat
+    , stkChunkSize          :: RtsNat
+    , stkChunkBufferSize    :: RtsNat
+    , maxHeapSize           :: RtsNat
+    , minAllocAreaSize      :: RtsNat
+    , minOldGenSize         :: RtsNat
+    , heapSizeSuggestion    :: RtsNat
     , heapSizeSuggestionAuto :: Bool
     , oldGenFactor          :: Double
     , pcFreeHeap            :: Double
-    , generations           :: Nat
-    , steps                 :: Nat
+    , generations           :: RtsNat
+    , steps                 :: RtsNat
     , squeezeUpdFrames      :: Bool
     , compact               :: Bool -- ^ True <=> "compact all the time"
     , compactThreshold      :: Double
@@ -98,19 +115,25 @@ data GCFlags = GCFlags
       -- ^ use "mostly mark-sweep" instead of copying for the oldest generation
     , ringBell              :: Bool
     , frontpanel            :: Bool
-    , idleGCDelayTime       :: Time
+    , idleGCDelayTime       :: RtsTime
     , doIdleGC              :: Bool
     , heapBase              :: Word -- ^ address to ask the OS for memory
     , allocLimitGrace       :: Word
     } deriving (Show)
 
+-- | Parameters concerning context switching
+--
+-- @since 4.8.0.0
 data ConcFlags = ConcFlags
-    { ctxtSwitchTime  :: Time
+    { ctxtSwitchTime  :: RtsTime
     , ctxtSwitchTicks :: Int
     } deriving (Show)
 
+-- | Miscellaneous parameters
+--
+-- @since 4.8.0.0
 data MiscFlags = MiscFlags
-    { tickInterval          :: Time
+    { tickInterval          :: RtsTime
     , installSignalHandlers :: Bool
     , machineReadable       :: Bool
     , linkerMemBase         :: Word
@@ -119,6 +142,8 @@ data MiscFlags = MiscFlags
 
 -- | Flags to control debugging output & extra checking in various
 -- subsystems.
+--
+-- @since 4.8.0.0
 data DebugFlags = DebugFlags
     { scheduler   :: Bool -- ^ 's'
     , interpreter :: Bool -- ^ 'i'
@@ -137,6 +162,9 @@ data DebugFlags = DebugFlags
     , sparks      :: Bool -- ^ 'r'
     } deriving (Show)
 
+-- | Should the RTS produce a cost-center summary?
+--
+-- @since 4.8.2.0
 data DoCostCentres
     = CostCentresNone
     | CostCentresSummary
@@ -157,14 +185,20 @@ instance Enum DoCostCentres where
     toEnum #{const COST_CENTRES_VERBOSE} = CostCentresVerbose
     toEnum #{const COST_CENTRES_ALL}     = CostCentresAll
     toEnum #{const COST_CENTRES_XML}     = CostCentresXML
-    toEnum e = error ("invalid enum for DoCostCentres: " ++ show e)
+    toEnum e = errorWithoutStackTrace ("invalid enum for DoCostCentres: " ++ show e)
 
+-- | Parameters pertaining to the cost-center profiler.
+--
+-- @since 4.8.0.0
 data CCFlags = CCFlags
     { doCostCentres :: DoCostCentres
     , profilerTicks :: Int
     , msecsPerTick  :: Int
     } deriving (Show)
 
+-- | What sort of heap profile are we collecting?
+--
+-- @since 4.8.2.0
 data DoHeapProfile
     = NoHeapProfiling
     | HeapByCCS
@@ -194,12 +228,15 @@ instance Enum DoHeapProfile where
     toEnum #{const HEAP_BY_RETAINER}     = HeapByRetainer
     toEnum #{const HEAP_BY_LDV}          = HeapByLDV
     toEnum #{const HEAP_BY_CLOSURE_TYPE} = HeapByClosureType
-    toEnum e = error ("invalid enum for DoHeapProfile: " ++ show e)
+    toEnum e = errorWithoutStackTrace ("invalid enum for DoHeapProfile: " ++ show e)
 
+-- | Parameters of the cost-center profiler
+--
+-- @since 4.8.0.0
 data ProfFlags = ProfFlags
     { doHeapProfile            :: DoHeapProfile
-    , heapProfileInterval      :: Time -- ^ time between samples
-    , heapProfileIntervalTicks :: Word -- ^ ticks between samples (derived)
+    , heapProfileInterval      :: RtsTime -- ^ time between samples
+    , heapProfileIntervalTicks :: Word    -- ^ ticks between samples (derived)
     , includeTSOs              :: Bool
     , showCCSOnException       :: Bool
     , maxRetainerSetSize       :: Word
@@ -213,10 +250,13 @@ data ProfFlags = ProfFlags
     , bioSelector              :: Maybe String
     } deriving (Show)
 
+-- | Is event tracing enabled?
+--
+-- @since 4.8.2.0
 data DoTrace
-    = TraceNone
-    | TraceEventLog
-    | TraceStderr
+    = TraceNone      -- ^ no tracing
+    | TraceEventLog  -- ^ send tracing events to the event log
+    | TraceStderr    -- ^ send tracing events to @stderr@
     deriving (Show)
 
 instance Enum DoTrace where
@@ -227,8 +267,11 @@ instance Enum DoTrace where
     toEnum #{const TRACE_NONE}     = TraceNone
     toEnum #{const TRACE_EVENTLOG} = TraceEventLog
     toEnum #{const TRACE_STDERR}   = TraceStderr
-    toEnum e = error ("invalid enum for DoTrace: " ++ show e)
+    toEnum e = errorWithoutStackTrace ("invalid enum for DoTrace: " ++ show e)
 
+-- | Parameters pertaining to event tracing
+--
+-- @since 4.8.0.0
 data TraceFlags = TraceFlags
     { tracing        :: DoTrace
     , timestamp      :: Bool -- ^ show timestamp in stderr output
@@ -239,11 +282,17 @@ data TraceFlags = TraceFlags
     , user           :: Bool -- ^ trace user events (emitted from Haskell code)
     } deriving (Show)
 
+-- | Parameters pertaining to ticky-ticky profiler
+--
+-- @since 4.8.0.0
 data TickyFlags = TickyFlags
     { showTickyStats :: Bool
     , tickyFile      :: Maybe FilePath
     } deriving (Show)
 
+-- | Parameters of the runtime system
+--
+-- @since 4.8.0.0
 data RTSFlags = RTSFlags
     { gcFlags         :: GCFlags
     , concurrentFlags :: ConcFlags
@@ -305,7 +354,7 @@ getGCFlags = do
   ptr <- getGcFlagsPtr
   GCFlags <$> (peekFilePath =<< #{peek GC_FLAGS, statsFile} ptr)
           <*> (toEnum . fromIntegral <$>
-                (#{peek GC_FLAGS, giveStats} ptr :: IO Nat))
+                (#{peek GC_FLAGS, giveStats} ptr :: IO RtsNat))
           <*> #{peek GC_FLAGS, maxStkSize} ptr
           <*> #{peek GC_FLAGS, initialStkSize} ptr
           <*> #{peek GC_FLAGS, stkChunkSize} ptr
@@ -367,7 +416,7 @@ getCCFlags :: IO CCFlags
 getCCFlags = do
   ptr <- getCcFlagsPtr
   CCFlags <$> (toEnum . fromIntegral
-                <$> (#{peek COST_CENTRE_FLAGS, doCostCentres} ptr :: IO Nat))
+                <$> (#{peek COST_CENTRE_FLAGS, doCostCentres} ptr :: IO RtsNat))
           <*> #{peek COST_CENTRE_FLAGS, profilerTicks} ptr
           <*> #{peek COST_CENTRE_FLAGS, msecsPerTick} ptr
 

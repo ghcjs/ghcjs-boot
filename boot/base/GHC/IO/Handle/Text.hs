@@ -6,8 +6,8 @@
            , NondecreasingIndentation
            , MagicHash
   #-}
-{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
-{-# OPTIONS_GHC -fno-warn-unused-matches #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
 {-# OPTIONS_HADDOCK hide #-}
 
 -----------------------------------------------------------------------------
@@ -246,7 +246,7 @@ hGetLineBufferedLoop handle_@Handle__{..}
 
 maybeFillReadBuffer :: Handle__ -> CharBuffer -> IO (Maybe CharBuffer)
 maybeFillReadBuffer handle_ buf
-  = Exception.catch
+  = catchException
      (do buf' <- getSomeCharacters handle_ buf
          return (Just buf')
      )
@@ -564,7 +564,7 @@ getSpareBuffer Handle__{haCharBuffer=ref,
                         haBufferMode=mode}
  = do
    case mode of
-     NoBuffering -> return (mode, error "no buffer!")
+     NoBuffering -> return (mode, errorWithoutStackTrace "no buffer!")
      _ -> do
           bufs <- readIORef spare_ref
           buf  <- readIORef ref

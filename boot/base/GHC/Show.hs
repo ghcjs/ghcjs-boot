@@ -50,8 +50,9 @@ module GHC.Show
         where
 
 import GHC.Base
-import GHC.Num
 import GHC.List ((!!), foldr1, break)
+import GHC.Num
+import GHC.Stack.Types
 
 -- | The @shows@ functions return a function that prepends the
 -- output 'String' to an existing 'String'.  This allows constant-time
@@ -193,6 +194,21 @@ showWord w# cs
                    showWord (w# `quotWord#` 10##) (C# c# : cs)
 
 deriving instance Show a => Show (Maybe a)
+
+instance Show TyCon where
+  showsPrec p (TyCon _ _ _ tc_name) = showsPrec p tc_name
+
+instance Show TrName where
+  showsPrec _ (TrNameS s) = showString (unpackCString# s)
+  showsPrec _ (TrNameD s) = showString s
+
+instance Show Module where
+  showsPrec _ (Module p m) = shows p . (':' :) . shows m
+
+instance Show CallStack where
+  showsPrec _ = shows . getCallStack
+
+deriving instance Show SrcLoc
 
 --------------------------------------------------------------
 -- Show instances for the first few tuple
@@ -386,7 +402,7 @@ intToDigit :: Int -> Char
 intToDigit (I# i)
     | isTrue# (i >=# 0#)  && isTrue# (i <=#  9#) = unsafeChr (ord '0' + I# i)
     | isTrue# (i >=# 10#) && isTrue# (i <=# 15#) = unsafeChr (ord 'a' + I# i - 10)
-    | otherwise =  error ("Char.intToDigit: not a digit " ++ show (I# i))
+    | otherwise =  errorWithoutStackTrace ("Char.intToDigit: not a digit " ++ show (I# i))
 
 showSignedInt :: Int -> Int -> ShowS
 showSignedInt (I# p) (I# n) r
@@ -454,7 +470,7 @@ integerToString n0 cs0
         (# q, r #) ->
             if q > 0 then q : r : jsplitb p ns
                      else     r : jsplitb p ns
-    jsplith _ [] = error "jsplith: []"
+    jsplith _ [] = errorWithoutStackTrace "jsplith: []"
 
     jsplitb :: Integer -> [Integer] -> [Integer]
     jsplitb _ []     = []
@@ -473,7 +489,7 @@ integerToString n0 cs0
                 r = fromInteger r'
             in if q > 0 then jhead q $ jblock r $ jprintb ns cs
                         else jhead r $ jprintb ns cs
-    jprinth [] _ = error "jprinth []"
+    jprinth [] _ = errorWithoutStackTrace "jprinth []"
 
     jprintb :: [Integer] -> String -> String
     jprintb []     cs = cs

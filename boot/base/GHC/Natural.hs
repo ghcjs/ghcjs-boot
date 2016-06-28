@@ -1,4 +1,3 @@
-{-# LANGUAGE AutoDeriveTypeable #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -216,7 +215,7 @@ instance Enum Natural where
     fromEnum (NatS# w) | i >= 0 = i
       where
         i = fromIntegral (W# w)
-    fromEnum _ = error "fromEnum: out of Int range"
+    fromEnum _ = errorWithoutStackTrace "fromEnum: out of Int range"
 
     enumFrom x        = enumDeltaNatural      x (NatS# 1##)
     enumFromThen x y
@@ -305,10 +304,10 @@ instance Bits Natural where
     NatJ# n `xor` NatS# m = NatJ# (xorBigNat n (wordToBigNat m))
     NatJ# n `xor` NatJ# m = bigNatToNatural (xorBigNat n m)
 
-    complement _ = error "Bits.complement: Natural complement undefined"
+    complement _ = errorWithoutStackTrace "Bits.complement: Natural complement undefined"
 
     bitSizeMaybe _ = Nothing
-    bitSize = error "Natural: bitSize"
+    bitSize = errorWithoutStackTrace "Natural: bitSize"
     isSigned _ = False
 
     bit i@(I# i#) | i < finiteBitSize (0::Word) = wordToNatural (bit i)
@@ -396,13 +395,6 @@ minusNaturalMaybe (NatJ# x) (NatJ# y)
   | otherwise = Just (bigNatToNatural res)
   where
     res = minusBigNat x y
-
--- | Helper for 'minusNatural' and 'minusNaturalMaybe'
-subWordC# :: Word# -> Word# -> (# Word#, Int# #)
-subWordC# x# y# = (# d#, c# #)
-  where
-    d# = x# `minusWord#` y#
-    c# = d# `gtWord#` x#
 
 -- | Convert 'BigNat' to 'Natural'.
 -- Throws 'Underflow' if passed a 'nullBigNat'.
@@ -492,7 +484,7 @@ instance Bits Natural where
   {-# INLINE (.|.) #-}
   xor (Natural n) (Natural m) = Natural (xor n m)
   {-# INLINE xor #-}
-  complement _ = error "Bits.complement: Natural complement undefined"
+  complement _ = errorWithoutStackTrace "Bits.complement: Natural complement undefined"
   {-# INLINE complement #-}
   shift (Natural n) = Natural . shift n
   {-# INLINE shift #-}
@@ -510,7 +502,7 @@ instance Bits Natural where
   {-# INLINE testBit #-}
   bitSizeMaybe _ = Nothing
   {-# INLINE bitSizeMaybe #-}
-  bitSize = error "Natural: bitSize"
+  bitSize = errorWithoutStackTrace "Natural: bitSize"
   {-# INLINE bitSize #-}
   isSigned _ = False
   {-# INLINE isSigned #-}
@@ -531,14 +523,14 @@ instance Real Natural where
   {-# INLINE toRational #-}
 
 instance Enum Natural where
-  pred (Natural 0) = error "Natural.pred: 0"
+  pred (Natural 0) = errorWithoutStackTrace "Natural.pred: 0"
   pred (Natural n) = Natural (pred n)
   {-# INLINE pred #-}
   succ (Natural n) = Natural (succ n)
   {-# INLINE succ #-}
   fromEnum (Natural n) = fromEnum n
   {-# INLINE fromEnum #-}
-  toEnum n | n < 0     = error "Natural.toEnum: negative"
+  toEnum n | n < 0     = errorWithoutStackTrace "Natural.toEnum: negative"
            | otherwise = Natural (toEnum n)
   {-# INLINE toEnum #-}
 
@@ -605,7 +597,7 @@ instance Data Natural where
   toConstr x = mkIntegralConstr naturalType x
   gunfold _ z c = case constrRep c of
                     (IntConstr x) -> z (fromIntegral x)
-                    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c
+                    _ -> errorWithoutStackTrace $ "Data.Data.gunfold: Constructor " ++ show c
                                  ++ " is not of type Natural"
   dataTypeOf _ = naturalType
 

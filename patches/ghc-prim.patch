@@ -104,11 +104,16 @@ index 5bb17e2..56bd040 100644
 +
  
 diff --git a/boot/ghc-prim/ghc-prim.cabal b/boot/ghc-prim/ghc-prim.cabal
-index b9e74d1..779b7d1 100644
+index f42fa64..8287b25 100644
 --- a/boot/ghc-prim/ghc-prim.cabal
 +++ b/boot/ghc-prim/ghc-prim.cabal
-@@ -23,17 +23,19 @@ flag include-ghc-prim
+@@ -23,19 +23,24 @@ flag include-ghc-prim
+     Description: Include GHC.Prim in exposed-modules
+     default: False
  
++-- custom-setup
++--     setup-depends: base >= 4 && < 5, Cabal >= 1.23
++
  Library
      default-language: Haskell2010
 +    default-extensions:

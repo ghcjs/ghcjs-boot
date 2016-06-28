@@ -3,8 +3,9 @@
            , MagicHash
            , UnboxedTuples
            , ScopedTypeVariables
+           , RankNTypes
   #-}
-{-# OPTIONS_GHC -fno-warn-deprecations #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
 -- kludge for the Control.Concurrent.QSem, Control.Concurrent.QSemN
 -- and Control.Concurrent.SampleVar imports.
 
@@ -73,6 +74,7 @@ module Control.Concurrent (
         -- $boundthreads
         rtsSupportsBoundThreads,
         forkOS,
+        forkOSWithUnmask,
         isCurrentThreadBound,
         runInBoundThread,
         runInUnboundThread,
@@ -107,7 +109,7 @@ import Control.Exception.Base as Exception
 
 import GHC.Conc hiding (threadWaitRead, threadWaitWrite,
                         threadWaitReadSTM, threadWaitWriteSTM)
-import GHC.IO           ( unsafeUnmask )
+import GHC.IO           ( unsafeUnmask, catchException )
 import GHC.IORef        ( newIORef, readIORef, writeIORef )
 import GHC.Base
 
@@ -180,7 +182,7 @@ attribute will block all other threads.
 
 -}
 
--- | fork a thread and call the supplied function when the thread is about
+-- | Fork a thread and call the supplied function when the thread is about
 -- to terminate, with an exception or a returned value.  The function is
 -- called with asynchronous exceptions masked.
 --
@@ -306,7 +308,7 @@ forkOS action0
                         MaskedInterruptible -> action0
                         MaskedUninterruptible -> uninterruptibleMask_ action0
 
-            action_plus = Exception.catch action1 childHandler
+            action_plus = catchException action1 childHandler
 
         entry <- newStablePtr (myThreadId >>= putMVar mv >> action_plus)
         err <- forkOS_createThread entry
@@ -315,6 +317,11 @@ forkOS action0
         freeStablePtr entry
         return tid
     | otherwise = failNonThreaded
+
+-- | Like 'forkIOWithUnmask', but the child thread is a bound thread,
+-- as with 'forkOS'.
+forkOSWithUnmask :: ((forall a . IO a -> IO a) -> IO ()) -> IO ThreadId
+forkOSWithUnmask io = forkOS (io unsafeUnmask)
 
 -- | Returns 'True' if the calling thread is /bound/, that is, if it is
 -- safe to use foreign libraries that rely on thread-local state from the
@@ -374,7 +381,7 @@ runInUnboundThread action = do
       mv <- newEmptyMVar
       mask $ \restore -> do
         tid <- forkIO $ Exception.try (restore action) >>= putMVar mv
-        let wait = takeMVar mv `Exception.catch` \(e :: SomeException) ->
+        let wait = takeMVar mv `catchException` \(e :: SomeException) ->
                      Exception.throwTo tid e >> wait
         wait >>= unsafeResult
     else action
@@ -405,7 +412,7 @@ threadWaitRead fd
                           return ()
                         -- hWaitForInput does work properly, but we can only
                         -- do this for stdin since we know its FD.
-                  _ -> error "threadWaitRead requires -threaded on Windows, or use System.IO.hWaitForInput"
+                  _ -> errorWithoutStackTrace "threadWaitRead requires -threaded on Windows, or use System.IO.hWaitForInput"
 #else
   = GHC.Conc.threadWaitRead fd
 #endif
@@ -421,7 +428,7 @@ threadWaitWrite :: Fd -> IO ()
 threadWaitWrite fd
 #ifdef mingw32_HOST_OS
   | threaded  = withThread (waitFd fd 1)
-  | otherwise = error "threadWaitWrite requires -threaded on Windows"
+  | otherwise = errorWithoutStackTrace "threadWaitWrite requires -threaded on Windows"
 #else
   = GHC.Conc.threadWaitWrite fd
 #endif
@@ -445,7 +452,7 @@ threadWaitReadSTM fd
                                         Just (Left e)   -> throwSTM (e :: IOException)
                   let killAction = return ()
                   return (waitAction, killAction)
-  | otherwise = error "threadWaitReadSTM requires -threaded on Windows"
+  | otherwise = errorWithoutStackTrace "threadWaitReadSTM requires -threaded on Windows"
 #else
   = GHC.Conc.threadWaitReadSTM fd
 #endif
@@ -469,7 +476,7 @@ threadWaitWriteSTM fd
                                         Just (Left e)   -> throwSTM (e :: IOException)
                   let killAction = return ()
                   return (waitAction, killAction)
-  | otherwise = error "threadWaitWriteSTM requires -threaded on Windows"
+  | otherwise = errorWithoutStackTrace "threadWaitWriteSTM requires -threaded on Windows"
 #else
   = GHC.Conc.threadWaitWriteSTM fd
 #endif

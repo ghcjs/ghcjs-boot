@@ -1,6 +1,10 @@
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE TypeOperators #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -56,11 +60,12 @@ import Data.Monoid
 import Data.Ord
 import Data.Proxy
 
-import GHC.Arr  ( Array(..), Ix(..), elems, numElements,
+import GHC.Arr  ( Array(..), elems, numElements,
                   foldlElems, foldrElems,
                   foldlElems', foldrElems',
                   foldl1Elems, foldr1Elems)
 import GHC.Base hiding ( foldr )
+import GHC.Generics
 import GHC.Num  ( Num(..) )
 
 infix  4 `elem`, `notElem`
@@ -119,32 +124,80 @@ class Foldable t where
     -- | Map each element of the structure to a monoid,
     -- and combine the results.
     foldMap :: Monoid m => (a -> m) -> t a -> m
+    {-# INLINE foldMap #-}
+    -- This INLINE allows more list functions to fuse. See Trac #9848.
     foldMap f = foldr (mappend . f) mempty
 
     -- | Right-associative fold of a structure.
     --
-    -- @'foldr' f z = 'Prelude.foldr' f z . 'toList'@
+    -- In the case of lists, 'foldr', when applied to a binary operator, a
+    -- starting value (typically the right-identity of the operator), and a
+    -- list, reduces the list using the binary operator, from right to left:
+    --
+    -- > foldr f z [x1, x2, ..., xn] == x1 `f` (x2 `f` ... (xn `f` z)...)
+    --
+    -- Note that, since the head of the resulting expression is produced by
+    -- an application of the operator to the first element of the list,
+    -- 'foldr' can produce a terminating expression from an infinite list.
+    --
+    -- For a general 'Foldable' structure this should be semantically identical
+    -- to,
+    --
+    -- @foldr f z = 'List.foldr' f z . 'toList'@
+    --
     foldr :: (a -> b -> b) -> b -> t a -> b
     foldr f z t = appEndo (foldMap (Endo #. f) t) z
 
-    -- | Right-associative fold of a structure,
-    -- but with strict application of the operator.
+    -- | Right-associative fold of a structure, but with strict application of
+    -- the operator.
+    --
     foldr' :: (a -> b -> b) -> b -> t a -> b
     foldr' f z0 xs = foldl f' id xs z0
       where f' k x z = k $! f x z
 
     -- | Left-associative fold of a structure.
     --
-    -- @'foldl' f z = 'Prelude.foldl' f z . 'toList'@
+    -- In the case of lists, 'foldl', when applied to a binary
+    -- operator, a starting value (typically the left-identity of the operator),
+    -- and a list, reduces the list using the binary operator, from left to
+    -- right:
+    --
+    -- > foldl f z [x1, x2, ..., xn] == (...((z `f` x1) `f` x2) `f`...) `f` xn
+    --
+    -- Note that to produce the outermost application of the operator the
+    -- entire input list must be traversed. This means that 'foldl'' will
+    -- diverge if given an infinite list.
+    --
+    -- Also note that if you want an efficient left-fold, you probably want to
+    -- use 'foldl'' instead of 'foldl'. The reason for this is that latter does
+    -- not force the "inner" results (e.g. @z `f` x1@ in the above example)
+    -- before applying them to the operator (e.g. to @(`f` x2)@). This results
+    -- in a thunk chain @O(n)@ elements long, which then must be evaluated from
+    -- the outside-in.
+    --
+    -- For a general 'Foldable' structure this should be semantically identical
+    -- to,
+    --
+    -- @foldl f z = 'List.foldl' f z . 'toList'@
+    --
     foldl :: (b -> a -> b) -> b -> t a -> b
     foldl f z t = appEndo (getDual (foldMap (Dual . Endo . flip f) t)) z
     -- There's no point mucking around with coercions here,
     -- because flip forces us to build a new function anyway.
 
-    -- | Left-associative fold of a structure.
-    -- but with strict application of the operator.
+    -- | Left-associative fold of a structure but with strict application of
+    -- the operator.
     --
-    -- @'foldl' f z = 'List.foldl'' f z . 'toList'@
+    -- This ensures that each step of the fold is forced to weak head normal
+    -- form before being applied, avoiding the collection of thunks that would
+    -- otherwise occur. This is often what you want to strictly reduce a finite
+    -- list to a single, monolithic result (e.g. 'length').
+    --
+    -- For a general 'Foldable' structure this should be semantically identical
+    -- to,
+    --
+    -- @foldl f z = 'List.foldl'' f z . 'toList'@
+    --
     foldl' :: (b -> a -> b) -> b -> t a -> b
     foldl' f z0 xs = foldr f' id xs z0
       where f' x k z = k $! f z x
@@ -152,9 +205,9 @@ class Foldable t where
     -- | A variant of 'foldr' that has no base case,
     -- and thus may only be applied to non-empty structures.
     --
-    -- @'foldr1' f = 'Prelude.foldr1' f . 'toList'@
+    -- @'foldr1' f = 'List.foldr1' f . 'toList'@
     foldr1 :: (a -> a -> a) -> t a -> a
-    foldr1 f xs = fromMaybe (error "foldr1: empty structure")
+    foldr1 f xs = fromMaybe (errorWithoutStackTrace "foldr1: empty structure")
                     (foldr mf Nothing xs)
       where
         mf x m = Just (case m of
@@ -164,9 +217,9 @@ class Foldable t where
     -- | A variant of 'foldl' that has no base case,
     -- and thus may only be applied to non-empty structures.
     --
-    -- @'foldl1' f = 'Prelude.foldl1' f . 'toList'@
+    -- @'foldl1' f = 'List.foldl1' f . 'toList'@
     foldl1 :: (a -> a -> a) -> t a -> a
-    foldl1 f xs = fromMaybe (error "foldl1: empty structure")
+    foldl1 f xs = fromMaybe (errorWithoutStackTrace "foldl1: empty structure")
                     (foldl mf Nothing xs)
       where
         mf m y = Just (case m of
@@ -196,12 +249,12 @@ class Foldable t where
 
     -- | The largest element of a non-empty structure.
     maximum :: forall a . Ord a => t a -> a
-    maximum = fromMaybe (error "maximum: empty structure") .
+    maximum = fromMaybe (errorWithoutStackTrace "maximum: empty structure") .
        getMax . foldMap (Max #. (Just :: a -> Maybe a))
 
     -- | The least element of a non-empty structure.
     minimum :: forall a . Ord a => t a -> a
-    minimum = fromMaybe (error "minimum: empty structure") .
+    minimum = fromMaybe (errorWithoutStackTrace "minimum: empty structure") .
        getMin . foldMap (Min #. (Just :: a -> Maybe a))
 
     -- | The 'sum' function computes the sum of the numbers of a structure.
@@ -254,7 +307,7 @@ instance Foldable ((,) a) where
 
     foldr f z (_, y) = f y z
 
-instance Ix i => Foldable (Array i) where
+instance Foldable (Array i) where
     foldr = foldrElems
     foldl = foldlElems
     foldl' = foldlElems'
@@ -274,13 +327,73 @@ instance Foldable Proxy where
     {-# INLINE foldr #-}
     foldl _ z _ = z
     {-# INLINE foldl #-}
-    foldl1 _ _ = error "foldl1: Proxy"
-    foldr1 _ _ = error "foldr1: Proxy"
+    foldl1 _ _ = errorWithoutStackTrace "foldl1: Proxy"
+    foldr1 _ _ = errorWithoutStackTrace "foldr1: Proxy"
     length _   = 0
     null _     = True
     elem _ _   = False
     sum _      = 0
     product _  = 1
+
+instance Foldable Dual where
+    foldMap            = coerce
+
+    elem               = (. getDual) #. (==)
+    foldl              = coerce
+    foldl'             = coerce
+    foldl1 _           = getDual
+    foldr f z (Dual x) = f x z
+    foldr'             = foldr
+    foldr1 _           = getDual
+    length _           = 1
+    maximum            = getDual
+    minimum            = getDual
+    null _             = False
+    product            = getDual
+    sum                = getDual
+    toList (Dual x)    = [x]
+
+instance Foldable Sum where
+    foldMap            = coerce
+
+    elem               = (. getSum) #. (==)
+    foldl              = coerce
+    foldl'             = coerce
+    foldl1 _           = getSum
+    foldr f z (Sum x)  = f x z
+    foldr'             = foldr
+    foldr1 _           = getSum
+    length _           = 1
+    maximum            = getSum
+    minimum            = getSum
+    null _             = False
+    product            = getSum
+    sum                = getSum
+    toList (Sum x)     = [x]
+
+instance Foldable Product where
+    foldMap               = coerce
+
+    elem                  = (. getProduct) #. (==)
+    foldl                 = coerce
+    foldl'                = coerce
+    foldl1 _              = getProduct
+    foldr f z (Product x) = f x z
+    foldr'                = foldr
+    foldr1 _              = getProduct
+    length _              = 1
+    maximum               = getProduct
+    minimum               = getProduct
+    null _                = False
+    product               = getProduct
+    sum                   = getProduct
+    toList (Product x)    = [x]
+
+instance Foldable First where
+    foldMap f = foldMap f . getFirst
+
+instance Foldable Last where
+    foldMap f = foldMap f . getLast
 
 -- We don't export Max and Min because, as Edward Kmett pointed out to me,
 -- there are two reasonable ways to define them. One way is to use Maybe, as we
@@ -310,6 +423,39 @@ instance Ord a => Monoid (Min a) where
   (Min m@(Just x)) `mappend` (Min n@(Just y))
     | x <= y    = Min m
     | otherwise = Min n
+
+-- Instances for GHC.Generics
+instance Foldable U1 where
+    foldMap _ _ = mempty
+    {-# INLINE foldMap #-}
+    fold _ = mempty
+    {-# INLINE fold #-}
+    foldr _ z _ = z
+    {-# INLINE foldr #-}
+    foldl _ z _ = z
+    {-# INLINE foldl #-}
+    foldl1 _ _ = errorWithoutStackTrace "foldl1: U1"
+    foldr1 _ _ = errorWithoutStackTrace "foldr1: U1"
+    length _   = 0
+    null _     = True
+    elem _ _   = False
+    sum _      = 0
+    product _  = 1
+
+deriving instance Foldable V1
+deriving instance Foldable Par1
+deriving instance Foldable f => Foldable (Rec1 f)
+deriving instance Foldable (K1 i c)
+deriving instance Foldable f => Foldable (M1 i c f)
+deriving instance (Foldable f, Foldable g) => Foldable (f :+: g)
+deriving instance (Foldable f, Foldable g) => Foldable (f :*: g)
+deriving instance (Foldable f, Foldable g) => Foldable (f :.: g)
+deriving instance Foldable UAddr
+deriving instance Foldable UChar
+deriving instance Foldable UDouble
+deriving instance Foldable UFloat
+deriving instance Foldable UInt
+deriving instance Foldable UWord
 
 -- | Monadic fold over the elements of a structure,
 -- associating to the right, i.e. from right to left.

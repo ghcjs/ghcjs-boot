@@ -2,7 +2,6 @@
 {-# LANGUAGE CPP
            , NoImplicitPrelude
            , ExistentialQuantification
-           , AutoDeriveTypeable
   #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 {-# OPTIONS_HADDOCK hide #-}
@@ -109,8 +108,6 @@ data Handle
         !(MVar Handle__)                -- The read side
         !(MVar Handle__)                -- The write side
 
-  deriving Typeable
-
 -- NOTES:
 --    * A 'FileHandle' is seekable.  A 'DuplexHandle' may or may not be
 --      seekable.
@@ -125,10 +122,10 @@ data Handle__
     Handle__ {
       haDevice      :: !dev,
       haType        :: HandleType,           -- type (read/write/append etc.)
-      haByteBuffer  :: !(IORef (Buffer Word8)),
+      haByteBuffer  :: !(IORef (Buffer Word8)), -- See [note Buffering Implementation]
       haBufferMode  :: BufferMode,
       haLastDecode  :: !(IORef (dec_state, Buffer Word8)),
-      haCharBuffer  :: !(IORef (Buffer CharBufElem)), -- the current buffer
+      haCharBuffer  :: !(IORef (Buffer CharBufElem)), -- See [note Buffering Implementation]
       haBuffers     :: !(IORef (BufferList CharBufElem)),  -- spare buffers
       haEncoder     :: Maybe (TextEncoder enc_state),
       haDecoder     :: Maybe (TextDecoder dec_state),
@@ -138,7 +135,6 @@ data Handle__
       haOtherSide   :: Maybe (MVar Handle__) -- ptr to the write side of a
                                              -- duplex handle.
     }
-    deriving Typeable
 
 -- we keep a few spare buffers around in a handle to avoid allocating
 -- a new one for each hPutStr.  These buffers are *guaranteed* to be the
@@ -189,10 +185,10 @@ checkHandleInvariants h_ = do
  cbuf <- readIORef (haCharBuffer h_)
  checkBuffer cbuf
  when (isWriteBuffer cbuf && not (isEmptyBuffer cbuf)) $
-   error ("checkHandleInvariants: char write buffer non-empty: " ++
+   errorWithoutStackTrace ("checkHandleInvariants: char write buffer non-empty: " ++
           summaryBuffer bbuf ++ ", " ++ summaryBuffer cbuf)
  when (isWriteBuffer bbuf /= isWriteBuffer cbuf) $
-   error ("checkHandleInvariants: buffer modes differ: " ++
+   errorWithoutStackTrace ("checkHandleInvariants: buffer modes differ: " ++
           summaryBuffer bbuf ++ ", " ++ summaryBuffer cbuf)
 
 #else

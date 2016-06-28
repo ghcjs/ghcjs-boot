@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE MagicHash                 #-}
 {-# LANGUAGE UnboxedTuples             #-}
 {-# LANGUAGE ExistentialQuantification #-}
@@ -39,9 +38,9 @@ module GHC.StaticPtr
   , StaticPtrInfo(..)
   , staticPtrInfo
   , staticPtrKeys
+  , IsStatic(..)
   ) where
 
-import Data.Typeable       (Typeable)
 import Foreign.C.Types     (CInt(..))
 import Foreign.Marshal     (allocaArray, peekArray, withArray)
 import Foreign.Ptr         (castPtr)
@@ -52,7 +51,6 @@ import GHC.Fingerprint     (Fingerprint(..))
 
 -- | A reference to a value of type 'a'.
 data StaticPtr a = StaticPtr StaticKey StaticPtrInfo a
-  deriving Typeable
 
 -- | Dereferences a static pointer.
 deRefStaticPtr :: StaticPtr a -> a
@@ -83,10 +81,17 @@ unsafeLookupStaticPtr (Fingerprint w1 w2) = do
 
 foreign import ccall unsafe hs_spt_lookup :: Ptr () -> IO (Ptr a)
 
+-- | A class for things buildable from static pointers.
+class IsStatic p where
+    fromStaticPtr :: StaticPtr a -> p a
+
+instance IsStatic StaticPtr where
+    fromStaticPtr = id
+
 -- | Miscelaneous information available for debugging purposes.
 data StaticPtrInfo = StaticPtrInfo
     { -- | Package key of the package where the static pointer is defined
-      spInfoPackageKey  :: String
+      spInfoUnitId  :: String
       -- | Name of the module where the static pointer is defined
     , spInfoModuleName :: String
       -- | An internal name that is distinct for every static pointer defined in
@@ -96,7 +101,7 @@ data StaticPtrInfo = StaticPtrInfo
       -- @(Line, Column)@ pair.
     , spInfoSrcLoc     :: (Int, Int)
     }
-  deriving (Show, Typeable)
+  deriving (Show)
 
 -- | 'StaticPtrInfo' of the given 'StaticPtr'.
 staticPtrInfo :: StaticPtr a -> StaticPtrInfo

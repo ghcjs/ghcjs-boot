@@ -1,5 +1,5 @@
 {-# LANGUAGE Trustworthy #-}
-{-# LANGUAGE CPP, NoImplicitPrelude #-}
+{-# LANGUAGE CPP, NoImplicitPrelude, CApiFFI #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -453,13 +453,13 @@ openBinaryTempFile tmp_dir template
 openTempFileWithDefaultPermissions :: FilePath -> String
                                    -> IO (FilePath, Handle)
 openTempFileWithDefaultPermissions tmp_dir template
-    = openTempFile' "openBinaryTempFile" tmp_dir template False 0o666
+    = openTempFile' "openTempFileWithDefaultPermissions" tmp_dir template False 0o666
 
 -- | Like 'openBinaryTempFile', but uses the default file permissions
 openBinaryTempFileWithDefaultPermissions :: FilePath -> String
                                          -> IO (FilePath, Handle)
 openBinaryTempFileWithDefaultPermissions tmp_dir template
-    = openTempFile' "openBinaryTempFile" tmp_dir template True 0o666
+    = openTempFile' "openBinaryTempFileWithDefaultPermissions" tmp_dir template True 0o666
 
 openTempFile' :: String -> FilePath -> String -> Bool -> CMode
               -> IO (FilePath, Handle)
@@ -480,7 +480,7 @@ openTempFile' loc tmp_dir template binary mode = findTempName
          -- Otherwise, something is wrong, because (break (== '.')) should
          -- always return a pair with either the empty string or a string
          -- beginning with '.' as the second component.
-         _                      -> error "bug in System.IO.openTempFile"
+         _                      -> errorWithoutStackTrace "bug in System.IO.openTempFile"
 
     findTempName = do
       rs <- rand_string
@@ -509,7 +509,7 @@ openTempFile' loc tmp_dir template binary mode = findTempName
                   | otherwise = a ++ [pathSeparator] ++ b
 
 -- int rand(void) from <stdlib.h>, limited by RAND_MAX (small value, 32768)
-foreign import ccall "rand" c_rand :: IO CInt
+foreign import capi "stdlib.h rand" c_rand :: IO CInt
 
 -- build large digit-alike number
 rand_string :: IO String

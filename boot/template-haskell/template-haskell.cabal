@@ -1,5 +1,5 @@
 name:           template-haskell
-version:        2.10.0.0
+version:        2.11.0.0
 -- NOTE: Don't forget to update ./changelog.md
 license:        BSD3
 license-file:   LICENSE
@@ -26,15 +26,15 @@ source-repository head
 Library
     default-language: Haskell2010
     other-extensions:
+        BangPatterns
+        CPP
+        DefaultSignatures
         DeriveDataTypeable
+        DeriveGeneric
         FlexibleInstances
-        MagicHash
-        PolymorphicComponents
         RankNTypes
         RoleAnnotations
         ScopedTypeVariables
-        TemplateHaskell
-        UnboxedTuples
 
     exposed-modules:
         Language.Haskell.TH
@@ -43,14 +43,24 @@ Library
         Language.Haskell.TH.PprLib
         Language.Haskell.TH.Quote
         Language.Haskell.TH.Syntax
+        Language.Haskell.TH.LanguageExtensions
 
     other-modules:
         Language.Haskell.TH.Lib.Map
 
     build-depends:
-        base       == 4.8.*,
-        pretty     == 1.1.*
+        base        >= 4.7 && < 4.10,
+        ghc-boot-th == 8.0.*,
+        pretty      == 1.1.*
 
-    -- We need to set the package key to template-haskell (without a
+    -- We need to set the unit ID to template-haskell (without a
     -- version number) as it's magic.
-    ghc-options: -Wall -this-package-key template-haskell
+    ghc-options: -Wall
+
+    if impl( ghc >= 7.11 )
+        ghc-options:  -this-unit-id template-haskell
+    else
+        if impl( ghc >= 7.9 )
+            ghc-options:  -this-package-key template-haskell
+        else
+            ghc-options:  -package-name template-haskell

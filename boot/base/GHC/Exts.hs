@@ -1,5 +1,5 @@
 {-# LANGUAGE Unsafe #-}
-{-# LANGUAGE MagicHash, UnboxedTuples, AutoDeriveTypeable, TypeFamilies,
+{-# LANGUAGE MagicHash, UnboxedTuples, TypeFamilies, DeriveDataTypeable,
              MultiParamTypeClasses, FlexibleInstances, NoImplicitPrelude #-}
 
 -----------------------------------------------------------------------------
@@ -53,6 +53,12 @@ module GHC.Exts
         -- @since 4.7.0.0
         Data.Coerce.coerce, Data.Coerce.Coercible,
 
+        -- * Equality
+        type (~~),
+
+        -- * Representation polymorphism
+        GHC.Prim.TYPE, RuntimeRep(..), VecCount(..), VecElem(..),
+
         -- * Transform comprehensions
         Down(..), groupWith, sortWith, the,
 
@@ -72,8 +78,9 @@ module GHC.Exts
         IsList(..)
        ) where
 
-import GHC.Prim hiding (coerce, Constraint)
-import GHC.Base hiding (coerce) -- implicitly comes from GHC.Prim
+import GHC.Prim hiding ( coerce, TYPE )
+import qualified GHC.Prim
+import GHC.Base hiding ( coerce )
 import GHC.Word
 import GHC.Int
 import GHC.Ptr
@@ -96,8 +103,8 @@ maxTupleSize = 62
 the :: Eq a => [a] -> a
 the (x:xs)
   | all (x ==) xs = x
-  | otherwise     = error "GHC.Exts.the: non-identical elements"
-the []            = error "GHC.Exts.the: empty list"
+  | otherwise     = errorWithoutStackTrace "GHC.Exts.the: non-identical elements"
+the []            = errorWithoutStackTrace "GHC.Exts.the: empty list"
 
 -- | The 'sortWith' function sorts a list of elements using the
 -- user supplied function to project something out of each element
@@ -140,7 +147,7 @@ traceEvent = Debug.Trace.traceEventIO
 -- entire ghc package at runtime
 
 data SpecConstrAnnotation = NoSpecConstr | ForceSpecConstr
-                deriving( Data, Typeable, Eq )
+                deriving( Data, Eq )
 
 
 {- **********************************************************************
@@ -184,3 +191,12 @@ instance IsList Version where
   type (Item Version) = Int
   fromList = makeVersion
   toList = versionBranch
+
+-- | Be aware that 'fromList . toList = id' only for unfrozen 'CallStack's,
+-- since 'toList' removes frozenness information.
+--
+-- @since 4.9.0.0
+instance IsList CallStack where
+  type (Item CallStack) = (String, SrcLoc)
+  fromList = fromCallSiteList
+  toList   = getCallStack

@@ -100,3 +100,6 @@
 [submodule "boot/binary"]
 	path = boot/binary
 	url = https://github.com/kolmodin/binary.git
+[submodule "boot/tagged"]
+	path = boot/tagged
+	url = https://github.com/ekmett/tagged.git

@@ -13,10 +13,14 @@ module ParserM (
     get_pos, show_pos,
     -- Input
     alexGetChar, alexGetByte, alexInputPrevChar, input, position,
+    alexPrevInputChar,
     -- Other
     happyError
  ) where
+
 import Control.Applicative
+import Prelude
+
 import Control.Monad (ap, liftM)
 import Data.Word (Word8)
 import Data.Char (ord)
@@ -170,6 +174,8 @@ alexGetChar (AlexInput _ []) = Nothing
 
 alexInputPrevChar :: AlexInput -> Char
 alexInputPrevChar _ = error "Lexer doesn't implement alexInputPrevChar"
+
+alexPrevInputChar = alexInputPrevChar
 
 happyError :: ParserM a
 happyError = do p <- get_pos

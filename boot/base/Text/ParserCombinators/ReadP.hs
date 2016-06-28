@@ -76,6 +76,8 @@ import GHC.Unicode ( isSpace )
 import GHC.List ( replicate, null )
 import GHC.Base hiding ( many )
 
+import Control.Monad.Fail
+
 infixr 5 +++, <++
 
 ------------------------------------------------------------------------
@@ -103,7 +105,7 @@ data P a
 -- Monad, MonadPlus
 
 instance Applicative P where
-  pure  = return
+  pure x = Result x Fail
   (<*>) = ap
 
 instance MonadPlus P where
@@ -111,14 +113,15 @@ instance MonadPlus P where
   mplus = (<|>)
 
 instance Monad P where
-  return x = Result x Fail
-
   (Get f)      >>= k = Get (\c -> f c >>= k)
   (Look f)     >>= k = Look (\s -> f s >>= k)
   Fail         >>= _ = Fail
   (Result x p) >>= k = k x <|> (p >>= k)
   (Final r)    >>= k = final [ys' | (x,s) <- r, ys' <- run (k x) s]
 
+  fail _ = Fail
+
+instance MonadFail P where
   fail _ = Fail
 
 instance Alternative P where
@@ -161,13 +164,15 @@ instance Functor ReadP where
   fmap h (R f) = R (\k -> f (k . h))
 
 instance Applicative ReadP where
-    pure = return
+    pure x = R (\k -> k x)
     (<*>) = ap
 
 instance Monad ReadP where
-  return x  = R (\k -> k x)
   fail _    = R (\_ -> Fail)
   R m >>= f = R (\k -> m (\a -> let R m' = f a in m' k))
+
+instance MonadFail ReadP where
+  fail _    = R (\_ -> Fail)
 
 instance Alternative ReadP where
     empty = mzero
@@ -243,7 +248,7 @@ gather (R m)
   gath _ Fail         = Fail
   gath l (Look f)     = Look (\s -> gath l (f s))
   gath l (Result k p) = k (l []) <|> gath l p
-  gath _ (Final _)    = error "do not use readS_to_P in gather!"
+  gath _ (Final _)    = errorWithoutStackTrace "do not use readS_to_P in gather!"
 
 -- ---------------------------------------------------------------------------
 -- Derived operations

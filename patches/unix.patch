@@ -1,8 +1,8 @@
 diff --git a/System/Posix/Files/Common.hsc b/System/Posix/Files/Common.hsc
-index 586b417..1de76e6 100644
+index a1a4278..03f2797 100644
 --- a/System/Posix/Files/Common.hsc
 +++ b/System/Posix/Files/Common.hsc
-@@ -528,7 +528,7 @@ foreign import ccall unsafe "fchown"
+@@ -520,7 +520,7 @@ foreign import ccall unsafe "fchown"
  -- Note: calls @ftruncate@.
  setFdSize :: Fd -> FileOffset -> IO ()
  setFdSize (Fd fd) off =
@@ -12,10 +12,10 @@ index 586b417..1de76e6 100644
  -- -----------------------------------------------------------------------------
  -- pathconf()/fpathconf() support
 diff --git a/System/Posix/IO/Common.hsc b/System/Posix/IO/Common.hsc
-index 198b3f1..eb0f631 100644
+index a838352..8e7e317 100644
 --- a/System/Posix/IO/Common.hsc
 +++ b/System/Posix/IO/Common.hsc
-@@ -298,7 +298,7 @@ mode2Int SeekFromEnd  = (#const SEEK_END)
+@@ -281,7 +281,7 @@ mode2Int SeekFromEnd  = (#const SEEK_END)
  -- | May throw an exception if this is an invalid descriptor.
  fdSeek :: Fd -> SeekMode -> FileOffset -> IO FileOffset
  fdSeek (Fd fd) mode off =
@@ -25,10 +25,17 @@ index 198b3f1..eb0f631 100644
  -- -----------------------------------------------------------------------------
  -- Locking
 diff --git a/System/Posix/Process/Internals.hs b/System/Posix/Process/Internals.hs
-index 19dc1c1..cfce525 100644
+index 0bd99ae..4a69c6d 100644
 --- a/System/Posix/Process/Internals.hs
 +++ b/System/Posix/Process/Internals.hs
-@@ -11,7 +11,12 @@ import Foreign
+@@ -1,5 +1,6 @@
+ {-# LANGUAGE CApiFFI #-}
+ {-# LANGUAGE Trustworthy #-}
++{-# LANGUAGE CPP #-}
+ 
+ module System.Posix.Process.Internals (
+        pPrPr_disableITimers, c_execvpe,
+@@ -9,7 +10,12 @@ import Foreign
  import Foreign.C
  import System.Exit
  import System.IO.Error
@@ -42,10 +49,10 @@ index 19dc1c1..cfce525 100644
  -- | The exit status of a process
  data ProcessStatus
 diff --git a/System/Posix/Signals.hsc b/System/Posix/Signals.hsc
-index d4c6d51..cabdda8 100644
+index 971973e..feaa248 100644
 --- a/System/Posix/Signals.hsc
 +++ b/System/Posix/Signals.hsc
-@@ -357,11 +357,13 @@ installHandler :: Signal
+@@ -349,11 +349,13 @@ installHandler :: Signal
                 -> Maybe SignalSet       -- ^ other signals to block
                 -> IO Handler            -- ^ old handler
  
@@ -62,12 +69,12 @@ index d4c6d51..cabdda8 100644
  installHandler sig handler _maybe_mask = do
    ensureIOManagerIsRunning  -- for the threaded RTS
  
-@@ -449,7 +451,7 @@ unmarshalSigInfo fp = do
+@@ -441,7 +443,7 @@ unmarshalSigInfo fp = do
          siginfoError  = Errno errno,
          siginfoSpecific = extra }
  
 -#endif /* !__PARALLEL_HASKELL__ */
 +##endif /* !__PARALLEL_HASKELL__ */
- #endif /* __GLASGOW_HASKELL__ */
  
  -- -----------------------------------------------------------------------------
+ -- Alarms

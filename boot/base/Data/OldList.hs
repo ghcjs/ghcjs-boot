@@ -563,7 +563,7 @@ insertBy cmp x ys@(y:ys')
 -- and returns the greatest element of the list by the comparison function.
 -- The list must be finite and non-empty.
 maximumBy               :: (a -> a -> Ordering) -> [a] -> a
-maximumBy _ []          =  error "List.maximumBy: empty list"
+maximumBy _ []          =  errorWithoutStackTrace "List.maximumBy: empty list"
 maximumBy cmp xs        =  foldl1 maxBy xs
                         where
                            maxBy x y = case cmp x y of
@@ -574,7 +574,7 @@ maximumBy cmp xs        =  foldl1 maxBy xs
 -- and returns the least element of the list by the comparison function.
 -- The list must be finite and non-empty.
 minimumBy               :: (a -> a -> Ordering) -> [a] -> a
-minimumBy _ []          =  error "List.minimumBy: empty list"
+minimumBy _ []          =  errorWithoutStackTrace "List.minimumBy: empty list"
 minimumBy cmp xs        =  foldl1 minBy xs
                         where
                            minBy x y = case cmp x y of
@@ -629,8 +629,8 @@ genericIndex :: (Integral i) => [a] -> i -> a
 genericIndex (x:_)  0 = x
 genericIndex (_:xs) n
  | n > 0     = genericIndex xs (n-1)
- | otherwise = error "List.genericIndex: negative argument."
-genericIndex _ _      = error "List.genericIndex: index too large."
+ | otherwise = errorWithoutStackTrace "List.genericIndex: negative argument."
+genericIndex _ _      = errorWithoutStackTrace "List.genericIndex: index too large."
 
 -- | The 'genericReplicate' function is an overloaded version of 'replicate',
 -- which accepts any 'Integral' value as the number of repetitions to make.
@@ -973,7 +973,7 @@ rqpart cmp x (y:ys) rle rgt r =
 #endif /* USE_REPORT_PRELUDE */
 
 -- | Sort a list by comparing the results of a key function applied to each
--- element.  @sortOn f@ is equivalent to @sortBy . comparing f@, but has the
+-- element.  @sortOn f@ is equivalent to @sortBy (comparing f)@, but has the
 -- performance advantage of only evaluating @f@ once for each element in the
 -- input list.  This is called the decorate-sort-undecorate paradigm, or
 -- Schwartzian transform.
@@ -1044,6 +1044,20 @@ unfoldr f b0 = build (\c n ->
 
 -- | 'lines' breaks a string up into a list of strings at newline
 -- characters.  The resulting strings do not contain newlines.
+--
+-- Note that after splitting the string at newline characters, the
+-- last part of the string is considered a line even if it doesn't end
+-- with a newline. For example,
+--
+-- > lines "" == []
+-- > lines "\n" == [""]
+-- > lines "one" == ["one"]
+-- > lines "one\n" == ["one"]
+-- > lines "one\n\n" == ["one",""]
+-- > lines "one\ntwo" == ["one","two"]
+-- > lines "one\ntwo\n" == ["one","two"]
+--
+-- Thus @'lines' s@ contains at least as many elements as newlines in @s@.
 lines                   :: String -> [String]
 lines ""                =  []
 -- Somehow GHC doesn't detect the selector thunks in the below code,

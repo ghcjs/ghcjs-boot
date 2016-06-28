@@ -1,12 +1,4 @@
 {
-{-# LANGUAGE BangPatterns #-} -- required for versions of Happy before 1.18.6
-{-# OPTIONS -w -Wwarn #-}
--- The above warning supression flag is a temporary kludge.
--- While working on this module you are encouraged to remove it and fix
--- any warnings in the module. See
---     http://ghc.haskell.org/trac/ghc/wiki/Commentary/CodingStyle#Warnings
--- for details
-
 module Parser (parse) where
 
 import Lexer (lex_tok)
@@ -85,9 +77,9 @@ pOption : lowerName '=' false               { OptionFalse  $1 }
         | fixity    '=' pInfix              { OptionFixity $3 }
 
 pInfix :: { Maybe Fixity }
-pInfix : infix  integer { Just $ Fixity $2 InfixN }
-       | infixl integer { Just $ Fixity $2 InfixL }
-       | infixr integer { Just $ Fixity $2 InfixR }
+pInfix : infix  integer { Just $ Fixity (show $2) $2 InfixN }
+       | infixl integer { Just $ Fixity (show $2) $2 InfixL }
+       | infixr integer { Just $ Fixity (show $2) $2 InfixR }
        | nothing        { Nothing }
 
 

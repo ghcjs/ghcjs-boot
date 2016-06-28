@@ -515,11 +515,7 @@ instance Bits Integer where
    complement = complementInteger
    shift x i@(I# i#) | i >= 0    = shiftLInteger x i#
                      | otherwise = shiftRInteger x (negateInt# i#)
-   shiftL x (I# i#) = shiftLInteger x i#
-   shiftR x (I# i#) = shiftRInteger x i#
-
    testBit x (I# i) = testBitInteger x i
-
    zeroBits   = 0
 
 #if HAVE_INTEGER_GMP1
@@ -533,7 +529,7 @@ instance Bits Integer where
    rotate x i = shift x i   -- since an Integer never wraps around
 
    bitSizeMaybe _ = Nothing
-   bitSize _  = error "Data.Bits.bitSize(Integer)"
+   bitSize _  = errorWithoutStackTrace "Data.Bits.bitSize(Integer)"
    isSigned _ = True
 
 -----------------------------------------------------------------------------

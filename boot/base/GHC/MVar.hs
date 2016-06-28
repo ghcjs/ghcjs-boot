@@ -1,5 +1,5 @@
 {-# LANGUAGE Unsafe #-}
-{-# LANGUAGE NoImplicitPrelude, MagicHash, UnboxedTuples, AutoDeriveTypeable #-}
+{-# LANGUAGE NoImplicitPrelude, MagicHash, UnboxedTuples #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 {-# OPTIONS_HADDOCK hide #-}
 
@@ -33,9 +33,8 @@ module GHC.MVar (
     ) where
 
 import GHC.Base
-import Data.Typeable
 
-data MVar a = MVar (MVar# RealWorld a) deriving( Typeable )
+data MVar a = MVar (MVar# RealWorld a)
 {- ^
 An 'MVar' (pronounced \"em-var\") is a synchronising variable, used
 for communication between concurrent threads.  It can be thought of
@@ -177,6 +176,6 @@ isEmptyMVar (MVar mv#) = IO $ \ s# ->
 -- |Add a finalizer to an 'MVar' (GHC only).  See "Foreign.ForeignPtr" and
 -- "System.Mem.Weak" for more about finalizers.
 addMVarFinalizer :: MVar a -> IO () -> IO ()
-addMVarFinalizer (MVar m) finalizer =
-  IO $ \s -> case mkWeak# m () finalizer s of { (# s1, _ #) -> (# s1, () #) }
+addMVarFinalizer (MVar m) (IO finalizer) =
+    IO $ \s -> case mkWeak# m () finalizer s of { (# s1, _ #) -> (# s1, () #) }
 

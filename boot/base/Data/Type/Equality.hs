@@ -1,15 +1,18 @@
-{-# LANGUAGE DeriveGeneric        #-}
-{-# LANGUAGE TypeOperators        #-}
-{-# LANGUAGE GADTs                #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE StandaloneDeriving   #-}
-{-# LANGUAGE NoImplicitPrelude    #-}
-{-# LANGUAGE PolyKinds            #-}
-{-# LANGUAGE RankNTypes           #-}
-{-# LANGUAGE DataKinds            #-}
-{-# LANGUAGE TypeFamilies         #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ExplicitNamespaces   #-}
+{-# LANGUAGE DeriveGeneric          #-}
+{-# LANGUAGE TypeOperators          #-}
+{-# LANGUAGE GADTs                  #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE StandaloneDeriving     #-}
+{-# LANGUAGE NoImplicitPrelude      #-}
+{-# LANGUAGE PolyKinds              #-}
+{-# LANGUAGE RankNTypes             #-}
+{-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE TypeFamilies           #-}
+{-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE ExplicitNamespaces     #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE Trustworthy            #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -29,9 +32,9 @@
 
 
 module Data.Type.Equality (
-  -- * The equality type
-  (:~:)(..),
-  
+  -- * The equality types
+  (:~:)(..), type (~~),
+
   -- * Working with equality
   sym, trans, castWith, gcastWith, apply, inner, outer,
 
@@ -49,6 +52,25 @@ import GHC.Read
 import GHC.Base
 import Data.Type.Bool
 
+-- | Lifted, homogeneous equality. By lifted, we mean that it can be
+-- bogus (deferred type error). By homogeneous, the two types @a@
+-- and @b@ must have the same kind.
+class a ~~ b => (a :: k) ~ (b :: k) | a -> b, b -> a
+  -- See Note [The equality types story] in TysPrim
+  -- NB: All this class does is to wrap its superclass, which is
+  --     the "real", inhomogeneous equality; this is needed when
+  --     we have a Given (a~b), and we want to prove things from it
+  -- NB: Not exported, as (~) is magical syntax. That's also why there's
+  -- no fixity.
+
+instance {-# INCOHERENT #-} a ~~ b => a ~ b
+  -- See Note [The equality types story] in TysPrim
+  -- If we have a Wanted (t1 ~ t2), we want to immediately
+  -- simplify it to (t1 ~~ t2) and solve that instead
+  --
+  -- INCOHERENT because we want to use this instance eagerly, even when
+  -- the tyvars are partially unknown.
+
 infix 4 :~:
 
 -- | Propositional equality. If @a :~: b@ is inhabited by some terminating
@@ -57,7 +79,7 @@ infix 4 :~:
 -- in the body of the pattern-match, the compiler knows that @a ~ b@.
 --
 -- @since 4.7.0.0
-data a :~: b where
+data a :~: b where  -- See Note [The equality types story] in TysPrim
   Refl :: a :~: a
 
 -- with credit to Conal Elliott for 'ty', Erik Hesselink & Martijn van
@@ -101,7 +123,7 @@ instance a ~ b => Read (a :~: b) where
 
 instance a ~ b => Enum (a :~: b) where
   toEnum 0 = Refl
-  toEnum _ = error "Data.Type.Equality.toEnum: bad argument"
+  toEnum _ = errorWithoutStackTrace "Data.Type.Equality.toEnum: bad argument"
 
   fromEnum Refl = 0
 
@@ -196,13 +218,13 @@ type family EqArrow (a :: k1 -> k2) (b :: k1 -> k2) where
 type family EqBool a b where
   EqBool 'True  'True  = 'True
   EqBool 'False 'False = 'True
-  EqBool a     b       = 'False
+  EqBool a      b      = 'False
 
 type family EqOrdering a b where
   EqOrdering 'LT 'LT = 'True
   EqOrdering 'EQ 'EQ = 'True
   EqOrdering 'GT 'GT = 'True
-  EqOrdering a  b    = 'False
+  EqOrdering a   b   = 'False
 
 type EqUnit (a :: ()) (b :: ()) = 'True
 
@@ -214,7 +236,7 @@ type family EqList a b where
 type family EqMaybe a b where
   EqMaybe 'Nothing   'Nothing  = 'True
   EqMaybe ('Just x) ('Just y)  = x == y
-  EqMaybe a        b           = 'False
+  EqMaybe a         b          = 'False
 
 type family Eq2 a b where
   Eq2 '(a1, b1) '(a2, b2) = a1 == a2 && b1 == b2

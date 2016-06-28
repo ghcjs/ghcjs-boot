@@ -26,9 +26,14 @@ module Language.Haskell.TH(
         ParentName,
         Arity,
         Unlifted,
+        -- *** Language extension lookup
+        Extension(..),
+        extsEnabled, isExtEnabled,
         -- *** Name lookup
         lookupTypeName,  -- :: String -> Q (Maybe Name)
         lookupValueName, -- :: String -> Q (Maybe Name)
+        -- *** Fixity lookup
+        reifyFixity,
         -- *** Instance lookup
         reifyInstances,
         isInstance,
@@ -36,6 +41,8 @@ module Language.Haskell.TH(
         reifyRoles,
         -- *** Annotation lookup
         reifyAnnotations, AnnLookup(..),
+        -- *** Constructor strictness lookup
+        reifyConStrictness,
 
         -- * Typed expressions
         TExp, unType,
@@ -48,6 +55,8 @@ module Language.Haskell.TH(
         -- ** Deconstructing names
         nameBase,       -- :: Name -> String
         nameModule,     -- :: Name -> Maybe String
+        namePackage,    -- :: Name -> Maybe String
+        nameSpace,      -- :: Name -> Maybe NameSpace
         -- ** Built-in names
         tupleTypeName, tupleDataName,   -- Int -> Name
         unboxedTupleTypeName, unboxedTupleDataName, -- :: Int -> Name
@@ -59,9 +68,10 @@ module Language.Haskell.TH(
 
     -- ** Declarations
         Dec(..), Con(..), Clause(..),
-        Strict(..), Foreign(..), Callconv(..), Safety(..), Pragma(..),
+        SourceUnpackedness(..), SourceStrictness(..), DecidedStrictness(..),
+        Bang(..), Strict, Foreign(..), Callconv(..), Safety(..), Pragma(..),
         Inline(..), RuleMatch(..), Phases(..), RuleBndr(..), AnnTarget(..),
-        FunDep(..), FamFlavour(..), TySynEqn(..),
+        FunDep(..), FamFlavour(..), TySynEqn(..), TypeFamilyHead(..),
         Fixity(..), FixityDirection(..), defaultFixity, maxPrecedence,
     -- ** Expressions
         Exp(..), Match(..), Body(..), Guard(..), Stmt(..), Range(..), Lit(..),
@@ -69,17 +79,19 @@ module Language.Haskell.TH(
         Pat(..), FieldExp, FieldPat,
     -- ** Types
         Type(..), TyVarBndr(..), TyLit(..), Kind, Cxt, Pred, Syntax.Role(..),
+        FamilyResultSig(..), Syntax.InjectivityAnn(..),
 
     -- * Library functions
     -- ** Abbreviations
-        InfoQ, ExpQ, DecQ, DecsQ, ConQ, TypeQ, TyLitQ, CxtQ, PredQ, MatchQ, ClauseQ,
-        BodyQ, GuardQ, StmtQ, RangeQ, StrictTypeQ, VarStrictTypeQ, PatQ, FieldPatQ,
-        RuleBndrQ, TySynEqnQ,
+        InfoQ, ExpQ, DecQ, DecsQ, ConQ, TypeQ, TyLitQ, CxtQ, PredQ, MatchQ,
+        ClauseQ, BodyQ, GuardQ, StmtQ, RangeQ, SourceStrictnessQ,
+        SourceUnpackednessQ, BangTypeQ, VarBangTypeQ, StrictTypeQ,
+        VarStrictTypeQ, PatQ, FieldPatQ, RuleBndrQ, TySynEqnQ,
 
     -- ** Constructors lifted to 'Q'
     -- *** Literals
         intPrimL, wordPrimL, floatPrimL, doublePrimL, integerL, rationalL,
-        charL, stringL, stringPrimL,
+        charL, stringL, stringPrimL, charPrimL,
     -- *** Patterns
         litP, varP, tupP, conP, uInfixP, parensP, infixP,
         tildeP, bangP, asP, wildP, recP,
@@ -90,7 +102,7 @@ module Language.Haskell.TH(
         normalB, guardedB, normalG, normalGE, patG, patGE, match, clause,
 
     -- *** Expressions
-        dyn, global, varE, conE, litE, appE, uInfixE, parensE, staticE,
+        dyn, varE, conE, litE, appE, uInfixE, parensE, staticE,
         infixE, infixApp, sectionL, sectionR,
         lamE, lam1E, lamCaseE, tupE, condE, multiIfE, letE, caseE, appsE,
         listE, sigE, recConE, recUpdE, stringE, fieldExp,
@@ -105,14 +117,20 @@ module Language.Haskell.TH(
     bindS, letS, noBindS, parS,
 
     -- *** Types
-        forallT, varT, conT, appT, arrowT, equalityT, listT, tupleT, sigT, litT,
-    promotedT, promotedTupleT, promotedNilT, promotedConsT,
+        forallT, varT, conT, appT, arrowT, infixT, uInfixT, parensT, equalityT,
+        listT, tupleT, sigT, litT, promotedT, promotedTupleT, promotedNilT,
+        promotedConsT,
     -- **** Type literals
     numTyLit, strTyLit,
     -- **** Strictness
-        isStrict, notStrict, strictType, varStrictType,
+    noSourceUnpackedness, sourceNoUnpack, sourceUnpack,
+    noSourceStrictness, sourceLazy, sourceStrict,
+    isStrict, notStrict, unpacked,
+    bang, bangType, varBangType, strictType, varStrictType,
     -- **** Class Contexts
-    cxt, classP, equalP, normalC, recC, infixC, forallC,
+    cxt, classP, equalP,
+    -- **** Constructors
+    normalC, recC, infixC, forallC, gadtC, recGadtC,
 
     -- *** Kinds
     varK, conK, tupleK, arrowK, listK, appK, starK, constraintK,
@@ -122,16 +140,18 @@ module Language.Haskell.TH(
 
     -- *** Top Level Declarations
     -- **** Data
-        valD, funD, tySynD, dataD, newtypeD,
+    valD, funD, tySynD, dataD, newtypeD,
     -- **** Class
-    classD, instanceD, sigD, standaloneDerivD, defaultSigD,
+    classD, instanceD, instanceWithOverlapD, Overlap(..),
+    sigD, standaloneDerivD, defaultSigD,
+
     -- **** Role annotations
     roleAnnotD,
     -- **** Type Family / Data Family
-    familyNoKindD, familyKindD, dataInstD,
-    closedTypeFamilyNoKindD, closedTypeFamilyKindD,
+    dataFamilyD, openTypeFamilyD, closedTypeFamilyD, dataInstD,
+    familyNoKindD, familyKindD, closedTypeFamilyNoKindD, closedTypeFamilyKindD,
     newtypeInstD, tySynInstD,
-    typeFam, dataFam, tySynEqn,
+    typeFam, dataFam, tySynEqn, injectivityAnn, noSig, kindSig, tyVarSig,
     -- **** Foreign Function Interface (FFI)
     cCall, stdCall, cApi, prim, javaScript,
     unsafe, safe, forImpD,

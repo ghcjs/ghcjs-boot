@@ -28,8 +28,8 @@ import Data.Bool
 
 -- | Type-level "If". @If True a b@ ==> @a@; @If False a b@ ==> @b@
 type family If cond tru fls where
-  If 'True  tru fls = tru
-  If 'False tru fls = fls
+  If 'True  tru  fls = tru
+  If 'False tru  fls = fls
 
 -- | Type-level "and"
 type family a && b where

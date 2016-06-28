@@ -12,6 +12,7 @@
 {-# LANGUAGE UndecidableInstances #-}  -- for compiling instances of (==)
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE PolyKinds #-}
 
 {-| This module is an internal GHC module.  It declares the constants used
 in the implementation of type-level natural numbers.  The programmer interface
@@ -22,7 +23,7 @@ for working with type-level naturals should be defined in a separate library.
 
 module GHC.TypeLits
   ( -- * Kinds
-    Nat, Symbol
+    Nat, Symbol  -- Both declared in GHC.Types in package ghc-prim
 
     -- * Linking type and value level
   , KnownNat, natVal, natVal'
@@ -36,9 +37,14 @@ module GHC.TypeLits
   , type (<=), type (<=?), type (+), type (*), type (^), type (-)
   , CmpNat, CmpSymbol
 
+  -- * User-defined type errors
+  , TypeError
+  , ErrorMessage(..)
+
   ) where
 
 import GHC.Base(Eq(..), Ord(..), Bool(True,False), Ordering(..), otherwise)
+import GHC.Types( Nat, Symbol )
 import GHC.Num(Integer)
 import GHC.Base(String)
 import GHC.Show(Show(..))
@@ -48,13 +54,6 @@ import Data.Maybe(Maybe(..))
 import Data.Proxy (Proxy(..))
 import Data.Type.Equality(type (==), (:~:)(Refl))
 import Unsafe.Coerce(unsafeCoerce)
-
--- | (Kind) This is the kind of type-level natural numbers.
-data Nat
-
--- | (Kind) This is the kind of type-level symbols.
-data Symbol
-
 
 --------------------------------------------------------------------------------
 
@@ -197,6 +196,54 @@ type family (m :: Nat) ^ (n :: Nat) :: Nat
 type family (m :: Nat) - (n :: Nat) :: Nat
 
 
+-- | A description of a custom type error.
+data {-kind-} ErrorMessage = Text Symbol
+                             -- ^ Show the text as is.
+
+                           | forall t. ShowType t
+                             -- ^ Pretty print the type.
+                             -- @ShowType :: k -> ErrorMessage@
+
+                           | ErrorMessage :<>: ErrorMessage
+                             -- ^ Put two pieces of error message next
+                             -- to each other.
+
+                           | ErrorMessage :$$: ErrorMessage
+                             -- ^ Stack two pieces of error message on top
+                             -- of each other.
+
+infixl 5 :$$:
+infixl 6 :<>:
+
+-- | The type-level equivalent of 'error'.
+--
+-- The polymorphic kind of this type allows it to be used in several settings.
+-- For instance, it can be used as a constraint, e.g. to provide a better error
+-- message for a non-existant instance,
+--
+-- @
+-- -- in a context
+-- instance TypeError (Text "Cannot 'Show' functions." :$$:
+--                     Text "Perhaps there is a missing argument?")
+--       => Show (a -> b) where
+--     showsPrec = error "unreachable"
+-- @
+--
+-- It can also be placed on the right-hand side of a type-level function
+-- to provide an error for an invalid case,
+--
+-- @
+-- type family ByteSize x where
+--    ByteSize Word16   = 2
+--    ByteSize Word8    = 1
+--    ByteSize a        = TypeError (Text "The type " :<>: ShowType a :<>:
+--                                   Text " is not exportable.")
+-- @
+--
+-- @since 4.9.0.0
+type family TypeError (a :: ErrorMessage) :: b where
+
+
 --------------------------------------------------------------------------------
 
 -- | We either get evidence that this function was instantiated with the
@@ -237,5 +284,3 @@ withSNat f x y = magicDict (WrapN f) x y
 withSSymbol :: (KnownSymbol a => Proxy a -> b)
             -> SSymbol a      -> Proxy a -> b
 withSSymbol f x y = magicDict (WrapS f) x y
-
-

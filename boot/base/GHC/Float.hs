@@ -4,9 +4,10 @@
            , MagicHash
            , UnboxedTuples
   #-}
+{-# LANGUAGE CApiFFI #-}
 -- We believe we could deorphan this module, by moving lots of things
 -- around, but we haven't got there yet:
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_HADDOCK hide #-}
 
 -----------------------------------------------------------------------------
@@ -26,9 +27,15 @@
 
 #include "ieee-flpt.h"
 
-module GHC.Float( module GHC.Float, Float(..), Double(..), Float#, Double#
-                , double2Int, int2Double, float2Int, int2Float )
-    where
+module GHC.Float
+   ( module GHC.Float
+   , Float(..), Double(..), Float#, Double#
+   , double2Int, int2Double, float2Int, int2Float
+
+    -- * Monomorphic equality operators
+    -- | See GHC.Classes#matching_overloaded_methods_in_rules
+   , eqFloat, eqDouble
+   ) where
 
 import Data.Maybe
 
@@ -61,6 +68,46 @@ class  (Fractional a) => Floating a  where
     sinh, cosh, tanh    :: a -> a
     asinh, acosh, atanh :: a -> a
 
+    -- | @'log1p' x@ computes @'log' (1 + x)@, but provides more precise
+    -- results for small (absolute) values of @x@ if possible.
+    --
+    -- @since 4.9.0.0
+    log1p               :: a -> a
+
+    -- | @'expm1' x@ computes @'exp' x - 1@, but provides more precise
+    -- results for small (absolute) values of @x@ if possible.
+    --
+    -- @since 4.9.0.0
+    expm1               :: a -> a
+
+    -- | @'log1pexp' x@ computes @'log' (1 + 'exp' x)@, but provides more
+    -- precise results if possible.
+    --
+    -- Examples:
+    --
+    -- * if @x@ is a large negative number, @'log' (1 + 'exp' x)@ will be
+    --   imprecise for the reasons given in 'log1p'.
+    --
+    -- * if @'exp' x@ is close to @-1@, @'log' (1 + 'exp' x)@ will be
+    --   imprecise for the reasons given in 'expm1'.
+    --
+    -- @since 4.9.0.0
+    log1pexp            :: a -> a
+
+    -- | @'log1mexp' x@ computes @'log' (1 - 'exp' x)@, but provides more
+    -- precise results if possible.
+    --
+    -- Examples:
+    --
+    -- * if @x@ is a large negative number, @'log' (1 - 'exp' x)@ will be
+    --   imprecise for the reasons given in 'log1p'.
+    --
+    -- * if @'exp' x@ is close to @1@, @'log' (1 - 'exp' x)@ will be
+    --   imprecise for the reasons given in 'expm1'.
+    --
+    -- @since 4.9.0.0
+    log1mexp            :: a -> a
+
     {-# INLINE (**) #-}
     {-# INLINE logBase #-}
     {-# INLINE sqrt #-}
@@ -71,6 +118,15 @@ class  (Fractional a) => Floating a  where
     sqrt x              =  x ** 0.5
     tan  x              =  sin  x / cos  x
     tanh x              =  sinh x / cosh x
+
+    {-# INLINE log1p #-}
+    {-# INLINE expm1 #-}
+    {-# INLINE log1pexp #-}
+    {-# INLINE log1mexp #-}
+    log1p x = log (1 + x)
+    expm1 x = exp x - 1
+    log1pexp x = log1p (exp x)
+    log1mexp x = log1p (negate (exp x))
 
 -- | Efficient, machine-independent access to the components of a
 -- floating-point number.
@@ -307,6 +363,19 @@ instance  Floating Float  where
     acosh x = log (x + (x+1.0) * sqrt ((x-1.0)/(x+1.0)))
     atanh x = 0.5 * log ((1.0+x) / (1.0-x))
 
+    log1p = log1pFloat
+    expm1 = expm1Float
+
+    log1mexp a
+      | a <= log 2 = log (negate (expm1Float a))
+      | otherwise  = log1pFloat (negate (exp a))
+    {-# INLINE log1mexp #-}
+    log1pexp a
+      | a <= 18   = log1pFloat (exp a)
+      | a <= 100  = a + exp (negate a)
+      | otherwise = a
+    {-# INLINE log1pexp #-}
+
 instance  RealFloat Float  where
     floatRadix _        =  FLT_RADIX        -- from float.h
     floatDigits _       =  FLT_MANT_DIG     -- ditto
@@ -414,6 +483,19 @@ instance  Floating Double  where
     asinh x = log (x + sqrt (1.0+x*x))
     acosh x = log (x + (x+1.0) * sqrt ((x-1.0)/(x+1.0)))
     atanh x = 0.5 * log ((1.0+x) / (1.0-x))
+
+    log1p = log1pDouble
+    expm1 = expm1Double
+
+    log1mexp a
+      | a <= log 2 = log (negate (expm1Double a))
+      | otherwise  = log1pDouble (negate (exp a))
+    {-# INLINE log1mexp #-}
+    log1pexp a
+      | a <= 18   = log1pDouble (exp a)
+      | a <= 100  = a + exp (negate a)
+      | otherwise = a
+    {-# INLINE log1pexp #-}
 
 -- RULES for Integer and Int
 {-# RULES
@@ -582,7 +664,7 @@ formatRealFloatAlt fmt decs alt x
           "0"     -> "0.0e0"
           [d]     -> d : ".0e" ++ show_e'
           (d:ds') -> d : '.' : ds' ++ "e" ++ show_e'
-          []      -> error "formatRealFloat/doFmt/FFExponent: []"
+          []      -> errorWithoutStackTrace "formatRealFloat/doFmt/FFExponent: []"
        Just dec ->
         let dec' = max dec 1 in
         case is of
@@ -628,7 +710,7 @@ roundTo base d is =
   case f d True is of
     x@(0,_) -> x
     (1,xs)  -> (1, 1:xs)
-    _       -> error "roundTo: bad Value"
+    _       -> errorWithoutStackTrace "roundTo: bad Value"
  where
   b2 = base `quot` 2
 
@@ -983,11 +1065,9 @@ divideFloat (F# x) (F# y) = F# (divideFloat# x y)
 negateFloat :: Float -> Float
 negateFloat (F# x)        = F# (negateFloat# x)
 
-gtFloat, geFloat, eqFloat, neFloat, ltFloat, leFloat :: Float -> Float -> Bool
+gtFloat, geFloat, ltFloat, leFloat :: Float -> Float -> Bool
 gtFloat     (F# x) (F# y) = isTrue# (gtFloat# x y)
 geFloat     (F# x) (F# y) = isTrue# (geFloat# x y)
-eqFloat     (F# x) (F# y) = isTrue# (eqFloat# x y)
-neFloat     (F# x) (F# y) = isTrue# (neFloat# x y)
 ltFloat     (F# x) (F# y) = isTrue# (ltFloat# x y)
 leFloat     (F# x) (F# y) = isTrue# (leFloat# x y)
 
@@ -1023,11 +1103,9 @@ divideDouble (D# x) (D# y) = D# (x /## y)
 negateDouble :: Double -> Double
 negateDouble (D# x)        = D# (negateDouble# x)
 
-gtDouble, geDouble, eqDouble, neDouble, leDouble, ltDouble :: Double -> Double -> Bool
+gtDouble, geDouble, leDouble, ltDouble :: Double -> Double -> Bool
 gtDouble    (D# x) (D# y) = isTrue# (x >##  y)
 geDouble    (D# x) (D# y) = isTrue# (x >=## y)
-eqDouble    (D# x) (D# y) = isTrue# (x ==## y)
-neDouble    (D# x) (D# y) = isTrue# (x /=## y)
 ltDouble    (D# x) (D# y) = isTrue# (x <##  y)
 leDouble    (D# x) (D# y) = isTrue# (x <=## y)
 
@@ -1068,6 +1146,16 @@ foreign import ccall unsafe "isDoubleInfinite" isDoubleInfinite :: Double -> Int
 foreign import ccall unsafe "isDoubleDenormalized" isDoubleDenormalized :: Double -> Int
 foreign import ccall unsafe "isDoubleNegativeZero" isDoubleNegativeZero :: Double -> Int
 foreign import ccall unsafe "isDoubleFinite" isDoubleFinite :: Double -> Int
+
+
+------------------------------------------------------------------------
+-- libm imports for extended floating
+------------------------------------------------------------------------
+foreign import capi unsafe "math.h log1p" log1pDouble :: Double -> Double
+foreign import capi unsafe "math.h expm1" expm1Double :: Double -> Double
+foreign import capi unsafe "math.h log1pf" log1pFloat :: Float -> Float
+foreign import capi unsafe "math.h expm1f" expm1Float :: Float -> Float
+
 
 ------------------------------------------------------------------------
 -- Coercion rules

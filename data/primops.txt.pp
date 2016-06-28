@@ -316,6 +316,11 @@ primtype Word#
 primop   WordAddOp   "plusWord#"   Dyadic   Word# -> Word# -> Word#
    with commutable = True
 
+primop   WordSubCOp   "subWordC#"   GenPrimOp   Word# -> Word# -> (# Word#, Int# #)
+         {Subtract unsigned integers reporting overflow.
+          The first element of the pair is the result.  The second element is
+          the carry flag, which is nonzero on overflow.}
+
 -- Returns (# high, low #) (or equivalently, (# carry, low #))
 primop   WordAdd2Op  "plusWord2#"  GenPrimOp
    Word# -> Word# -> (# Word#, Word# #)
@@ -1115,7 +1120,13 @@ primop  SizeofByteArrayOp "sizeofByteArray#" GenPrimOp
 
 primop  SizeofMutableByteArrayOp "sizeofMutableByteArray#" GenPrimOp
    MutableByteArray# s -> Int#
-   {Return the size of the array in bytes.}
+   {Return the size of the array in bytes. Note that this is deprecated as it is
+   unsafe in the presence of concurrent resize operations on the same byte
+   array. See {\tt getSizeofMutableByteArray}.}
+
+primop  GetSizeofMutableByteArrayOp "getSizeofMutableByteArray#" GenPrimOp
+   MutableByteArray# s -> State# s -> (# State# s, Int# #)
+   {Return the number of elements in the array.}
 
 primop IndexByteArrayOp_Char "indexCharArray#" GenPrimOp
    ByteArray# -> Int# -> Char#
@@ -1919,24 +1930,39 @@ primop  CasMutVarOp "casMutVar#" GenPrimOp
 section "Exceptions"
 ------------------------------------------------------------------------
 
+{- Note [Strictness for mask/unmask/catch]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Consider this example, which comes from GHC.IO.Handle.Internals:
+   wantReadableHandle3 f ma b st
+     = case ... of
+         DEFAULT -> case ma of MVar a -> ...
+         0#      -> maskAsynchExceptions# (\st -> case ma of MVar a -> ...)
+The outer case just decides whether to mask exceptions, but we don't want
+thereby to hide the strictness in 'ma'!  Hence the use of strictApply1Dmd.
+
+For catch, we must be extra careful; see
+Note [Exceptions and strictness] in Demand
+-}
+
 primop  CatchOp "catch#" GenPrimOp
           (State# RealWorld -> (# State# RealWorld, a #) )
        -> (b -> State# RealWorld -> (# State# RealWorld, a #) )
        -> State# RealWorld
        -> (# State# RealWorld, a #)
    with
-        -- Catch is actually strict in its first argument
-        -- but we don't want to tell the strictness
-        -- analyser about that, so that exceptions stay inside it.
-   strictness  = { \ _arity -> mkClosedStrictSig [apply1Dmd,apply2Dmd,topDmd] topRes }
+   strictness  = { \ _arity -> mkClosedStrictSig [ catchArgDmd
+                                                 , lazyApply2Dmd
+                                                 , topDmd] topRes }
+                 -- See Note [Strictness for mask/unmask/catch]
    out_of_line = True
    has_side_effects = True
 
 primop  RaiseOp "raise#" GenPrimOp
-   a -> b
+   b -> o
+      -- NB: the type variable "o" is "a", but with OpenKind
    with
-   strictness  = { \ _arity -> mkClosedStrictSig [topDmd] botRes }
-      -- NB: result is bottom
+   strictness  = { \ _arity -> mkClosedStrictSig [topDmd] exnRes }
+      -- NB: result is ThrowsExn
    out_of_line = True
    has_side_effects = True
      -- raise# certainly throws a Haskell exception and hence has_side_effects
@@ -1957,7 +1983,7 @@ primop  RaiseOp "raise#" GenPrimOp
 primop  RaiseIOOp "raiseIO#" GenPrimOp
    a -> State# RealWorld -> (# State# RealWorld, b #)
    with
-   strictness  = { \ _arity -> mkClosedStrictSig [topDmd, topDmd] botRes }
+   strictness  = { \ _arity -> mkClosedStrictSig [topDmd, topDmd] exnRes }
    out_of_line = True
    has_side_effects = True
 
@@ -1965,7 +1991,8 @@ primop  MaskAsyncExceptionsOp "maskAsyncExceptions#" GenPrimOp
         (State# RealWorld -> (# State# RealWorld, a #))
      -> (State# RealWorld -> (# State# RealWorld, a #))
    with
-   strictness  = { \ _arity -> mkClosedStrictSig [apply1Dmd,topDmd] topRes }
+   strictness  = { \ _arity -> mkClosedStrictSig [strictApply1Dmd,topDmd] topRes }
+                 -- See Note [Strictness for mask/unmask/catch]
    out_of_line = True
    has_side_effects = True
 
@@ -1973,7 +2000,7 @@ primop  MaskUninterruptibleOp "maskUninterruptible#" GenPrimOp
         (State# RealWorld -> (# State# RealWorld, a #))
      -> (State# RealWorld -> (# State# RealWorld, a #))
    with
-   strictness  = { \ _arity -> mkClosedStrictSig [apply1Dmd,topDmd] topRes }
+   strictness  = { \ _arity -> mkClosedStrictSig [strictApply1Dmd,topDmd] topRes }
    out_of_line = True
    has_side_effects = True
 
@@ -1981,7 +2008,8 @@ primop  UnmaskAsyncExceptionsOp "unmaskAsyncExceptions#" GenPrimOp
         (State# RealWorld -> (# State# RealWorld, a #))
      -> (State# RealWorld -> (# State# RealWorld, a #))
    with
-   strictness  = { \ _arity -> mkClosedStrictSig [apply1Dmd,topDmd] topRes }
+   strictness  = { \ _arity -> mkClosedStrictSig [strictApply1Dmd,topDmd] topRes }
+                 -- See Note [Strictness for mask/unmask/catch]
    out_of_line = True
    has_side_effects = True
 
@@ -2001,7 +2029,8 @@ primop  AtomicallyOp "atomically#" GenPrimOp
       (State# RealWorld -> (# State# RealWorld, a #) )
    -> State# RealWorld -> (# State# RealWorld, a #)
    with
-   strictness  = { \ _arity -> mkClosedStrictSig [apply1Dmd,topDmd] topRes }
+   strictness  = { \ _arity -> mkClosedStrictSig [strictApply1Dmd,topDmd] topRes }
+                 -- See Note [Strictness for mask/unmask/catch]
    out_of_line = True
    has_side_effects = True
 
@@ -2027,7 +2056,10 @@ primop  CatchRetryOp "catchRetry#" GenPrimOp
    -> (State# RealWorld -> (# State# RealWorld, a #) )
    -> (State# RealWorld -> (# State# RealWorld, a #) )
    with
-   strictness  = { \ _arity -> mkClosedStrictSig [apply1Dmd,apply1Dmd,topDmd] topRes }
+   strictness  = { \ _arity -> mkClosedStrictSig [ catchArgDmd
+                                                 , lazyApply1Dmd
+                                                 , topDmd ] topRes }
+                 -- See Note [Strictness for mask/unmask/catch]
    out_of_line = True
    has_side_effects = True
 
@@ -2036,13 +2068,16 @@ primop  CatchSTMOp "catchSTM#" GenPrimOp
    -> (b -> State# RealWorld -> (# State# RealWorld, a #) )
    -> (State# RealWorld -> (# State# RealWorld, a #) )
    with
-   strictness  = { \ _arity -> mkClosedStrictSig [apply1Dmd,apply2Dmd,topDmd] topRes }
+   strictness  = { \ _arity -> mkClosedStrictSig [ catchArgDmd
+                                                 , lazyApply2Dmd
+                                                 , topDmd ] topRes }
+                 -- See Note [Strictness for mask/unmask/catch]
    out_of_line = True
    has_side_effects = True
 
 primop  Check "check#" GenPrimOp
       (State# RealWorld -> (# State# RealWorld, a #) )
-   -> (State# RealWorld -> (# State# RealWorld, () #) )
+   -> (State# RealWorld -> State# RealWorld)
    with
    out_of_line = True
    has_side_effects = True
@@ -2293,7 +2328,8 @@ primtype Weak# b
 -- note that tyvar "o" denotes openAlphaTyVar
 
 primop  MkWeakOp "mkWeak#" GenPrimOp
-   o -> b -> c -> State# RealWorld -> (# State# RealWorld, Weak# b #)
+   o -> b -> (State# RealWorld -> (# State# RealWorld, c #))
+     -> State# RealWorld -> (# State# RealWorld, Weak# b #)
    with
    has_side_effects = True
    out_of_line      = True
@@ -2325,7 +2361,12 @@ primop  DeRefWeakOp "deRefWeak#" GenPrimOp
 
 primop  FinalizeWeakOp "finalizeWeak#" GenPrimOp
    Weak# a -> State# RealWorld -> (# State# RealWorld, Int#,
-              (State# RealWorld -> (# State# RealWorld, () #)) #)
+              (State# RealWorld -> (# State# RealWorld, b #) ) #)
+   { Finalize a weak pointer. The return value is an unboxed tuple
+     containing the new state of the world and an "unboxed Maybe",
+     represented by an {\tt Int#} and a (possibly invalid) finalization
+     action. An {\tt Int#} of {\tt 1} indicates that the finalizer is valid. The
+     return value {\tt b} from the finalizer should be ignored. }
    with
    has_side_effects = True
    out_of_line      = True
@@ -2421,55 +2462,6 @@ primop NumSparks "numSparks#" GenPrimOp
    has_side_effects = True
    out_of_line = True
 
--- HWL: The first 4 Int# in all par... annotations denote:
---   name, granularity info, size of result, degree of parallelism
---      Same  structure as _seq_ i.e. returns Int#
--- KSW: v, the second arg in parAt# and parAtForNow#, is used only to determine
---   `the processor containing the expression v'; it is not evaluated
-
-primop  ParGlobalOp  "parGlobal#"  GenPrimOp
-   a -> Int# -> Int# -> Int# -> Int# -> b -> Int#
-   with
-   has_side_effects = True
-
-primop  ParLocalOp  "parLocal#"  GenPrimOp
-   a -> Int# -> Int# -> Int# -> Int# -> b -> Int#
-   with
-   has_side_effects = True
-
-primop  ParAtOp  "parAt#"  GenPrimOp
-   b -> a -> Int# -> Int# -> Int# -> Int# -> c -> Int#
-   with
-   has_side_effects = True
-
-primop  ParAtAbsOp  "parAtAbs#"  GenPrimOp
-   a -> Int# -> Int# -> Int# -> Int# -> Int# -> b -> Int#
-   with
-   has_side_effects = True
-
-primop  ParAtRelOp  "parAtRel#" GenPrimOp
-   a -> Int# -> Int# -> Int# -> Int# -> Int# -> b -> Int#
-   with
-   has_side_effects = True
-
-primop  ParAtForNowOp  "parAtForNow#" GenPrimOp
-   b -> a -> Int# -> Int# -> Int# -> Int# -> c -> Int#
-   with
-   has_side_effects = True
-
--- copyable# and noFollow# are yet to be implemented (for GpH)
---
---primop  CopyableOp  "copyable#" GenPrimOp
---   a -> Int#
---   with
---   has_side_effects = True
---
---primop  NoFollowOp "noFollow#" GenPrimOp
---   a -> Int#
---   with
---   has_side_effects = True
-
-
 ------------------------------------------------------------------------
 section "Tag to enum stuff"
         {Convert back and forth between values of enumerated types
@@ -2488,25 +2480,35 @@ primop  TagToEnumOp "tagToEnum#" GenPrimOp
 
 ------------------------------------------------------------------------
 section "Bytecode operations"
-        {Support for the bytecode interpreter and linker.}
+        {Support for manipulating bytecode objects used by the interpreter and
+        linker.
+
+        Bytecode objects are heap objects which represent top-level bindings and
+        contain a list of instructions and data needed by these instructions.}
 ------------------------------------------------------------------------
 
 primtype BCO#
-   {Primitive bytecode type.}
+   { Primitive bytecode type. }
 
 primop   AddrToAnyOp "addrToAny#" GenPrimOp
    Addr# -> (# a #)
-   {Convert an {\tt Addr\#} to a followable Any type.}
+   { Convert an {\tt Addr\#} to a followable Any type. }
    with
    code_size = 0
 
 primop   MkApUpd0_Op "mkApUpd0#" GenPrimOp
    BCO# -> (# a #)
+   { Wrap a BCO in a {\tt AP_UPD} thunk which will be updated with the value of
+     the BCO when evaluated. }
    with
    out_of_line = True
 
 primop  NewBCOOp "newBCO#" GenPrimOp
    ByteArray# -> ByteArray# -> Array# a -> Int# -> ByteArray# -> State# s -> (# State# s, BCO# #)
+   { {\tt newBCO\# instrs lits ptrs arity bitmap} creates a new bytecode object. The
+     resulting object encodes a function of the given arity with the instructions
+     encoded in {\tt instrs}, and a static reference table usage bitmap given by
+     {\tt bitmap}. }
    with
    has_side_effects = True
    out_of_line      = True
@@ -2536,6 +2538,14 @@ primop  GetCurrentCCSOp "getCurrentCCS#" GenPrimOp
      avoid the call to {\tt getCCCS\#} being floated out by the
      simplifier, which would result in an uninformative stack
      ("CAF"). }
+
+primop  ClearCCSOp "clearCCS#" GenPrimOp
+   (State# s -> (# State# s, a #)) -> State# s -> (# State# s, a #)
+   { Run the supplied IO action with an empty CCS.  For example, this
+     is used by the interpreter to run an interpreted computation
+     without the call stack showing that it was invoked from GHC. }
+   with
+   out_of_line = True
 
 ------------------------------------------------------------------------
 section "Etc"
@@ -2933,20 +2943,21 @@ section "Prefetch"
   architectures or vendor hardware. The manual can be found at
   http://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-optimization-manual.html .
 
-  The {\tt prefetchMutableByteArray} family of operations has the order of operations
+  The {\tt prefetch*} family of operations has the order of operations
   determined by passing around the {\tt State#} token.
 
-  For the {\tt prefetchByteArray}
-  and {\tt prefetchAddr} families of operations, consider the following example:
+  To get a "pure" version of these operations, use {\tt inlinePerformIO} which is quite safe in this context.
 
-  {\tt let a1 = prefetchByteArray2# a n in ...a1... }
-
-  In the above fragement, {\tt a} is the input variable for the prefetch
-  and {\tt a1 == a} will be true. To ensure that the prefetch is not treated as deadcode,
-  the body of the let should only use {\tt a1} and NOT {\tt a}. The same principle
-  applies for uses of prefetch in a loop.
-
+  It is important to note that while the prefetch operations will never change the
+  answer to a pure computation, They CAN change the memory locations resident
+  in a CPU cache and that may change the performance and timing characteristics
+  of an application. The prefetch operations are marked has_side_effects=True
+  to reflect that these operations have side effects with respect to the runtime
+  performance characteristics of the resulting code. Additionally, if the prefetchValue
+  operations did not have this attribute, GHC does a float out transformation that
+  results in a let/app violation, at least with the current design.
   }
+
 
 
 ------------------------------------------------------------------------
@@ -2956,48 +2967,75 @@ section "Prefetch"
 
 ---
 primop PrefetchByteArrayOp3 "prefetchByteArray3#" GenPrimOp
-   ByteArray# -> Int# -> ByteArray#
+  ByteArray# -> Int# ->  State# s -> State# s
+  with has_side_effects =  True
 
 primop PrefetchMutableByteArrayOp3 "prefetchMutableByteArray3#" GenPrimOp
-   MutableByteArray# s -> Int# -> State# s -> State# s
+  MutableByteArray# s -> Int# -> State# s -> State# s
+  with has_side_effects =  True
 
 primop PrefetchAddrOp3 "prefetchAddr3#" GenPrimOp
-    Addr# -> Int# -> Addr#
+  Addr# -> Int# -> State# s -> State# s
+  with has_side_effects =  True
 
+primop PrefetchValueOp3 "prefetchValue3#" GenPrimOp
+   a -> State# s -> State# s
+   with strictness  = { \ _arity -> mkClosedStrictSig [botDmd, topDmd] topRes }
+        has_side_effects =  True
 ----
 
 primop PrefetchByteArrayOp2 "prefetchByteArray2#" GenPrimOp
-   ByteArray# -> Int# -> ByteArray#
+  ByteArray# -> Int# ->  State# s -> State# s
+  with has_side_effects =  True
 
 primop PrefetchMutableByteArrayOp2 "prefetchMutableByteArray2#" GenPrimOp
-   MutableByteArray# s -> Int# -> State# s -> State# s
+  MutableByteArray# s -> Int# -> State# s -> State# s
+  with has_side_effects =  True
 
 primop PrefetchAddrOp2 "prefetchAddr2#" GenPrimOp
-   Addr# -> Int# -> Addr#
+  Addr# -> Int# ->  State# s -> State# s
+  with has_side_effects =  True
 
+primop PrefetchValueOp2 "prefetchValue2#" GenPrimOp
+   a ->  State# s -> State# s
+   with strictness  = { \ _arity -> mkClosedStrictSig [botDmd, topDmd] topRes }
+        has_side_effects =  True
 ----
 
 primop PrefetchByteArrayOp1 "prefetchByteArray1#" GenPrimOp
-   ByteArray# -> Int# -> ByteArray#
+   ByteArray# -> Int# -> State# s -> State# s
+   with has_side_effects =  True
 
 primop PrefetchMutableByteArrayOp1 "prefetchMutableByteArray1#" GenPrimOp
-   MutableByteArray# s -> Int# -> State# s -> State# s
+  MutableByteArray# s -> Int# -> State# s -> State# s
+  with has_side_effects =  True
 
 primop PrefetchAddrOp1 "prefetchAddr1#" GenPrimOp
-   Addr# -> Int# -> Addr#
+  Addr# -> Int# -> State# s -> State# s
+  with has_side_effects =  True
 
+primop PrefetchValueOp1 "prefetchValue1#" GenPrimOp
+   a -> State# s -> State# s
+   with strictness  = { \ _arity -> mkClosedStrictSig [botDmd, topDmd] topRes }
+        has_side_effects =  True
 ----
 
 primop PrefetchByteArrayOp0 "prefetchByteArray0#" GenPrimOp
-   ByteArray# -> Int# -> ByteArray#
+  ByteArray# -> Int# ->  State# s -> State# s
+  with has_side_effects =  True
 
 primop PrefetchMutableByteArrayOp0 "prefetchMutableByteArray0#" GenPrimOp
-   MutableByteArray# s -> Int# -> State# s -> State# s
+  MutableByteArray# s -> Int# -> State# s -> State# s
+  with has_side_effects =  True
 
 primop PrefetchAddrOp0 "prefetchAddr0#" GenPrimOp
-   Addr# -> Int# -> Addr#
+  Addr# -> Int# -> State# s -> State# s
+  with has_side_effects =  True
 
-
+primop PrefetchValueOp0 "prefetchValue0#" GenPrimOp
+   a -> State# s -> State# s
+   with strictness  = { \ _arity -> mkClosedStrictSig [botDmd, topDmd] topRes }
+        has_side_effects =  True
 
 ------------------------------------------------------------------------
 ---                                                                  ---

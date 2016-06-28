@@ -1,0 +1,83 @@
+diff --git a/lib/Data/Time/Clock/CTimespec.hsc b/lib/Data/Time/Clock/CTimespec.hsc
+index fb9aaa3..ede3be7 100644
+--- a/lib/Data/Time/Clock/CTimespec.hsc
++++ b/lib/Data/Time/Clock/CTimespec.hsc
+@@ -1,6 +1,37 @@
+ -- #hide
+ module Data.Time.Clock.CTimespec where
+ 
++##if defined(ghcjs_HOST_OS)
++
++import Foreign
++import Foreign.C
++
++data CTimespec = MkCTimespec CTime CLong
++
++instance Storable CTimespec where
++  sizeOf _ = 8
++  alignment _ = 4
++  peek p = do
++    s  <- peekByteOff p 0
++    ns <- peekByteOff p 4
++    return (MkCTimespec s ns)
++  poke p (MkCTimespec s ns) = do
++    pokeByteOff p 0 s
++    pokeByteOff p 4 ns
++
++foreign import ccall unsafe "time.h clock_gettime"
++    clock_gettime :: CInt -> Ptr CTimespec -> IO CInt
++
++-- | Get the current POSIX time from the system clock.
++getCTimespec :: IO CTimespec
++getCTimespec = alloca (\ptspec -> do
++    throwErrnoIfMinus1_ "clock_gettime" $
++        clock_gettime 0 ptspec
++    peek ptspec
++    )
++
++##else
++
+ #include "HsTimeConfig.h"
+ 
+ #if !defined(mingw32_HOST_OS) && HAVE_CLOCK_GETTIME
+@@ -39,3 +70,5 @@ getCTimespec = alloca (\ptspec -> do
+     )
+ 
+ #endif
++
++##endif
+diff --git a/lib/Data/Time/Clock/POSIX.hs b/lib/Data/Time/Clock/POSIX.hs
+index a7a3737..5828f7c 100644
+--- a/lib/Data/Time/Clock/POSIX.hs
++++ b/lib/Data/Time/Clock/POSIX.hs
+@@ -12,10 +12,10 @@ import Control.Monad
+ 
+ #include "HsTimeConfig.h"
+ 
+-#ifdef mingw32_HOST_OS
++#if !defined(ghcjs_HOST_OS) && defined(mingw32_HOST_OS)
+ import Data.Word    ( Word64)
+ import System.Win32.Time
+-#elif HAVE_CLOCK_GETTIME
++#elif defined(ghcjs_HOST_OS) || HAVE_CLOCK_GETTIME
+ import Data.Time.Clock.CTimespec
+ import Foreign.C.Types (CTime(..))
+ #else
+@@ -47,7 +47,7 @@ utcTimeToPOSIXSeconds (UTCTime d t) =
+ -- | Get the current POSIX time from the system clock.
+ getPOSIXTime :: IO POSIXTime
+ 
+-#ifdef mingw32_HOST_OS
++#if !defined(ghcjs_HOST_OS) && defined(mingw32_HOST_OS)
+ -- On Windows, the equlvalent of POSIX time is "file time", defined as
+ -- the number of 100-nanosecond intervals that have elapsed since
+ -- 12:00 A.M. January 1, 1601 (UTC).  We can convert this into a POSIX
+@@ -60,7 +60,7 @@ getPOSIXTime = do
+ win32_epoch_adjust :: Word64
+ win32_epoch_adjust = 116444736000000000
+ 
+-#elif HAVE_CLOCK_GETTIME
++#elif defined(ghcjs_HOST_OS) || HAVE_CLOCK_GETTIME
+ 
+ -- Use hi-res POSIX time
+ ctimespecToPosixSeconds :: CTimespec -> POSIXTime

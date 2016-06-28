@@ -25,7 +25,7 @@ index 0000000..0355326
 +#define IS_CURRENT      1
 +#include "Internal.hs"
 diff --git a/System/FilePath/Internal.hs b/System/FilePath/Internal.hs
-index 051e44c..6d7d61f 100644
+index 34cc156..e75dc70 100644
 --- a/System/FilePath/Internal.hs
 +++ b/System/FilePath/Internal.hs
 @@ -1,4 +1,6 @@
@@ -45,24 +45,26 @@ index 051e44c..6d7d61f 100644
      -- * Separator predicates
      FilePath,
      pathSeparator, pathSeparators, isPathSeparator,
-@@ -124,8 +128,11 @@ isPosix = not isWindows
+@@ -124,8 +128,13 @@ isPosix = not isWindows
  
  -- | Is the operating system Windows like
  isWindows :: Bool
+-isWindows = IS_WINDOWS
 +#ifdef IS_CURRENT
-+foreign import javascript unsafe "h$filepath_isWindows()" isWindows :: Bool
++isWindows = js_isWindows
+ 
++foreign import javascript unsafe "h$filepath_isWindows()" js_isWindows :: Bool
 +#else
- isWindows = IS_WINDOWS
--
++isWindows = IS_WINDOWS
 +#endif
  
  ---------------------------------------------------------------------
  -- The basic functions
 diff --git a/filepath.cabal b/filepath.cabal
-index 0841a0d..9c1295a 100644
+index 9c0a457..0b2d81d 100644
 --- a/filepath.cabal
 +++ b/filepath.cabal
-@@ -40,6 +40,9 @@ library
+@@ -41,6 +41,9 @@ library
          System.FilePath
          System.FilePath.Posix
          System.FilePath.Windows
@@ -71,4 +73,4 @@ index 0841a0d..9c1295a 100644
 +            System.FilePath.Current
  
      build-depends:
-         base >= 4 && < 4.9
+         base >= 4 && < 4.10

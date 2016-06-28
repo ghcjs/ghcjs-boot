@@ -23,7 +23,7 @@
 -----------------------------------------------------------------------------
 
 module GHC.IO (
-        IO(..), unIO, failIO, liftIO,
+        IO(..), unIO, failIO, liftIO, mplusIO,
         unsafePerformIO, unsafeInterleaveIO,
         unsafeDupablePerformIO, unsafeDupableInterleaveIO,
         noDuplicate,
@@ -36,7 +36,7 @@ module GHC.IO (
         catchException, catchAny, throwIO,
         mask, mask_, uninterruptibleMask, uninterruptibleMask_,
         MaskingState(..), getMaskingState,
-        unsafeUnmask,
+        unsafeUnmask, interruptible,
         onException, bracket, finally, evaluate
     ) where
 
@@ -44,8 +44,9 @@ import GHC.Base
 import GHC.ST
 import GHC.Exception
 import GHC.Show
+import GHC.IO.Unsafe
 
-import {-# SOURCE #-} GHC.IO.Exception ( userError )
+import {-# SOURCE #-} GHC.IO.Exception ( userError, IOError )
 
 -- ---------------------------------------------------------------------------
 -- The IO Monad
@@ -101,163 +102,6 @@ unsafeIOToST (IO io) = ST $ \ s -> (unsafeCoerce# io) s
 unsafeSTToIO :: ST s a -> IO a
 unsafeSTToIO (ST m) = IO (unsafeCoerce# m)
 
--- ---------------------------------------------------------------------------
--- Unsafe IO operations
-
-{-|
-This is the \"back door\" into the 'IO' monad, allowing
-'IO' computation to be performed at any time.  For
-this to be safe, the 'IO' computation should be
-free of side effects and independent of its environment.
-
-If the I\/O computation wrapped in 'unsafePerformIO' performs side
-effects, then the relative order in which those side effects take
-place (relative to the main I\/O trunk, or other calls to
-'unsafePerformIO') is indeterminate.  Furthermore, when using
-'unsafePerformIO' to cause side-effects, you should take the following
-precautions to ensure the side effects are performed as many times as
-you expect them to be.  Note that these precautions are necessary for
-GHC, but may not be sufficient, and other compilers may require
-different precautions:
-
-  * Use @{\-\# NOINLINE foo \#-\}@ as a pragma on any function @foo@
-        that calls 'unsafePerformIO'.  If the call is inlined,
-        the I\/O may be performed more than once.
-
-  * Use the compiler flag @-fno-cse@ to prevent common sub-expression
-        elimination being performed on the module, which might combine
-        two side effects that were meant to be separate.  A good example
-        is using multiple global variables (like @test@ in the example below).
-
-  * Make sure that the either you switch off let-floating (@-fno-full-laziness@), or that the
-        call to 'unsafePerformIO' cannot float outside a lambda.  For example,
-        if you say:
-        @
-           f x = unsafePerformIO (newIORef [])
-        @
-        you may get only one reference cell shared between all calls to @f@.
-        Better would be
-        @
-           f x = unsafePerformIO (newIORef [x])
-        @
-        because now it can't float outside the lambda.
-
-It is less well known that
-'unsafePerformIO' is not type safe.  For example:
-
->     test :: IORef [a]
->     test = unsafePerformIO $ newIORef []
->
->     main = do
->             writeIORef test [42]
->             bang <- readIORef test
->             print (bang :: [Char])
-
-This program will core dump.  This problem with polymorphic references
-is well known in the ML community, and does not arise with normal
-monadic use of references.  There is no easy way to make it impossible
-once you use 'unsafePerformIO'.  Indeed, it is
-possible to write @coerce :: a -> b@ with the
-help of 'unsafePerformIO'.  So be careful!
--}
-unsafePerformIO :: IO a -> a
-unsafePerformIO m = unsafeDupablePerformIO (noDuplicate >> m)
-
-{-|
-This version of 'unsafePerformIO' is more efficient
-because it omits the check that the IO is only being performed by a
-single thread.  Hence, when you use 'unsafeDupablePerformIO',
-there is a possibility that the IO action may be performed multiple
-times (on a multiprocessor), and you should therefore ensure that
-it gives the same results each time. It may even happen that one
-of the duplicated IO actions is only run partially, and then interrupted
-in the middle without an exception being raised. Therefore, functions
-like 'bracket' cannot be used safely within 'unsafeDupablePerformIO'.
-
-@since 4.4.0.0
--}
-{-# NOINLINE unsafeDupablePerformIO #-}
-    -- See Note [unsafeDupablePerformIO is NOINLINE]
-unsafeDupablePerformIO  :: IO a -> a
-unsafeDupablePerformIO (IO m) = lazy (case m realWorld# of (# _, r #) -> r)
-     -- See Note [unsafeDupablePerformIO has a lazy RHS]
-
--- Note [unsafeDupablePerformIO is NOINLINE]
--- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Why do we NOINLINE unsafeDupablePerformIO?  See the comment with
--- GHC.ST.runST.  Essentially the issue is that the IO computation
--- inside unsafePerformIO must be atomic: it must either all run, or
--- not at all.  If we let the compiler see the application of the IO
--- to realWorld#, it might float out part of the IO.
-
--- Note [unsafeDupablePerformIO has a lazy RHS]
--- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Why is there a call to 'lazy' in unsafeDupablePerformIO?
--- If we don't have it, the demand analyser discovers the following strictness
--- for unsafeDupablePerformIO:  C(U(AV))
--- But then consider
---      unsafeDupablePerformIO (\s -> let r = f x in
---                             case writeIORef v r s of (# s1, _ #) ->
---                             (# s1, r #) )
--- The strictness analyser will find that the binding for r is strict,
--- (because of uPIO's strictness sig), and so it'll evaluate it before
--- doing the writeIORef.  This actually makes libraries/base/tests/memo002
--- get a deadlock, where we specifically wanted to write a lazy thunk
--- into the ref cell.
---
--- Solution: don't expose the strictness of unsafeDupablePerformIO,
---           by hiding it with 'lazy'
--- But see discussion in Trac #9390 (comment:33)
-
-{-|
-'unsafeInterleaveIO' allows 'IO' computation to be deferred lazily.
-When passed a value of type @IO a@, the 'IO' will only be performed
-when the value of the @a@ is demanded.  This is used to implement lazy
-file reading, see 'System.IO.hGetContents'.
--}
-{-# INLINE unsafeInterleaveIO #-}
-unsafeInterleaveIO :: IO a -> IO a
-unsafeInterleaveIO m = unsafeDupableInterleaveIO (noDuplicate >> m)
-
--- We used to believe that INLINE on unsafeInterleaveIO was safe,
--- because the state from this IO thread is passed explicitly to the
--- interleaved IO, so it cannot be floated out and shared.
---
--- HOWEVER, if the compiler figures out that r is used strictly here,
--- then it will eliminate the thunk and the side effects in m will no
--- longer be shared in the way the programmer was probably expecting,
--- but can be performed many times.  In #5943, this broke our
--- definition of fixIO, which contains
---
---    ans <- unsafeInterleaveIO (takeMVar m)
---
--- after inlining, we lose the sharing of the takeMVar, so the second
--- time 'ans' was demanded we got a deadlock.  We could fix this with
--- a readMVar, but it seems wrong for unsafeInterleaveIO to sometimes
--- share and sometimes not (plus it probably breaks the noDuplicate).
--- So now, we do not inline unsafeDupableInterleaveIO.
-
-{-# NOINLINE unsafeDupableInterleaveIO #-}
-unsafeDupableInterleaveIO :: IO a -> IO a
-unsafeDupableInterleaveIO (IO m)
-  = IO ( \ s -> let
-                   r = case m s of (# _, res #) -> res
-                in
-                (# s, r #))
-
-{-|
-Ensures that the suspensions under evaluation by the current thread
-are unique; that is, the current thread is not evaluating anything
-that is also under evaluation by another thread that has also executed
-'noDuplicate'.
-
-This operation is used in the definition of 'unsafePerformIO' to
-prevent the IO action from being executed multiple times, which is usually
-undesirable.
--}
-noDuplicate :: IO ()
-noDuplicate = IO $ \s -> case noDuplicate# s of s' -> (# s', () #)
-
 -- -----------------------------------------------------------------------------
 -- | File and directory names are values of type 'String', whose precise
 -- meaning is operating system dependent. Files can be opened, yielding a
@@ -282,15 +126,31 @@ Now catch# has type
 have to work around that in the definition of catchException below).
 -}
 
+-- | Catch an exception in the 'IO' monad.
+--
+-- Note that this function is /strict/ in the action. That is,
+-- @catchException undefined b == _|_@. See #exceptions_and_strictness#
+-- for details.
 catchException :: Exception e => IO a -> (e -> IO a) -> IO a
 catchException (IO io) handler = IO $ catch# io handler'
     where handler' e = case fromException e of
                        Just e' -> unIO (handler e')
                        Nothing -> raiseIO# e
 
+-- | Catch any 'Exception' type in the 'IO' monad.
+--
+-- Note that this function is /strict/ in the action. That is,
+-- @catchException undefined b == _|_@. See #exceptions_and_strictness# for
+-- details.
 catchAny :: IO a -> (forall e . Exception e => e -> IO a) -> IO a
 catchAny (IO io) handler = IO $ catch# io handler'
     where handler' (SomeException e) = unIO (handler e)
+
+
+mplusIO :: IO a -> IO a -> IO a
+mplusIO m n = m `catchIOError` \ _ -> n
+    where catchIOError :: IO a -> (IOError -> IO a) -> IO a
+          catchIOError = catchException
 
 -- | A variant of 'throw' that can only be used within the 'IO' monad.
 --
@@ -340,6 +200,22 @@ unblock = unsafeUnmask
 
 unsafeUnmask :: IO a -> IO a
 unsafeUnmask (IO io) = IO $ unmaskAsyncExceptions# io
+
+-- | Allow asynchronous exceptions to be raised even inside 'mask', making
+-- the operation interruptible (see the discussion of "Interruptible operations"
+-- in 'Control.Exception').
+--
+-- When called outside 'mask', or inside 'uninterruptibleMask', this
+-- function has no effect.
+--
+-- @since 4.9.0.0
+interruptible :: IO a -> IO a
+interruptible act = do
+  st <- getMaskingState
+  case st of
+    Unmasked              -> act
+    MaskedInterruptible   -> unsafeUnmask act
+    MaskedUninterruptible -> act
 
 blockUninterruptible :: IO a -> IO a
 blockUninterruptible (IO io) = IO $ maskUninterruptible# io
@@ -436,8 +312,9 @@ mask_ io = mask $ \_ -> io
 mask io = do
   b <- getMaskingState
   case b of
-    Unmasked -> block $ io unblock
-    _        -> io id
+    Unmasked              -> block $ io unblock
+    MaskedInterruptible   -> io block
+    MaskedUninterruptible -> io blockUninterruptible
 
 uninterruptibleMask_ io = uninterruptibleMask $ \_ -> io
 
@@ -446,7 +323,7 @@ uninterruptibleMask io = do
   case b of
     Unmasked              -> blockUninterruptible $ io unblock
     MaskedInterruptible   -> blockUninterruptible $ io block
-    MaskedUninterruptible -> io id
+    MaskedUninterruptible -> io blockUninterruptible
 
 bracket
         :: IO a         -- ^ computation to run first (\"acquire resource\")
@@ -470,20 +347,68 @@ a `finally` sequel =
     _ <- sequel
     return r
 
--- | Forces its argument to be evaluated to weak head normal form when
--- the resultant 'IO' action is executed. It can be used to order
--- evaluation with respect to other 'IO' operations; its semantics are
--- given by
+-- | Evaluate the argument to weak head normal form.
 --
--- >   evaluate x `seq` y    ==>  y
--- >   evaluate x `catch` f  ==>  (return $! x) `catch` f
--- >   evaluate x >>= f      ==>  (return $! x) >>= f
+-- 'evaluate' is typically used to uncover any exceptions that a lazy value
+-- may contain, and possibly handle them.
 --
--- /Note:/ the first equation implies that @(evaluate x)@ is /not/ the
--- same as @(return $! x)@.  A correct definition is
+-- 'evaluate' only evaluates to /weak head normal form/. If deeper
+-- evaluation is needed, the @force@ function from @Control.DeepSeq@
+-- may be handy:
 --
--- >   evaluate x = (return $! x) >>= return
+-- > evaluate $ force x
 --
+-- There is a subtle difference between @'evaluate' x@ and @'return' '$!' x@,
+-- analogous to the difference between 'throwIO' and 'throw'. If the lazy
+-- value @x@ throws an exception, @'return' '$!' x@ will fail to return an
+-- 'IO' action and will throw an exception instead. @'evaluate' x@, on the
+-- other hand, always produces an 'IO' action; that action will throw an
+-- exception upon /execution/ iff @x@ throws an exception upon /evaluation/.
+--
+-- The practical implication of this difference is that due to the
+-- /imprecise exceptions/ semantics,
+--
+-- > (return $! error "foo") >> error "bar"
+--
+-- may throw either @"foo"@ or @"bar"@, depending on the optimizations
+-- performed by the compiler. On the other hand,
+--
+-- > evaluate (error "foo") >> error "bar"
+--
+-- is guaranteed to throw @"foo"@.
+--
+-- The rule of thumb is to use 'evaluate' to force or handle exceptions in
+-- lazy values. If, on the other hand, you are forcing a lazy value for
+-- efficiency reasons only and do not care about exceptions, you may
+-- use @'return' '$!' x@.
 evaluate :: a -> IO a
 evaluate a = IO $ \s -> seq# a s -- NB. see #2273, #5129
 
+{- $exceptions_and_strictness
+
+Laziness can interact with @catch@-like operations in non-obvious ways (see,
+e.g. GHC Trac #11555). For instance, consider these subtly-different examples,
+
+> test1 = Control.Exception.catch (error "uh oh") (\(_ :: SomeException) -> putStrLn "it failed")
+>
+> test2 = GHC.IO.catchException (error "uh oh") (\(_ :: SomeException) -> putStrLn "it failed")
+
+While the first case is always guaranteed to print "it failed", the behavior of
+@test2@ may vary with optimization level.
+
+The unspecified behavior of @test2@ is due to the fact that GHC may assume that
+'catchException' (and the 'catch#' primitive operation which it is built upon)
+is strict in its first argument. This assumption allows the compiler to better
+optimize @catchException@ calls at the expense of deterministic behavior when
+the action may be bottom.
+
+Namely, the assumed strictness means that exceptions thrown while evaluating the
+action-to-be-executed may not be caught; only exceptions thrown during execution
+of the action will be handled by the exception handler.
+
+Since this strictness is a small optimization and may lead to surprising
+results, all of the @catch@ and @handle@ variants offered by "Control.Exception"
+are lazy in their first argument. If you are certain that that the action to be
+executed won't bottom in performance-sensitive code, you might consider using
+'GHC.IO.catchException' or 'GHC.IO.catchAny' for a small speed-up.
+-}

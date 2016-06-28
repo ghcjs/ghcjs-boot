@@ -1,5 +1,5 @@
 diff --git a/boot/base/GHC/Conc.hs b/boot/base/GHC/Conc.hs
-index 68182a1..80dff2a 100644
+index 38fac43..0844779 100644
 --- a/boot/base/GHC/Conc.hs
 +++ b/boot/base/GHC/Conc.hs
 @@ -93,7 +93,7 @@ module GHC.Conc
@@ -20,7 +20,7 @@ index 68182a1..80dff2a 100644
  import GHC.Conc.Signal
  #endif
 diff --git a/boot/base/GHC/Conc/IO.hs b/boot/base/GHC/Conc/IO.hs
-index 3a57c93..994921f 100644
+index 1e9ffd5..ca316b7 100644
 --- a/boot/base/GHC/Conc/IO.hs
 +++ b/boot/base/GHC/Conc/IO.hs
 @@ -59,24 +59,26 @@ import GHC.Conc.Sync as Sync
@@ -124,12 +124,12 @@ index 3a57c93..994921f 100644
 +#elif !defined(ghcjs_HOST_OS)
    | threaded = Event.registerDelay usecs
  #endif
-   | otherwise = error "registerDelay: requires -threaded"
+   | otherwise = errorWithoutStackTrace "registerDelay: requires -threaded"
 diff --git a/boot/base/GHC/Conc/Windows.hs b/boot/base/GHC/Conc/Windows.hs
-index 7935a8a..979ed6f 100644
+index 4cbb8ca..454d755 100644
 --- a/boot/base/GHC/Conc/Windows.hs
 +++ b/boot/base/GHC/Conc/Windows.hs
-@@ -20,6 +20,9 @@
+@@ -19,6 +19,9 @@
  
  -- #not-home
  module GHC.Conc.Windows
@@ -139,13 +139,13 @@ index 7935a8a..979ed6f 100644
         ( ensureIOManagerIsRunning
  
         -- * Waiting
-@@ -337,3 +340,4 @@ foreign import ccall unsafe "sendIOManagerEvent" -- in the RTS (ThrIOManager.c)
+@@ -335,3 +338,4 @@ foreign import ccall unsafe "sendIOManagerEvent" -- in the RTS (ThrIOManager.c)
  foreign import WINDOWS_CCONV "WaitForSingleObject"
     c_WaitForSingleObject :: HANDLE -> DWORD -> IO DWORD
  
 +#endif
 diff --git a/boot/base/GHC/Event.hs b/boot/base/GHC/Event.hs
-index 436914c..c41abfc 100644
+index 9f1d3df..875f3fe 100644
 --- a/boot/base/GHC/Event.hs
 +++ b/boot/base/GHC/Event.hs
 @@ -1,5 +1,6 @@
@@ -165,13 +165,13 @@ index 436914c..c41abfc 100644
      ( -- * Types
        EventManager
      , TimerManager
-@@ -43,3 +47,4 @@ import GHC.Event.TimerManager (TimeoutCallback, TimeoutKey, registerTimeout,
+@@ -44,3 +48,4 @@ import GHC.Event.TimerManager (TimeoutCallback, TimeoutKey, registerTimeout,
                                 updateTimeout, unregisterTimeout, TimerManager)
  import GHC.Event.Thread (getSystemEventManager, getSystemTimerManager)
  
 +#endif
 diff --git a/boot/base/GHC/Event/Manager.hs b/boot/base/GHC/Event/Manager.hs
-index 11b01ad..4de059b 100644
+index 013850b..7c06090 100644
 --- a/boot/base/GHC/Event/Manager.hs
 +++ b/boot/base/GHC/Event/Manager.hs
 @@ -19,6 +19,9 @@
@@ -184,7 +184,7 @@ index 11b01ad..4de059b 100644
      ( -- * Types
        EventManager
  
-@@ -497,3 +500,6 @@ nullToNothing xs@(_:_) = Just xs
+@@ -518,3 +521,6 @@ nullToNothing xs@(_:_) = Just xs
  
  unless :: Monad m => Bool -> m () -> m ()
  unless p = when (not p)
@@ -215,7 +215,7 @@ index d4b6792..5983d0e 100644
 +#endif
 +
 diff --git a/boot/base/GHC/Event/TimerManager.hs b/boot/base/GHC/Event/TimerManager.hs
-index c1ab64c..2184869 100644
+index 93b1766..c30da44 100644
 --- a/boot/base/GHC/Event/TimerManager.hs
 +++ b/boot/base/GHC/Event/TimerManager.hs
 @@ -8,6 +8,9 @@
@@ -234,7 +234,7 @@ index c1ab64c..2184869 100644
  
 +#endif
 diff --git a/boot/base/GHC/IO/Encoding.hs b/boot/base/GHC/IO/Encoding.hs
-index 31683b4..c730184 100644
+index 18b5432..c8bcd2f 100644
 --- a/boot/base/GHC/IO/Encoding.hs
 +++ b/boot/base/GHC/IO/Encoding.hs
 @@ -140,8 +140,11 @@ mkGlobal x = unsafePerformIO $ do
@@ -252,7 +252,7 @@ index 31683b4..c730184 100644
  -- because some iconvs (in particular GNU iconv) will brokenly UTF-8 encode
  -- lone surrogates without complaint.
 diff --git a/boot/base/GHC/IO/Encoding/CodePage/API.hs b/boot/base/GHC/IO/Encoding/CodePage/API.hs
-index 966a690..84b2db6 100644
+index 5a48a9e..33ea67b 100644
 --- a/boot/base/GHC/IO/Encoding/CodePage/API.hs
 +++ b/boot/base/GHC/IO/Encoding/CodePage/API.hs
 @@ -29,6 +29,7 @@ import GHC.ForeignPtr (castForeignPtr)
@@ -273,10 +273,10 @@ index 966a690..84b2db6 100644
 +mkCodePageEncoding = ""
 +#endif
 diff --git a/boot/base/GHC/IO/FD.hs b/boot/base/GHC/IO/FD.hs
-index 610c9ea..774ac69 100644
+index eb7b80b..fc9c084 100644
 --- a/boot/base/GHC/IO/FD.hs
 +++ b/boot/base/GHC/IO/FD.hs
-@@ -500,6 +500,10 @@ indicates that there's no data, we call threadWaitRead.
+@@ -497,6 +497,10 @@ indicates that there's no data, we call threadWaitRead.
  
  readRawBufferPtr :: String -> FD -> Ptr Word8 -> Int -> CSize -> IO Int
  readRawBufferPtr loc !fd buf off len
@@ -287,7 +287,7 @@ index 610c9ea..774ac69 100644
    | isNonBlocking fd = unsafe_read -- unsafe is ok, it can't block
    | otherwise    = do r <- throwErrnoIfMinus1 loc
                                  (unsafe_fdReady (fdFD fd) 0 0 0)
-@@ -513,10 +517,19 @@ readRawBufferPtr loc !fd buf off len
+@@ -510,10 +514,19 @@ readRawBufferPtr loc !fd buf off len
      read        = if threaded then safe_read else unsafe_read
      unsafe_read = do_read (c_read (fdFD fd) (buf `plusPtr` off) len)
      safe_read   = do_read (c_safe_read (fdFD fd) (buf `plusPtr` off) len)
@@ -307,7 +307,7 @@ index 610c9ea..774ac69 100644
    | isNonBlocking fd  = unsafe_read -- unsafe is ok, it can't block
    | otherwise    = do r <- unsafe_fdReady (fdFD fd) 0 0 0
                        if r /= 0 then safe_read
-@@ -530,9 +543,14 @@ readRawBufferPtrNoBlock loc !fd buf off len
+@@ -527,9 +540,14 @@ readRawBufferPtrNoBlock loc !fd buf off len
                         n    -> return (fromIntegral n)
     unsafe_read  = do_read (c_read (fdFD fd) (buf `plusPtr` off) len)
     safe_read    = do_read (c_safe_read (fdFD fd) (buf `plusPtr` off) len)
@@ -322,7 +322,7 @@ index 610c9ea..774ac69 100644
    | isNonBlocking fd = unsafe_write -- unsafe is ok, it can't block
    | otherwise   = do r <- unsafe_fdReady (fdFD fd) 1 0 0
                       if r /= 0
-@@ -545,9 +563,17 @@ writeRawBufferPtr loc !fd buf off len
+@@ -542,9 +560,17 @@ writeRawBufferPtr loc !fd buf off len
      write         = if threaded then safe_write else unsafe_write
      unsafe_write  = do_write (c_write (fdFD fd) (buf `plusPtr` off) len)
      safe_write    = do_write (c_safe_write (fdFD fd) (buf `plusPtr` off) len)
@@ -340,7 +340,7 @@ index 610c9ea..774ac69 100644
    | isNonBlocking fd = unsafe_write -- unsafe is ok, it can't block
    | otherwise   = do r <- unsafe_fdReady (fdFD fd) 1 0 0
                       if r /= 0 then write
-@@ -560,9 +586,14 @@ writeRawBufferPtrNoBlock loc !fd buf off len
+@@ -557,9 +583,14 @@ writeRawBufferPtrNoBlock loc !fd buf off len
      write         = if threaded then safe_write else unsafe_write
      unsafe_write  = do_write (c_write (fdFD fd) (buf `plusPtr` off) len)
      safe_write    = do_write (c_safe_write (fdFD fd) (buf `plusPtr` off) len)
@@ -355,7 +355,7 @@ index 610c9ea..774ac69 100644
  
  foreign import ccall unsafe "fdReady"
    unsafe_fdReady :: CInt -> CInt -> CInt -> CInt -> IO CInt
-@@ -646,7 +677,7 @@ foreign import ccall "rtsSupportsBoundThreads" threaded :: Bool
+@@ -643,7 +674,7 @@ foreign import ccall "rtsSupportsBoundThreads" threaded :: Bool
  -- -----------------------------------------------------------------------------
  -- utils
  
@@ -364,33 +364,33 @@ index 610c9ea..774ac69 100644
  throwErrnoIfMinus1RetryOnBlock  :: String -> IO CSsize -> IO CSsize -> IO CSsize
  throwErrnoIfMinus1RetryOnBlock loc f on_block  =
    do
-diff --git a/boot/base/GHC/Stack.hsc b/boot/base/GHC/Stack.hsc
-index 0aa4d17..ee56621 100644
---- a/boot/base/GHC/Stack.hsc
-+++ b/boot/base/GHC/Stack.hsc
+diff --git a/boot/base/GHC/Stack/CCS.hsc b/boot/base/GHC/Stack/CCS.hsc
+index bab9f75..b578fbd 100644
+--- a/boot/base/GHC/Stack/CCS.hsc
++++ b/boot/base/GHC/Stack/CCS.hsc
 @@ -15,7 +15,7 @@
  -- @since 4.5.0.0
  -----------------------------------------------------------------------------
  
 -{-# LANGUAGE UnboxedTuples, MagicHash, NoImplicitPrelude #-}
-+{-# LANGUAGE CPP, UnboxedTuples, MagicHash, NoImplicitPrelude #-}
- module GHC.Stack (
-     -- * Call stack
++{-# LANGUAGE UnboxedTuples, MagicHash, NoImplicitPrelude, CPP #-}
+ module GHC.Stack.CCS (
+     -- * Call stacks
      currentCallStack,
-@@ -63,6 +63,22 @@ getCCSOf obj = IO $ \s ->
-    case getCCSOf## obj s of
-      (## s', addr ##) -> (## s', Ptr addr ##)
+@@ -64,6 +64,22 @@ getCCSOf obj = IO $ \s ->
+ clearCCS :: IO a -> IO a
+ clearCCS (IO m) = IO $ \s -> clearCCS## m s
  
 +##ifdef ghcjs_HOST_OS
 +ccsCC :: Ptr CostCentreStack -> IO (Ptr CostCentre)
 +ccsCC p = peekByteOff p 4
-+
++ 
 +ccsParent :: Ptr CostCentreStack -> IO (Ptr CostCentreStack)
 +ccsParent p = peekByteOff p 8
-+
++ 
 +ccLabel :: Ptr CostCentre -> IO CString
 +ccLabel p = peekByteOff p 4
-+
++ 
 +ccModule :: Ptr CostCentre -> IO CString
 +ccModule p = peekByteOff p 8
 +
@@ -400,16 +400,16 @@ index 0aa4d17..ee56621 100644
  ccsCC :: Ptr CostCentreStack -> IO (Ptr CostCentre)
  ccsCC p = (# peek CostCentreStack, cc) p
  
-@@ -77,6 +93,7 @@ ccModule p = (# peek CostCentre, module) p
+@@ -78,6 +94,7 @@ ccModule p = (# peek CostCentre, module) p
  
  ccSrcSpan :: Ptr CostCentre -> IO CString
  ccSrcSpan p = (# peek CostCentre, srcloc) p
 +##endif
  
- -- | returns a '[String]' representing the current call stack.  This
+ -- | Returns a @[String]@ representing the current call stack.  This
  -- can be useful for debugging.
 diff --git a/boot/base/GHC/Stats.hsc b/boot/base/GHC/Stats.hsc
-index 7bcc221..378ca67 100644
+index 73e2de9..5c22f68 100644
 --- a/boot/base/GHC/Stats.hsc
 +++ b/boot/base/GHC/Stats.hsc
 @@ -1,3 +1,4 @@
@@ -417,7 +417,7 @@ index 7bcc221..378ca67 100644
  {-# LANGUAGE Trustworthy #-}
  {-# LANGUAGE NoImplicitPrelude #-}
  {-# LANGUAGE RecordWildCards #-}
-@@ -100,6 +101,28 @@ getGCStats = do
+@@ -119,6 +120,28 @@ getGCStats = do
      "getGCStats: GC stats not enabled. Use `+RTS -T -RTS' to enable them."
      Nothing
      Nothing
@@ -446,7 +446,7 @@ index 7bcc221..378ca67 100644
    allocaBytes (#size GCStats) $ \p -> do
      getGCStats_ p
      bytesAllocated <- (# peek GCStats, bytes_allocated) p
-@@ -124,6 +147,7 @@ getGCStats = do
+@@ -143,6 +166,7 @@ getGCStats = do
      wallSeconds <- (# peek GCStats, wall_seconds) p
      parTotBytesCopied <- (# peek GCStats, par_tot_bytes_copied) p
      parMaxBytesCopied <- (# peek GCStats, par_max_bytes_copied) p
@@ -455,7 +455,7 @@ index 7bcc221..378ca67 100644
  
  {-
 diff --git a/boot/base/GHC/TopHandler.hs b/boot/base/GHC/TopHandler.hs
-index d7c0038..9518de3 100644
+index 05c905f..7672e3f 100644
 --- a/boot/base/GHC/TopHandler.hs
 +++ b/boot/base/GHC/TopHandler.hs
 @@ -68,7 +68,9 @@ runMainIO main =
@@ -469,7 +469,7 @@ index d7c0038..9518de3 100644
  install_interrupt_handler handler = do
    _ <- GHC.ConsoleHandler.installHandler $
       Catch $ \event ->
-@@ -182,7 +184,7 @@ unreachable :: IO a
+@@ -214,7 +216,7 @@ unreachable :: IO a
  unreachable = fail "If you can read this, shutdownHaskellAndExit did not exit."
  
  exitHelper :: CInt -> Int -> IO a
@@ -478,7 +478,7 @@ index d7c0038..9518de3 100644
  exitHelper exitKind r =
    shutdownHaskellAndExit (fromIntegral r) exitKind >> unreachable
  #else
-@@ -204,7 +206,7 @@ foreign import ccall "shutdownHaskellAndSignal"
+@@ -236,7 +238,7 @@ foreign import ccall "shutdownHaskellAndSignal"
  
  exitInterrupted :: IO a
  exitInterrupted =
@@ -509,7 +509,7 @@ index 45032d5..7f1e83b 100644
 +
 +#endif
 diff --git a/boot/base/System/CPUTime.hsc b/boot/base/System/CPUTime.hsc
-index e09439c..2640ac9 100644
+index 8d2671c..30a2a50 100644
 --- a/boot/base/System/CPUTime.hsc
 +++ b/boot/base/System/CPUTime.hsc
 @@ -24,6 +24,14 @@ module System.CPUTime
@@ -533,7 +533,7 @@ index e09439c..2640ac9 100644
  clockTicks = fromIntegral clk_tck
 +##endif
 diff --git a/boot/base/System/Environment/ExecutablePath.hsc b/boot/base/System/Environment/ExecutablePath.hsc
-index 410e3ac..34f0a2a 100644
+index 8b6c7b6..406d508 100644
 --- a/boot/base/System/Environment/ExecutablePath.hsc
 +++ b/boot/base/System/Environment/ExecutablePath.hsc
 @@ -18,6 +18,13 @@
@@ -558,7 +558,7 @@ index 410e3ac..34f0a2a 100644
 +##endif
 \ No newline at end of file
 diff --git a/boot/base/System/Posix/Internals.hs b/boot/base/System/Posix/Internals.hs
-index c49e613..f52326a 100644
+index 66e9304..f710e08 100644
 --- a/boot/base/System/Posix/Internals.hs
 +++ b/boot/base/System/Posix/Internals.hs
 @@ -1,6 +1,9 @@
@@ -575,8 +575,8 @@ index c49e613..f52326a 100644
                          Nothing
  
  fdGetMode :: FD -> IO IOMode
--#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-+#if defined(mingw32_HOST_OS) || defined(__MINGW32__) || defined(ghcjs_HOST_OS)
+-#if defined(mingw32_HOST_OS)
++#if defined(mingw32_HOST_OS) || defined(ghcjs_HOST_OS)
  fdGetMode _ = do
      -- We don't have a way of finding out which flags are set on FDs
      -- on Windows, so make a handle that thinks that anything goes.
@@ -584,8 +584,8 @@ index c49e613..f52326a 100644
  -- Turning on non-blocking for a file descriptor
  
  setNonBlockingFD :: FD -> Bool -> IO ()
--#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
-+#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__) && !defined(ghcjs_HOST_OS)
+-#if !defined(mingw32_HOST_OS)
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
  setNonBlockingFD fd set = do
    flags <- throwErrnoIfMinus1Retry "setNonBlockingFD"
                   (c_fcntl_read fd const_f_getfl)
@@ -593,14 +593,44 @@ index c49e613..f52326a 100644
  -- -----------------------------------------------------------------------------
  -- Set close-on-exec for a file descriptor
  
--#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__)
-+#if !defined(mingw32_HOST_OS) && !defined(__MINGW32__) && !defined(ghcjs_HOST_OS)
+-#if !defined(mingw32_HOST_OS)
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
  setCloseOnExec :: FD -> IO ()
  setCloseOnExec fd = do
    throwErrnoIfMinus1_ "setCloseOnExec" $
-@@ -352,6 +355,139 @@ type CFilePath = CString
+@@ -352,6 +355,7 @@ type CFilePath = CString
  type CFilePath = CWString
  #endif
+ 
++#if !defined(ghcjs_HOST_OS)
+ foreign import ccall unsafe "HsBase.h __hscore_open"
+    c_open :: CFilePath -> CInt -> CMode -> IO CInt
+ 
+@@ -363,6 +367,7 @@ foreign import ccall unsafe "HsBase.h __hscore_fstat"
+ 
+ foreign import ccall unsafe "HsBase.h __hscore_lstat"
+    lstat :: CFilePath -> Ptr CStat -> IO CInt
++#endif
+ 
+ {- Note: Win32 POSIX functions
+ Functions that are not part of the POSIX standards were
+@@ -379,7 +384,7 @@ being done. See #11223
+ See https://msdn.microsoft.com/en-us/library/ms235384.aspx
+ for more.
+ -}
+-#if defined(mingw32_HOST_OS)
++#if defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+ foreign import ccall unsafe "io.h _lseeki64"
+    c_lseek :: CInt -> Int64 -> CInt -> IO Int64
+ 
+@@ -438,9 +443,144 @@ foreign import ccall unsafe "HsBase.h _getpid"
+ -- We use CAPI as on some OSs (eg. Linux) this is wrapped by a macro
+ -- which redirects to the 64-bit-off_t versions when large file
+ -- support is enabled.
++#if !defined(ghcjs_HOST_OS)
+ foreign import capi unsafe "unistd.h lseek"
+    c_lseek :: CInt -> COff -> CInt -> IO COff
++#endif
  
 +#ifdef ghcjs_HOST_OS
 +
@@ -738,17 +768,43 @@ index c49e613..f52326a 100644
  foreign import ccall unsafe "HsBase.h access"
     c_access :: CString -> CInt -> IO CInt
  
-@@ -551,6 +687,8 @@ foreign import capi  unsafe "stdio.h value SEEK_CUR" sEEK_CUR :: CInt
+@@ -494,13 +634,15 @@ foreign import ccall unsafe "HsBase.h getpid"
+    c_getpid :: IO CPid
+ #endif
+ 
++#if !defined(ghcjs_HOST_OS)
+ foreign import ccall unsafe "HsBase.h __hscore_stat"
+    c_stat :: CFilePath -> Ptr CStat -> IO CInt
+ 
+ foreign import ccall unsafe "HsBase.h __hscore_ftruncate"
+    c_ftruncate :: CInt -> COff -> IO CInt
++#endif
+ 
+-#if !defined(mingw32_HOST_OS)
++#if !defined(mingw32_HOST_OS) && !defined(ghcjs_HOST_OS)
+ foreign import capi unsafe "HsBase.h fcntl"
+    c_fcntl_read  :: CInt -> CInt -> IO CInt
+ 
+@@ -541,6 +683,7 @@ foreign import ccall unsafe "HsBase.h waitpid"
+    c_waitpid :: CPid -> Ptr CInt -> CInt -> IO CPid
+ #endif
+ 
++#if !defined(ghcjs_HOST_OS)
+ -- POSIX flags only:
+ foreign import ccall unsafe "HsBase.h __hscore_o_rdonly" o_RDONLY :: CInt
+ foreign import ccall unsafe "HsBase.h __hscore_o_wronly" o_WRONLY :: CInt
+@@ -617,6 +760,9 @@ foreign import ccall unsafe "__hscore_bufsiz"  dEFAULT_BUFFER_SIZE :: Int
+ foreign import capi  unsafe "stdio.h value SEEK_CUR" sEEK_CUR :: CInt
  foreign import capi  unsafe "stdio.h value SEEK_SET" sEEK_SET :: CInt
  foreign import capi  unsafe "stdio.h value SEEK_END" sEEK_END :: CInt
- 
 +#endif
 +
++#endif
+ 
  {-
  Note: CSsize
- 
 diff --git a/boot/base/System/Timeout.hs b/boot/base/System/Timeout.hs
-index 73b5910..c4c5cdf 100644
+index c20950f..31f3b6f 100644
 --- a/boot/base/System/Timeout.hs
 +++ b/boot/base/System/Timeout.hs
 @@ -18,7 +18,7 @@
@@ -760,7 +816,7 @@ index 73b5910..c4c5cdf 100644
  import Control.Monad
  import GHC.Event           (getSystemTimerManager,
                              registerTimeout, unregisterTimeout)
-@@ -79,7 +79,7 @@ timeout :: Int -> IO a -> IO (Maybe a)
+@@ -78,7 +78,7 @@ timeout :: Int -> IO a -> IO (Maybe a)
  timeout n f
      | n <  0    = fmap Just f
      | n == 0    = return Nothing
@@ -770,7 +826,7 @@ index 73b5910..c4c5cdf 100644
          -- In the threaded RTS, we use the Timer Manager to delay the
          -- (fairly expensive) 'forkIO' call until the timeout has expired.
 diff --git a/boot/base/base.cabal b/boot/base/base.cabal
-index 1172f2a..b949dc9 100644
+index b5fa910..ea769d2 100644
 --- a/boot/base/base.cabal
 +++ b/boot/base/base.cabal
 @@ -50,7 +50,7 @@ Flag integer-simple
@@ -780,18 +836,18 @@ index 1172f2a..b949dc9 100644
 -    Default: False
 +    Default: True
  
- Flag integer-gmp2
-     Description: Use integer-gmp2
-@@ -325,7 +325,7 @@ Library
-         Typeable.h
+ Library
+     default-language: Haskell2010
+@@ -334,7 +334,7 @@ Library
+         consUtils.h
  
      -- OS Specific
 -    if os(windows)
 +    if os(windows) && !impl(ghcjs)
-         extra-libraries: wsock32, user32, shell32
-         exposed-modules:
-             GHC.IO.Encoding.CodePage.API
-@@ -333,23 +333,24 @@ Library
+         -- Windows requires some extra libraries for linking because the RTS
+         -- is no longer re-exporting them.
+         -- msvcrt: standard C library. The RTS will automatically include this,
+@@ -350,23 +350,24 @@ Library
              GHC.Conc.Windows
              GHC.Windows
      else
@@ -831,5 +887,5 @@ index 1172f2a..b949dc9 100644
 +                GHC.Event.TimerManager
 +                GHC.Event.Unique
  
-     -- We need to set the package key to base (without a version number)
+     -- We need to set the unit id to base (without a version number)
      -- as it's magic.

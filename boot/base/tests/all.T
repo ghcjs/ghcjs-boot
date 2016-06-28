@@ -77,11 +77,14 @@ test('dynamic002',      normal, compile_and_run, [''])
 test('dynamic003',      extra_run_opts('+RTS -K32m -RTS'), compile_and_run, [''])
 test('dynamic004',      omit_ways(['normal', 'threaded1', 'ghci']), compile_and_run, [''])
 test('dynamic005',      normal, compile_and_run, [''])
-test('enum01',          when(fast(), skip), compile_and_run, ['-cpp'])
-test('enum02', 		when(fast(), skip), compile_and_run, ['-cpp'])
-test('enum03', 		when(fast(), skip), compile_and_run, ['-cpp'])
-test('enum04', 		normal, compile_and_run, [''])
-test('exceptionsrun001', 	normal, compile_and_run, [''])
+
+enum_setups = [when(fast(), skip), when(opsys('mingw32'), expect_broken(9399))]
+test('enum01',          enum_setups, compile_and_run, [''])
+test('enum02',          enum_setups, compile_and_run, [''])
+test('enum03',          enum_setups, compile_and_run, [''])
+test('enum04',          normal, compile_and_run, [''])
+
+test('exceptionsrun001',        normal, compile_and_run, [''])
 test('exceptionsrun002', 	normal, compile_and_run, [''])
 test('foldableArray',   normal, compile_and_run, [''])
 test('list001'	,	when(fast(), skip), compile_and_run, [''])
@@ -138,7 +141,8 @@ test('T7773', when(opsys('mingw32'), skip), compile_and_run, [''])
 test('CatPairs', normal, compile, [''])
 test('CatEntail', normal, compile, [''])
 
-test('T7653', normal, compile_and_run, [''])
+# When running with WAY=ghci, T7653 uses a lot of memory.
+test('T7653', high_memory_usage, compile_and_run, [''])
 test('T7787', normal, compile_and_run, [''])
 
 test('topHandler01', when(opsys('mingw32'), skip), compile_and_run, [''])
@@ -159,6 +163,10 @@ test('topHandler03',
       ignore_output,
       signal_exit_code(15)
      ], compile_and_run, [''])
+test('topHandler04',
+     [when(opsys('mingw32'), skip),
+      exit_code(1)
+     ], compile_and_run, [''])
 
 
 test('T8766',
@@ -178,5 +186,30 @@ test('T9395', normal, compile_and_run, [''])
 test('T9532', omit_ways(['debug']), compile_and_run, [''])
 test('T9586', normal, compile, [''])
 test('T9681', normal, compile_fail, [''])
-test('T8089', normal, compile_and_run, [''])
+# Test no runtime crash. Report success and kill with `timeout` (exit code 99)
+# after a few seconds. From https://phabricator.haskell.org/D1075:
+#
+#   "I used a fairly conservative timeout. IF there is a regression it will
+#   crash as soon as the timeout's C call is done. The tricky bit is
+#   guesstimating how much time it needs to run to guarantee it's reached the
+#   C call.
+#   Probably something like 1s is already enough, but I don't know enough to
+#   make an educated guess how long it needs to be guaranteed to reach the C
+#   call."
+test('T8089', [exit_code(99),
+               run_timeout_multiplier(0.01),
+               when(opsys('mingw32'),
+                    expect_broken_for(7325, ['normal', 'hpc', 'optasm'])),
+               ],
+              compile_and_run, [''])
 test('T9826',normal, compile_and_run,[''])
+test('T9848',
+        [ stats_num_field('bytes allocated',
+                          [ (wordsize(64), 51840, 20)
+                          , (wordsize(32), 47348, 20) ])
+        , only_ways(['normal'])],
+      compile_and_run,
+      ['-O'])
+test('T10149', normal, compile_and_run, [''])
+test('T11334a', normal, compile_and_run, [''])
+test('T11555', normal, compile_and_run, [''])

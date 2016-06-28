@@ -123,7 +123,7 @@ boundedEnumFromThen n1 n2
 {-# NOINLINE toEnumError #-}
 toEnumError :: (Show a) => String -> Int -> (a,a) -> b
 toEnumError inst_ty i bnds =
-    error $ "Enum.toEnum{" ++ inst_ty ++ "}: tag (" ++
+    errorWithoutStackTrace $ "Enum.toEnum{" ++ inst_ty ++ "}: tag (" ++
             show i ++
             ") is outside of bounds " ++
             show bnds
@@ -131,7 +131,7 @@ toEnumError inst_ty i bnds =
 {-# NOINLINE fromEnumError #-}
 fromEnumError :: (Show a) => String -> a -> b
 fromEnumError inst_ty x =
-    error $ "Enum.fromEnum{" ++ inst_ty ++ "}: value (" ++
+    errorWithoutStackTrace $ "Enum.fromEnum{" ++ inst_ty ++ "}: value (" ++
             show x ++
             ") is outside of Int's bounds " ++
             show (minBound::Int, maxBound::Int)
@@ -139,12 +139,12 @@ fromEnumError inst_ty x =
 {-# NOINLINE succError #-}
 succError :: String -> a
 succError inst_ty =
-    error $ "Enum.succ{" ++ inst_ty ++ "}: tried to take `succ' of maxBound"
+    errorWithoutStackTrace $ "Enum.succ{" ++ inst_ty ++ "}: tried to take `succ' of maxBound"
 
 {-# NOINLINE predError #-}
 predError :: String -> a
 predError inst_ty =
-    error $ "Enum.pred{" ++ inst_ty ++ "}: tried to take `pred' of minBound"
+    errorWithoutStackTrace $ "Enum.pred{" ++ inst_ty ++ "}: tried to take `pred' of minBound"
 
 ------------------------------------------------------------------------
 -- Tuples
@@ -155,11 +155,11 @@ instance Bounded () where
     maxBound = ()
 
 instance Enum () where
-    succ _      = error "Prelude.Enum.().succ: bad argument"
-    pred _      = error "Prelude.Enum.().pred: bad argument"
+    succ _      = errorWithoutStackTrace "Prelude.Enum.().succ: bad argument"
+    pred _      = errorWithoutStackTrace "Prelude.Enum.().pred: bad argument"
 
     toEnum x | x == 0    = ()
-             | otherwise = error "Prelude.Enum.().toEnum: bad argument"
+             | otherwise = errorWithoutStackTrace "Prelude.Enum.().toEnum: bad argument"
 
     fromEnum () = 0
     enumFrom ()         = [()]
@@ -266,14 +266,14 @@ instance Bounded Bool where
 
 instance Enum Bool where
   succ False = True
-  succ True  = error "Prelude.Enum.Bool.succ: bad argument"
+  succ True  = errorWithoutStackTrace "Prelude.Enum.Bool.succ: bad argument"
 
   pred True  = False
-  pred False  = error "Prelude.Enum.Bool.pred: bad argument"
+  pred False  = errorWithoutStackTrace "Prelude.Enum.Bool.pred: bad argument"
 
   toEnum n | n == 0    = False
            | n == 1    = True
-           | otherwise = error "Prelude.Enum.Bool.toEnum: bad argument"
+           | otherwise = errorWithoutStackTrace "Prelude.Enum.Bool.toEnum: bad argument"
 
   fromEnum False = 0
   fromEnum True  = 1
@@ -293,16 +293,16 @@ instance Bounded Ordering where
 instance Enum Ordering where
   succ LT = EQ
   succ EQ = GT
-  succ GT = error "Prelude.Enum.Ordering.succ: bad argument"
+  succ GT = errorWithoutStackTrace "Prelude.Enum.Ordering.succ: bad argument"
 
   pred GT = EQ
   pred EQ = LT
-  pred LT = error "Prelude.Enum.Ordering.pred: bad argument"
+  pred LT = errorWithoutStackTrace "Prelude.Enum.Ordering.pred: bad argument"
 
   toEnum n | n == 0 = LT
            | n == 1 = EQ
            | n == 2 = GT
-  toEnum _ = error "Prelude.Enum.Ordering.toEnum: bad argument"
+  toEnum _ = errorWithoutStackTrace "Prelude.Enum.Ordering.toEnum: bad argument"
 
   fromEnum LT = 0
   fromEnum EQ = 1
@@ -323,10 +323,10 @@ instance  Bounded Char  where
 instance  Enum Char  where
     succ (C# c#)
        | isTrue# (ord# c# /=# 0x10FFFF#) = C# (chr# (ord# c# +# 1#))
-       | otherwise             = error ("Prelude.Enum.Char.succ: bad argument")
+       | otherwise             = errorWithoutStackTrace ("Prelude.Enum.Char.succ: bad argument")
     pred (C# c#)
        | isTrue# (ord# c# /=# 0#) = C# (chr# (ord# c# -# 1#))
-       | otherwise                = error ("Prelude.Enum.Char.pred: bad argument")
+       | otherwise                = errorWithoutStackTrace ("Prelude.Enum.Char.pred: bad argument")
 
     toEnum   = chr
     fromEnum = ord
@@ -344,6 +344,7 @@ instance  Enum Char  where
     {-# INLINE enumFromThenTo #-}
     enumFromThenTo (C# x1) (C# x2) (C# y) = efdtChar (ord# x1) (ord# x2) (ord# y)
 
+-- See Note [How the Enum rules work]
 {-# RULES
 "eftChar"       [~1] forall x y.        eftChar x y       = build (\c n -> eftCharFB c n x y)
 "efdChar"       [~1] forall x1 x2.      efdChar x1 x2     = build (\ c n -> efdCharFB c n x1 x2)
@@ -448,10 +449,10 @@ instance  Bounded Int where
 
 instance  Enum Int  where
     succ x
-       | x == maxBound  = error "Prelude.Enum.succ{Int}: tried to take `succ' of maxBound"
+       | x == maxBound  = errorWithoutStackTrace "Prelude.Enum.succ{Int}: tried to take `succ' of maxBound"
        | otherwise      = x + 1
     pred x
-       | x == minBound  = error "Prelude.Enum.pred{Int}: tried to take `pred' of minBound"
+       | x == minBound  = errorWithoutStackTrace "Prelude.Enum.pred{Int}: tried to take `pred' of minBound"
        | otherwise      = x - 1
 
     toEnum   x = x
@@ -482,6 +483,13 @@ instance  Enum Int  where
 "eftIntList"    [1] eftIntFB  (:) [] = eftInt
  #-}
 
+{- Note [How the Enum rules work]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Phase 2: eftInt ---> build . eftIntFB
+* Phase 1: inline build; eftIntFB (:) --> eftInt
+* Phase 0: optionally inline eftInt
+-}
+
 {-# NOINLINE [1] eftInt #-}
 eftInt :: Int# -> Int# -> [Int]
 -- [x1..x2]
@@ -510,6 +518,7 @@ eftIntFB c n x0 y | isTrue# (x0 ># y) = n
 -- efdInt and efdtInt deal with [a,b..] and [a,b..c].
 -- The code is more complicated because of worries about Int overflow.
 
+-- See Note [How the Enum rules work]
 {-# RULES
 "efdtInt"       [~1] forall x1 x2 y.
                      efdtInt x1 x2 y = build (\ c n -> efdtIntFB c n x1 x2 y)
@@ -667,16 +676,36 @@ instance  Enum Integer  where
     enumFromTo x lim       = enumDeltaToInteger x 1     lim
     enumFromThenTo x y lim = enumDeltaToInteger x (y-x) lim
 
+-- See Note [How the Enum rules work]
 {-# RULES
-"enumDeltaInteger"      [~1] forall x y.  enumDeltaInteger x y     = build (\c _ -> enumDeltaIntegerFB c x y)
-"efdtInteger"           [~1] forall x y l.enumDeltaToInteger x y l = build (\c n -> enumDeltaToIntegerFB c n x y l)
-"enumDeltaInteger"      [1] enumDeltaIntegerFB   (:)    = enumDeltaInteger
-"enumDeltaToInteger"    [1] enumDeltaToIntegerFB (:) [] = enumDeltaToInteger
+"enumDeltaInteger"      [~1] forall x y.   enumDeltaInteger x y         = build (\c _ -> enumDeltaIntegerFB c x y)
+"efdtInteger"           [~1] forall x d l. enumDeltaToInteger x d l     = build (\c n -> enumDeltaToIntegerFB  c n x d l)
+"efdtInteger1"          [~1] forall x l.   enumDeltaToInteger x 1 l     = build (\c n -> enumDeltaToInteger1FB c n x l)
+
+"enumDeltaToInteger1FB" [1] forall c n x.  enumDeltaToIntegerFB c n x 1 = enumDeltaToInteger1FB c n x
+
+"enumDeltaInteger"      [1] enumDeltaIntegerFB    (:)     = enumDeltaInteger
+"enumDeltaToInteger"    [1] enumDeltaToIntegerFB  (:) []  = enumDeltaToInteger
+"enumDeltaToInteger1"   [1] enumDeltaToInteger1FB (:) []  = enumDeltaToInteger1
  #-}
+
+{- Note [Enum Integer rules for literal 1]
+The "1" rules above specialise for the common case where delta = 1,
+so that we can avoid the delta>=0 test in enumDeltaToIntegerFB.
+Then enumDeltaToInteger1FB is nice and small and can be inlined,
+which would allow the constructor to be inlined and good things to happen.
+
+We match on the literal "1" both in phase 2 (rule "efdtInteger1") and
+phase 1 (rule "enumDeltaToInteger1FB"), just for belt and braces
+
+We do not do it for Int this way because hand-tuned code already exists, and
+the special case varies more from the general case, due to the issue of overflows.
+-}
 
 {-# NOINLINE [0] enumDeltaIntegerFB #-}
 enumDeltaIntegerFB :: (Integer -> b -> b) -> Integer -> Integer -> b
-enumDeltaIntegerFB c x d = x `seq` (x `c` enumDeltaIntegerFB c (x+d) d)
+enumDeltaIntegerFB c x0 d = go x0
+  where go x = x `seq` (x `c` go (x+d))
 
 {-# NOINLINE [1] enumDeltaInteger #-}
 enumDeltaInteger :: Integer -> Integer -> [Integer]
@@ -693,20 +722,28 @@ enumDeltaToIntegerFB c n x delta lim
   | delta >= 0 = up_fb c n x delta lim
   | otherwise  = dn_fb c n x delta lim
 
-{-# RULES
-"enumDeltaToInteger1"   [0] forall c n x . enumDeltaToIntegerFB c n x 1 = up_fb c n x 1
- #-}
--- This rule ensures that in the common case (delta = 1), we do not do the check here,
--- and also that we have the chance to inline up_fb, which would allow the constructor to be
--- inlined and good things to happen.
--- We do not do it for Int this way because hand-tuned code already exists, and
--- the special case varies more from the general case, due to the issue of overflows.
+{-# NOINLINE [0] enumDeltaToInteger1FB #-}
+-- Don't inline this until RULE "enumDeltaToInteger" has had a chance to fire
+enumDeltaToInteger1FB :: (Integer -> a -> a) -> a
+                      -> Integer -> Integer -> a
+enumDeltaToInteger1FB c n x0 lim = go (x0 :: Integer)
+                      where
+                        go x | x > lim   = n
+                             | otherwise = x `c` go (x+1)
 
 {-# NOINLINE [1] enumDeltaToInteger #-}
 enumDeltaToInteger :: Integer -> Integer -> Integer -> [Integer]
 enumDeltaToInteger x delta lim
   | delta >= 0 = up_list x delta lim
   | otherwise  = dn_list x delta lim
+
+{-# NOINLINE [1] enumDeltaToInteger1 #-}
+enumDeltaToInteger1 :: Integer -> Integer -> [Integer]
+-- Special case for Delta = 1
+enumDeltaToInteger1 x0 lim = go (x0 :: Integer)
+                      where
+                        go x | x > lim   = []
+                             | otherwise = x : go (x+1)
 
 up_fb :: (Integer -> a -> a) -> a -> Integer -> Integer -> Integer -> a
 up_fb c n x0 delta lim = go (x0 :: Integer)
