@@ -103,3 +103,6 @@
 [submodule "boot/tagged"]
 	path = boot/tagged
 	url = https://github.com/ekmett/tagged.git
+[submodule "ghcjs-node"]
+	path = ghcjs-node
+	url = https://github.com/ghcjs/ghcjs-node.git
