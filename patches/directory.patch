@@ -66,7 +66,7 @@ index 4e41e14..6e2b6ef 100644
 +foreign import javascript interruptible "h$directory_createDirectory($1,$c);"               js_createDirectory               :: JSString -> IO Int
 +foreign import javascript interruptible "h$directory_removeDirectory($1,$c);"               js_removeDirectory               :: JSString -> IO Int
 +foreign import javascript interruptible "h$directory_removeFile($1,$c);"                    js_removeFile                    :: JSString -> IO Int
-+foreign import javascript interruptible "h$directory_renameDirectory($1,$c);"               js_renameDirectory               :: JSString -> JSString -> IO Int
++foreign import javascript interruptible "h$directory_renameDirectory($1,$2,$c);"            js_renameDirectory               :: JSString -> JSString -> IO Int
 +foreign import javascript interruptible "h$directory_renameFile($1,$2,$c);"                 js_renameFile                    :: JSString -> JSString -> IO Int
 +foreign import javascript unsafe "h$directory_canonicalizePath($1)"              js_canonicalizePath              :: JSString -> IO JSString
 +foreign import javascript interruptible "h$directory_findExecutables($1,$c);"               js_findExecutables               :: JSString -> IO JSArray
