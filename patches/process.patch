@@ -68,7 +68,7 @@ index 0c55ff1..c09a446 100644
    cmdspec      :: CmdSpec,                 -- ^ Executable & arguments, or shell command
    cwd          :: Maybe FilePath,          -- ^ Optional path to the working directory for the new process
 diff --git a/System/Process/Internals.hs b/System/Process/Internals.hs
-index c4d5be3..ec2b52f 100644
+index c4d5be3..934133b 100644
 --- a/System/Process/Internals.hs
 +++ b/System/Process/Internals.hs
 @@ -3,6 +3,10 @@
@@ -184,7 +184,7 @@ index c4d5be3..ec2b52f 100644
  -- ----------------------------------------------------------------------------
  
  -- | This function is almost identical to
-@@ -75,8 +158,68 @@ createProcess_
+@@ -75,8 +158,69 @@ createProcess_
    :: String                     -- ^ function name (for error messages)
    -> CreateProcess
    -> IO (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
@@ -206,9 +206,10 @@ index c4d5be3..ec2b52f 100644
 +     fderr <- mbFd fun fd_stderr mb_stderr
 +     env'  <- maybe (return jsNull) (toJSStrings . concatMap (\(x,y) -> [x,y])) mb_env
 +     let cwd' = maybe jsNull toJSString mb_cwd
-+     (c1,c2) <- case cmdsp of
-+       ShellCommand xs    -> return (toJSString xs, jsNull)
-+       RawCommand xs args -> (,) (toJSString xs) <$> toJSStrings args
++     let c1 = toJSString cmd
++     c2 <- case args of
++               [] -> return jsNull
++               _  -> toJSStrings args
 +
 +     r <- js_runInteractiveProcess c1 c2 cwd' env' fdin fdout fderr
 +         mb_close_fds mb_create_group mb_delegate_ctlc
@@ -253,7 +254,7 @@ index c4d5be3..ec2b52f 100644
  
  -- ------------------------------------------------------------------------
  -- Escaping commands for shells
-@@ -138,6 +281,46 @@ translate = translateInternal
+@@ -138,6 +282,46 @@ translate = translateInternal
  {-# INLINE translate #-}
  
  
