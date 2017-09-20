@@ -23,11 +23,10 @@ index 377efb3..4fcc999 100644
      GHC.Integer
      GHC.Integer.Logarithms
 diff --git a/boot/integer-gmp/jsbits/ghcjsbn.js b/boot/integer-gmp/jsbits/ghcjsbn.js
-new file mode 100644
-index 0000000..42ba583
---- /dev/null
+index e69de29..de47ceb 100644
+--- a/boot/integer-gmp/jsbits/ghcjsbn.js
 +++ b/boot/integer-gmp/jsbits/ghcjsbn.js
-@@ -0,0 +1,2013 @@
+@@ -0,0 +1,2055 @@
 +/*
 +   GHCJS bignum library for integer-gmp package
 +
@@ -1260,14 +1259,56 @@ index 0000000..42ba583
 +
 +// BigNat -> String (decimal)
 +function h$ghcjsbn_show(b) {
-+  throw new Error("show not implemented");
-+  // digits =
-+}
++  return h$ghcjsbn_showBase(b, 10);
++
 +
 +// BigNat -> String
 +function h$ghcjsbn_showHex(b) {
-+  throw new Error("showHex not implemented");
++  return h$ghcjsbn_showBase(b, 16);
 +}
++
++function h$ghcjsbn_readBigNat(str) {
++  var m = /^\s*(\d+)\s*/.exec(str);
++  if(!m) return [0];
++  return h$ghcjsbn_readBigNatDigits(m[1]);
++}
++
++// the string may only contain digits
++function h$ghcjsbn_readBigNatDigits(digits) {
++  if(digits.length > 9) {
++    var h  = (digits.length / 2)|0,
++        l  = digits.substring(0, h),
++        r  = digits.substring(h),
++        m  = h$ghcjsbn_pow_ww(10, r.length),
++        bl = h$ghcjsbn_readBigNatDigits(l),
++        br = h$ghcjsbn_readBigNatDigits(r);
++    return h$ghcjsbn_add_bb(h$ghcjsbn_mul_bb(bl, m), br);
++  } else {
++    return h$ghcjsbn_mkBigNat_w(parseInt(digits));
++  }
++}
++
++function h$ghcjsbn_readInteger(str) {
++  var m = /^\s*-?([0-9]+)\s*/.exec(str);
++  if(!m) return null;
++  var digits = m[1];
++  var isNegative = str.indexOf('-') !== -1;
++  if(digits.length <= 9) {
++    if(isNegative) {
++      return MK_INTEGER_S(-parseInt(digits, 10));
++    } else {
++      return MK_INTEGER_S(parseInt(digits, 10));
++    }
++  } else {
++    var bn = h$ghcjsbn_readBigNat(digits);
++    if(isNegative) {
++      return MK_INTEGER_Jn(bn);
++    } else {
++      return MK_INTEGER_Jp(bn);
++    }
++  }
++}
++
 +
 +// s = b[l - 1];
 +
