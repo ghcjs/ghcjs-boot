@@ -112,3 +112,18 @@
 [submodule "boot/time-locale-compat"]
 	path = boot/time-locale-compat
 	url = https://github.com/khibino/haskell-time-locale-compat.git
+[submodule "boot/base-compat"]
+	path = boot/base-compat
+	url = https://github.com/haskell-compat/base-compat.git
+[submodule "boot/bytestring-builder"]
+	path = boot/bytestring-builder
+	url = https://github.com/lpsmith/bytestring-builder.git
+[submodule "boot/nats"]
+	path = boot/nats
+	url = https://github.com/ekmett/nats.git
+[submodule "boot/semigroups"]
+	path = boot/semigroups
+	url = https://github.com/ekmett/semigroups.git
+[submodule "boot/transformers-compat"]
+	path = boot/transformers-compat
+	url = https://github.com/ekmett/transformers-compat.git
