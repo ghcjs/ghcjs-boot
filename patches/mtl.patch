@@ -1,0 +1,13 @@
+diff --git a/mtl.cabal b/mtl.cabal
+index dad024c..628d284 100644
+--- a/mtl.cabal
++++ b/mtl.cabal
+@@ -46,7 +46,7 @@ Library
+     Control.Monad.Writer.Class
+     Control.Monad.Writer.Lazy
+     Control.Monad.Writer.Strict
+-  build-depends: base < 6, transformers == 0.4.*
++  build-depends: base < 6, transformers >= 0.4 && < 0.6
+   extensions:
+     MultiParamTypeClasses
+     FunctionalDependencies
