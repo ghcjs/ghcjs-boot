@@ -23,8 +23,9 @@ index 377efb3..4fcc999 100644
      GHC.Integer
      GHC.Integer.Logarithms
 diff --git a/boot/integer-gmp/jsbits/ghcjsbn.js b/boot/integer-gmp/jsbits/ghcjsbn.js
-index e69de29..de47ceb 100644
---- a/boot/integer-gmp/jsbits/ghcjsbn.js
+new file mode 100644
+index 0000000..de47ceb
+--- /dev/null
 +++ b/boot/integer-gmp/jsbits/ghcjsbn.js
 @@ -0,0 +1,2055 @@
 +/*
