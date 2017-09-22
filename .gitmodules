@@ -109,3 +109,6 @@
 [submodule "boot/uuid"]
 	path = boot/uuid
 	url = https://github.com/hvr/uuid.git
+[submodule "boot/time-locale-compat"]
+	path = boot/time-locale-compat
+	url = https://github.com/khibino/haskell-time-locale-compat.git
