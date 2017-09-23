@@ -127,3 +127,6 @@
 [submodule "boot/transformers-compat"]
 	path = boot/transformers-compat
 	url = https://github.com/ekmett/transformers-compat.git
+[submodule "boot/integer-logarithms"]
+	path = boot/integer-logarithms
+	url = https://github.com/Bodigrim/integer-logarithms.git
