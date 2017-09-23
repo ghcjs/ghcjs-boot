@@ -130,3 +130,6 @@
 [submodule "boot/integer-logarithms"]
 	path = boot/integer-logarithms
 	url = https://github.com/Bodigrim/integer-logarithms.git
+[submodule "boot/th-abstraction"]
+	path = boot/th-abstraction
+	url = https://github.com/glguy/th-abstraction.git
