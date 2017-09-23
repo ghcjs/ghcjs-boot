@@ -1261,7 +1261,7 @@ index 0000000..de47ceb
 +// BigNat -> String (decimal)
 +function h$ghcjsbn_show(b) {
 +  return h$ghcjsbn_showBase(b, 10);
-+
++}
 +
 +// BigNat -> String
 +function h$ghcjsbn_showHex(b) {
